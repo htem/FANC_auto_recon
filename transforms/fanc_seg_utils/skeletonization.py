@@ -199,8 +199,12 @@ def kimimaro_skeletons(segment_ids,
             n = [name + '_' + str(seg) for seg in segment_ids]
             names = n
     else:
-        names = [str(segment_ids)]
-        segment_ids = [segment_ids]
+        if name is None:
+            names = segment_ids
+        else:
+            names = name
+        
+    segment_ids = [segment_ids]
       
     
         
@@ -219,7 +223,10 @@ def kimimaro_skeletons(segment_ids,
         skels[i].metadata['skeleton_type'] = 'kimimaro'
         skels[i].metadata['segment_ids'] = segment_ids[i]
         skels[i].metadata['annotations'] = annotations
-        skels[i].metadata['name']= names[i]
+        if isinstance(names,list):
+            skels[i].metadata['name']= names[i]
+        else:
+            skels[i].metadata['name'] = names
 
     
     return(skels)
