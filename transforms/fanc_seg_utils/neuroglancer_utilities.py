@@ -39,7 +39,7 @@ def fanc4_to_3(points,scale=2):
         points_dict = {'x': list(points[:,0]),'y':list(points[:,1]),'z':list(points[:,2])}
         r = requests.post(full_url, json = points_dict)
     else:
-        full_url = base + 'z/{}/'.format(str(int(points[2]))) + 'x/{}/'.format(str(int(points[0]))) + 'y/{}/'.format(str(int(points[1])))
+        full_url = base + '/' + 'z/{}/'.format(str(int(points[2]))) + 'x/{}/'.format(str(int(points[0]))) + 'y/{}/'.format(str(int(points[1])))
         r = requests.get(full_url)
     
     
