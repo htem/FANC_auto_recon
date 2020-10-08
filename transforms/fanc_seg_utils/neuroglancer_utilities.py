@@ -31,9 +31,7 @@ def fanc4_to_3(points,scale=2):
     Returns: a dictionary of transformed x/y/z values and the dx/dy/dz values'''
              
     base = "https://spine.janelia.org/app/transform-service/dataset/fanc_v4_to_v3/s/{}".format(scale)
-    
-    points = np.round((points/np.array([4.3,4.3,45])))
-                      
+                          
     if len(np.shape(points)) > 1:
         full_url = base + '/values_array'
         points_dict = {'x': list(points[:,0]),'y':list(points[:,1]),'z':list(points[:,2])}
