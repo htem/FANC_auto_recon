@@ -5,6 +5,7 @@ from meshparty import skeletonize
 from meshparty import skeleton as mps
 from meshparty import trimesh_io
 import skeletor as sk
+import kimimaro
 import navis
 import pymaid
 from cloudvolume import CloudVolume
@@ -24,7 +25,10 @@ def get_skeleton(seg_id,
                  annotations = None, 
                  name = None, 
                  output = 'pymaid',
+                 merge = False,
                  **kwargs):
+    
+    ## TODO: Add merge function to other skeletonization formats using pymaid stitch. Right now, it only works with kimimaro and uses    kimimaro.join_close_components
     ''' Downloads a skeleton generated with kimimaro,meshparty, or skeletor based on its segment ID. 
     Parameters
     ----------
@@ -55,8 +59,9 @@ def get_skeleton(seg_id,
         format_kwargs['radius'] = kwargs['radius']
         
         
-    if 'kimimaro' in method:
-        skeletons = get_kimimaro_skeleton(seg_id,cv_path=cv_path,annotations = annotations, name = name, **format_kwargs )
+    if 'kimimaro' in method: 
+        skeletons = get_kimimaro_skeleton(seg_id,cv_path=cv_path,annotations = annotations, name = name, merge=merge, **format_kwargs )
+        
        
           
     elif 'meshparty' in method:
@@ -106,7 +111,7 @@ def get_skeleton(seg_id,
     nlist = []
     for i in skeletons:
         if transform is True:
-            new_xyz = neuroglancer_utilities.fanc4_to_3(np.array(i[['x','y','z']]),2)
+            new_xyz = neuroglancer_utilities.fanc4_to_3(np.array(i[['x','y','z']]/np.array([4.3,4.3,45])),2)
             i['x'] = np.array(new_xyz['x']) * 4.3
             i['y'] = np.array(new_xyz['y']) * 4.3
             i['z'] = np.array(new_xyz['z']) * 45
@@ -173,7 +178,8 @@ def kimimaro_skeletons(segment_ids,
                        cv_path,
                        cache_path=None,
                        annotations=None,
-                       name=None):
+                       name=None,
+                       merge = False):
     
     ''' Downloads a skeleton generated with kimimaro based on its segment ID.
     Parameters
@@ -199,13 +205,14 @@ def kimimaro_skeletons(segment_ids,
             n = [name + '_' + str(seg) for seg in segment_ids]
             names = n
     else:
+        
+        segment_ids = [segment_ids]
+        
         if name is None:
             names = segment_ids
         else:
             names = name
-        
-    segment_ids = [segment_ids]
-      
+     
     
         
     segmentation= CloudVolume(cv_path,
@@ -214,14 +221,26 @@ def kimimaro_skeletons(segment_ids,
                               )
 
     skels = segmentation.skeleton.get(segment_ids)
+    
+    if merge is True:
+            skels =  kimimaro.join_close_components(skels)
+            
+  
+    
     if isinstance(skels,list) is not True:
         skels = [skels]
         
     for i in range(len(skels)):
+        
+        skels[i] = kimimaro.join_close_components(skels[i])
+        
         skels[i].metadata = {}
         skels[i].metadata['mesh_type'] = 'cv_mesh'
         skels[i].metadata['skeleton_type'] = 'kimimaro'
-        skels[i].metadata['segment_ids'] = segment_ids[i]
+        if merge is True:
+            skels[i].metadata['segment_ids'] = segment_ids
+        else:
+            skels[i].metadata['segment_ids'] = segment_ids[i]
         skels[i].metadata['annotations'] = annotations
         if isinstance(names,list):
             skels[i].metadata['name']= names[i]
@@ -237,9 +256,10 @@ def get_kimimaro_skeleton(segment_ids,
                           cache_path=None,
                           annotations=None,
                           name=None,
+                          merge = False,
                           **format_kwargs):
 
-    skels = kimimaro_skeletons(segment_ids,cv_path,cache_path=cache_path,annotations=annotations,name=name)
+    skels = kimimaro_skeletons(segment_ids,cv_path,cache_path=cache_path,annotations=annotations,name=name,merge=merge)
     
 
     
@@ -253,8 +273,6 @@ def get_kimimaro_skeleton(segment_ids,
     else:
         radius = True
     
-    if isinstance(segment_ids,list) is not True:
-        segment_ids = [segment_ids]
     
     swc_list = []
     for i in skels:
@@ -346,7 +364,7 @@ def meshparty_skeletonize(mesh,
                    merge_collapse_soma=True,
                    **format_kwargs):
     
-    ''' Runs skeletonization using meshparty algorithm. Only works when large components are merged first. If using with a config file, the config file will be updated with any parameters used.  This exists so that (1) if you do a parameter search for skeletonization in one segmentation, you don't need to do it again later and (2) if you are using skeletons to build biophysical models, keeping track of exactly how you built the model could be important. 
+    ''' Runs skeletonization using meshparty algorithm. Only works when large components are merged first. 
     
     Parameters
     ----------
