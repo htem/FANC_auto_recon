@@ -68,10 +68,16 @@ def upload_to_CATMAID(neuron,
     
     target_project = pymaid.utils._eval_remote_instance(target_project)
     
-    neuron.neuron_name = neuron.neuron_name[0:str.find(neuron.neuron_name,'_pre_catmaid')]
+    
+    if '_pre_catmaid' in neuron.neuron_name:
+        neuron.neuron_name = neuron.neuron_name[0:str.find(neuron.neuron_name,'_pre_catmaid')]
+        
+        
     neuron.nodes[['x','y','z']] = neuron.nodes[['x','y','z']] / NG_voxel_resolution
     neuron.nodes[['x','y','z']] = neuron.nodes[['x','y','z']] * CM_voxel_resolution
-    if annotations is not None:
-        pymaid.add_annotations(neuron,annotations)
     
-    pymaid.upload.upload_neuron(neuron,source_type='skeleton',remote_instance=target_project,import_annotations=True)
+    upload_info = pymaid.upload.upload_neuron(neuron,source_type='skeleton',remote_instance=target_project,import_annotations=True)
+    if annotations is not None:
+        pymaid.add_annotations(upload_info['skeleton_id'],annotations)
+        
+    return(upload_info)
