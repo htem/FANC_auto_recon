@@ -1,3 +1,7 @@
 numpy
 matplotlib
 cloud-volume
+pymaid
+skeletor
+meshparty
+navis
