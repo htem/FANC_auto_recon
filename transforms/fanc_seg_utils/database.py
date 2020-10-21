@@ -148,7 +148,7 @@ class neuron_database:
     
     def save_database(self):
         if not hasattr(self,'neurons'):
-            self.get_dabase()
+            self.get_database()
 
         df = self.neurons
         for i in range(len(df.Annotations)):
@@ -436,6 +436,7 @@ class neuron_database:
             ##TODO: Add params for adjusting skeletonization 
             ##TODO: Add inputs other than segment_id
             ##TODO: Make a flexible way to update catmaid skeletons. Implement Philip's code here probably. 
+            ##TODO: Change order so that multiple skeleton uploads happen one at a time rather than download all skeletons, then upload all skeletons. Right now the check for a skeleton existing in a catmaid instance is after it is downloaded. Need to fix this. 
 
             '''
         if target_instance is None:
