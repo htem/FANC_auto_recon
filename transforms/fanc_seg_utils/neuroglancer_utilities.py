@@ -4,20 +4,75 @@ from cloudvolume import CloudVolume
 import numpy as np
 
 
+def get_point(vol, pt):
+    """Download MIP0 point from a CloudVolume
+    
+    Args:
+        vol (CloudVolume): CloudVolume at any MIP
+        pt (np.array): 3-element point defined at MIP0
+        
+    Returns:
+        CloudVolume element at location
+    """
+    mip = vol.mip
+    res = np.array([2**mip, 2**mip, 1])
+    print(res)
+    return vol[list(pt // res)] 
 
 
-def seg_from_pt(pt):
+def to_vec(v):
+    """Format CloudVolume element as vector
     
-    seg_mip = np.array([17.2,17.2,45])
-    vol = CloudVolume('https://storage.googleapis.com/zetta_lee_fly_vnc_001_segmentation/vnc1_full_v3align_2/realigned_v1/seg/full_run_v1',
-                      parallel=True,
-                      progress=True,
-                      mip=seg_mip,
-                      cache=True)
+    Args:
+        v (np.array): 4D element as np.int16
+        
+    Returns:
+        np.array, 3D vector as np.float
+    """
+    return np.array([np.float32(v[0,0,0,1]) / 4, np.float32(v[0,0,0,0]) / 4, 0])
+
+
+def get_vec(vol, pt):
+    """Download vector at location defined at MIP0 from CloudVolume at any MIP
     
-    segpt = pt // np.array([4, 4, 1])
-    img = vol[segpt[0],segpt[1],segpt[2]]
-    return(int(img))
+    Args:
+        vol (CloudVolume): CloudVolume of field as int16
+        pt (np.array): 3-element point
+        
+    Returns:
+        np.array, 3D vector at MIP0
+    """
+    return to_vec(get_point(vol, pt))   
+
+
+
+def seg_from_pt(pt,vol_url=None,seg_mip=None):
+    ''' Get segment ID at a point. Default volume is the static segmentation layer for now. 
+    Args:
+        pt (np.array): 3-element point at MIP0
+        vol_url (str): cloud volume url
+    Returns:
+        int, segment_ID at specified point '''
+    
+    if vol_url is None:
+        seg_mip = np.array([17.2,17.2,45])
+        vol = CloudVolume('https://storage.googleapis.com/zetta_lee_fly_vnc_001_segmentation/vnc1_full_v3align_2/realigned_v1/seg/full_run_v1',
+                          parallel=True,
+                          progress=True,
+                          mip=seg_mip,
+                          cache=True)
+    else:
+        vol = CloudVolume(vol_url,
+                          parallel=True,
+                          progress=True,
+                          mip=seg_mip,
+                          cache=True)
+        
+        
+    res = seg_mip / np.array([4.3,4.3,45])
+    segpt = pt // res
+    seg_id = vol[segpt[0],segpt[1],segpt[2]]
+    return(int(seg_id))
 
 
 
@@ -31,7 +86,7 @@ def fanc4_to_3(points,scale=2):
     Returns: a dictionary of transformed x/y/z values and the dx/dy/dz values'''
              
     base = "https://spine.janelia.org/app/transform-service/dataset/fanc_v4_to_v3/s/{}".format(scale)
-                          
+                      
     if len(np.shape(points)) > 1:
         full_url = base + '/values_array'
         points_dict = {'x': list(points[:,0]),'y':list(points[:,1]),'z':list(points[:,2])}
@@ -39,7 +94,6 @@ def fanc4_to_3(points,scale=2):
     else:
         full_url = base + '/' + 'z/{}/'.format(str(int(points[2]))) + 'x/{}/'.format(str(int(points[0]))) + 'y/{}/'.format(str(int(points[1])))
         r = requests.get(full_url)
-    
     
     return(r.json())
     
