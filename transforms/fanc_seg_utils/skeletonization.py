@@ -26,9 +26,10 @@ def get_skeleton(seg_id,
                  name = None, 
                  output = 'pymaid',
                  merge = False,
+                 fuse=False,
                  **kwargs):
     
-    ## TODO: Add merge function to other skeletonization formats using pymaid stitch. Right now, it only works with kimimaro and uses    kimimaro.join_close_components
+    ## TODO: Add merge function to other skeletonization formats using pymaid stitch. Right now, it only works with kimimaro and uses kimimaro.join_close_components
     ''' Downloads a skeleton generated with kimimaro,meshparty, or skeletor based on its segment ID. 
     Parameters
     ----------
@@ -60,7 +61,7 @@ def get_skeleton(seg_id,
         
         
     if 'kimimaro' in method: 
-        skeletons = get_kimimaro_skeleton(seg_id,cv_path=cv_path,annotations = annotations, name = name, merge=merge, **format_kwargs )
+        skeletons = get_kimimaro_skeleton(seg_id,cv_path=cv_path,annotations = annotations, name = name, merge=merge,fuse=fuse, **format_kwargs )
         
        
           
@@ -179,7 +180,7 @@ def kimimaro_skeletons(segment_ids,
                        cache_path=None,
                        annotations=None,
                        name=None,
-                       merge = False):
+                       fuse = False):
     
     ''' Downloads a skeleton generated with kimimaro based on its segment ID.
     Parameters
@@ -202,8 +203,11 @@ def kimimaro_skeletons(segment_ids,
         if name is None:
             names = [str(seg) for seg in segment_ids]
         else:
-            n = [name + '_' + str(seg) for seg in segment_ids]
-            names = n
+            if fuse is False:
+                n = [name + '_' + str(seg) for seg in segment_ids]
+                names = n
+            else:
+                names = name
     else:
         
         segment_ids = [segment_ids]
@@ -222,7 +226,7 @@ def kimimaro_skeletons(segment_ids,
 
     skels = segmentation.skeleton.get(segment_ids)
     
-    if merge is True:
+    if fuse is True:
             skels =  kimimaro.join_close_components(skels)
             
   
@@ -237,11 +241,13 @@ def kimimaro_skeletons(segment_ids,
         skels[i].metadata = {}
         skels[i].metadata['mesh_type'] = 'cv_mesh'
         skels[i].metadata['skeleton_type'] = 'kimimaro'
-        if merge is True:
+        
+        if fuse is True:
             skels[i].metadata['segment_ids'] = segment_ids
         else:
             skels[i].metadata['segment_ids'] = segment_ids[i]
         skels[i].metadata['annotations'] = annotations
+        
         if isinstance(names,list):
             skels[i].metadata['name']= names[i]
         else:
@@ -256,10 +262,10 @@ def get_kimimaro_skeleton(segment_ids,
                           cache_path=None,
                           annotations=None,
                           name=None,
-                          merge = False,
+                          fuse = False,
                           **format_kwargs):
 
-    skels = kimimaro_skeletons(segment_ids,cv_path,cache_path=cache_path,annotations=annotations,name=name,merge=merge)
+    skels = kimimaro_skeletons(segment_ids,cv_path,cache_path=cache_path,annotations=annotations,name=name,fuse=fuse)
     
 
     
