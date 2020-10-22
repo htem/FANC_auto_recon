@@ -32,6 +32,7 @@ class neuron_database:
         self.dynamic_seg_url = 'https://standalone.poyntr.co/segmentation/table/vnc1_full_v3align_2'
         self.dynamic_seg_res = np.array([17.2,17.2,45])
         self.v4_res = np.array([4.3,4.3,45])
+        self.cloudvolume = None
 
 
 
@@ -78,7 +79,30 @@ class neuron_database:
         return(False)     
 
 
-    
+    def add_entry(self,
+              soma_coord, 
+              Name = None, 
+              Annotations = None, 
+              override = False,
+              extra_segids = None):
+        ''' Add a database entry.
+        Parameters
+        -----------
+        soma_coord:    np.array, mip0 pixel coordinates.
+        Name:          str, name for neuron.
+        Annotations:   list,str, annotations to add to neuron.
+        override:      Bypass check for existing entry. Default=False
+        extra_segids:  int,list extra segment_ids in case the neuron is in pieces. This should be unnecessary once the dynamic seg layer works.'''
+
+        updated = self.__update_db(soma_coord,
+                                 Name=Name, 
+                                 Annotations=Annotations,
+                                 override=override,
+                                 extra_segids = extra_segids)   
+        if updated is True:
+            print('entry added')
+        else:
+            print('entry already exists')
     
 
     def __update_db(self,
@@ -161,31 +185,22 @@ class neuron_database:
 
 
 
-    def add_entry(self,
-                  soma_coord, 
-                  Name = None, 
-                  Annotations = None, 
-                  override = False,
-                  extra_segids = None):
-
-        updated = self.__update_db(soma_coord,
-                                 Name=Name, 
-                                 Annotations=Annotations,
-                                 override=override,
-                                 extra_segids = extra_segids)   
-        if updated is True:
-            print('entry added')
-        else:
-            print('entry already exists')
-
-
-
 
 
     def get_annotations(self,x):
-        filename = self.filename
-        annotations = {}
+        ''' Get annotations for a given entry.
+        Parameters
+        ----------
+        x: int,str, Either a segment_id or a name.
         
+        Returns
+        ----------
+        annotations: dict, Dictionary of annotations with key equal to input (name or seg_id).'''
+        
+        if not hasattr(self,'neurons'):
+            self.get_database()
+    
+        annotations = {}
         if not self.__is_iter(x):
             x = [x]
             
@@ -194,14 +209,36 @@ class neuron_database:
                 column = 'Segment_ID'
             elif isinstance(i,str):
                 column = 'Name'
-                
-            self.get_database()
+        
             df = self.neurons
             for index, row in df.iterrows():
                 if str(i) in str(row[column]):
                     annotations[int(i)] = row.Annotations
 
         return(annotations)
+    
+    
+    
+    
+    def add_annotations(self,x,annotations):
+        ''' Add annotations to an entry
+        Parameters
+        ----------
+        x:            int, Segment ID 
+        annotations:  list or str, annotations to add. Will not add redundant annoations.'''
+
+
+        self.get_database()
+        df = self.neurons
+        if not self.__is_iter(annotations):
+            annotations = [annotations]
+
+        if isinstance(x,(int,np.int64)):
+
+            [df.loc[df.Segment_ID == x,'Annotations'].values[0].append(i) for i in annotations if i not in df.loc[df.Segment_ID == x,'Annotations'].values[0]]
+            print('Annotations added')
+
+        self.save_database()
 
 
 
@@ -226,17 +263,19 @@ class neuron_database:
 
     def add_segIDs(self,x,extra_IDs):
         # Work around until proofreading is online. If neuron is in pieces, add all the segment IDs, and .get_skeletons will fuse them. 
-        filename = self.filename
         self.get_database()
         df = self.neurons
 
         if isinstance(x,(int,np.int64)):
             df.loc[df.Segment_ID == x,'Extra_Segment_IDs'] = self.__serialize_coords(extra_IDs)
+            print('Extra IDs added')
 
         elif isinstance(x,str):
             df.loc[[x in n for n in df.Name],'Extra_Segment_IDs'] = self.__serialize_coords(extra_IDs)
+            print('Extra IDs added')
 
-        df.to_csv(self.filename)
+        self.save_database()
+        
 
 
 
@@ -255,13 +294,13 @@ class neuron_database:
         for i in range(len(x)):
             if isinstance(x[i],(int,np.int64)):
                 seg_id = x[i]
-                extra_segids = df.loc[df.Segment_ID == x[i],'Extra_Segment_IDs']
+                extra_segids = df.loc[df.Segment_ID == x[i],'Extra_Segment_IDs'].values[0]
 
             elif isinstance(x[i],str):
                 seg_id = [df.loc[[x[i] in n for n in df.Name],'Segment_ID']]
-                extra_segids = df.loc[[x[i] in n for n in df.Name],'Extra_Segment_IDs']
+                extra_segids = df.loc[[x[i] in n for n in df.Name],'Extra_Segment_IDs'].values[0]
 
-            if len(extra_segids) > 1:
+            if len(extra_segids) > 0:
                 mesh = vol.mesh.get(seg_id+extra_segids,remove_duplicate_vertices = True, fuse = True)
             else:
                 mesh = vol.mesh.get(seg_id,remove_duplicate_vertices=True,fuse=True)
@@ -363,7 +402,7 @@ class neuron_database:
         # If input is a segment id:
         if isinstance(x,(int,np.int64)):
             seg_id = x
-            extra_segids = df.loc[df.Segment_ID == x,'Extra_Segment_IDs']
+            extra_segids = df.loc[df.Segment_ID == x,'Extra_Segment_IDs'].values[0]
             name = df.loc[df.Segment_ID == x,'Name']
             soma_coords = df.V3_Soma[df.Segment_ID == x]
         
@@ -371,17 +410,15 @@ class neuron_database:
         elif isinstance(x,str):
             name = x
             seg_id = [df.loc[[x in n for n in df.Name],'Segment_ID']]
-            extra_segids = df.loc[[x in n for n in df.Name],'Extra_Segment_IDs']
+            extra_segids = df.loc[[x in n for n in df.Name],'Extra_Segment_IDs'].values[0]
             soma_coords = df.V3_Soma[df.Segment_ID == x]
         
         #TODO: Add get by annotations
         
         # If there are extra segment IDs attached to the entry, append them, and fuse them together. 
         # This really should be unnecessary once proofreading is online (read: I know how to interact with it)
-        if len(extra_segids) > 1: 
-            print(type(seg_id))
-            print(type(extra_segids))
-            seg_id = seg_id + extra_segids
+        if len(extra_segids) > 0: 
+            seg_id = [seg_id] + extra_segids
             fuse = True
         else:
             fuse = False
@@ -400,7 +437,7 @@ class neuron_database:
                                      annotations=annotations[x],
                                      name=name,
                                      output=output,
-                                     Fuse = fuse)
+                                     fuse = fuse)
         
         skeleton = skeleton_manipulations.set_soma(skeleton,np.array(soma_coords.iloc[0]))
         pymaid.downsample_neuron(skeleton,resampling_factor=15,inplace=True)
