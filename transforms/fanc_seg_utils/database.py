@@ -18,14 +18,15 @@ import math
 import collections
 import six
 import json
+import git
+from pathlib imort Path
 
 class neuron_database:
     
-    ''' Class for keeping track of neurons from the autosegmenatation.
-    ##TODO: add commit to database repo for every update. '''
+    ''' Class for keeping track of neurons from the autosegmenatation.'''
     def __init__(self,filename):
 
-        self.filename = filename
+        self.filename = Path(filename)
         self.__initialize_database()
         self.target_instnace = None
         self.v4_url = 'https://storage.googleapis.com/zetta_lee_fly_vnc_001_segmentation/vnc1_full_v3align_2/realigned_v1/seg/full_run_v1'
@@ -33,6 +34,7 @@ class neuron_database:
         self.dynamic_seg_res = np.array([17.2,17.2,45])
         self.v4_res = np.array([4.3,4.3,45])
         self.cloudvolume = None
+        self.repo = git.repo.Repo(self.filename.parent)
 
 
 
@@ -134,6 +136,10 @@ class neuron_database:
         if self.__check_seg_id(seg_id) is False or override is True:
             df = pd.DataFrame([{'Segment_ID':seg_id, 'Name': Name, 'V4_Soma':v4_pt_s, 'V3_Soma':v3_pt_s,'Annotations':a_s,'Extra_Segment_IDs':e_s,'Catmaid_Skids':''}])
             df.to_csv(filename, mode='a', header=False,index=False, encoding = 'utf-8')
+
+            
+            self.repo.index.add(self.filename)
+            self.repo.index.commit('Added neuron:{}'.format(seg_id))
             return(True) 
         else:
             return(False)   
@@ -170,17 +176,26 @@ class neuron_database:
                                                             'Extra_Segment_IDs':self.__deserialize_cols,
                                                             'Catmaid_Skids':self.__deserialize_cols})
     
-    def save_database(self):
+    
+    
+    def save_database(self,comment=None):
+
         if not hasattr(self,'neurons'):
             self.get_database()
 
         df = self.neurons
         for i in range(len(df.Annotations)):
             df.loc[i,'Annotations'] = json.dumps(df.loc[i,'Annotations'])
-        
+
         df.to_csv(self.filename,index=False, encoding = 'utf-8')
 
-        print('Database Updated')
+    
+        self.repo.index.add(self.filename)
+        if self.repo.is_dirty(): 
+            self.repo.index.commit(comment)
+            print('Database Updated')
+        else:
+            print('No change made')
 
 
 
@@ -238,7 +253,7 @@ class neuron_database:
             [df.loc[df.Segment_ID == x,'Annotations'].values[0].append(i) for i in annotations if i not in df.loc[df.Segment_ID == x,'Annotations'].values[0]]
             print('Annotations added')
 
-        self.save_database()
+        self.save_database(comment = str(df.Name[df.Segment_ID == x].values[0]) + ':' + 'annotation_update')
 
 
 
@@ -255,6 +270,7 @@ class neuron_database:
         for index, row in df.iterrows():
             row.Segment_ID = neuroglancer_utilities.seg_from_pt(row.V4_Soma,vol_url=self.dynamic_seg_url,seg_mip = self.dynamic_seg_res)
 
+        self.save_database(comment = 'Segment_ID_Update')
         print('Segment IDs updated')
 
 
@@ -267,16 +283,18 @@ class neuron_database:
         df = self.neurons
 
         if isinstance(x,(int,np.int64)):
+            comment_base = str(df.Name[df.Segment_ID == x].values[0])
             df.loc[df.Segment_ID == x,'Extra_Segment_IDs'] = self.__serialize_coords(extra_IDs)
             print('Extra IDs added')
 
         elif isinstance(x,str):
+            comment_base = x
             df.loc[[x in n for n in df.Name],'Extra_Segment_IDs'] = self.__serialize_coords(extra_IDs)
             print('Extra IDs added')
 
-        self.save_database()
-        
+        self.save_database(comment = comment_base + ':' + 'annotation_update')
 
+        
 
 
 
@@ -474,7 +492,7 @@ class neuron_database:
             ##TODO: Add inputs other than segment_id
             ##TODO: Make a flexible way to update catmaid skeletons. Implement Philip's code here probably. 
             ##TODO: Change order so that multiple skeleton uploads happen one at a time rather than download all skeletons, then upload all skeletons. Right now the check for a skeleton existing in a catmaid instance is after it is downloaded. Need to fix this. 
-
+            ##TODO: Make better commit comment. 
             '''
         if target_instance is None:
             target_instance = self.target_instnace
@@ -517,6 +535,7 @@ class neuron_database:
                     print('Neuron Exists in This Project')
                 else:
                     i.annotations.append(i.meta_data['skeleton_type'])
+                    i.annotations.append(self.filename.name[0:self.filename.name.rfind('.')])
                     upload_data = catmaid_utilities.upload_to_CATMAID(i,target_project=target_instance)
                     self.neurons.loc[self.neurons.Segment_ID == to_upload[idx],'Catmaid_Skids'] = json.dumps({target_instance.project_id:upload_data['skeleton_id']})
                     updated = 1
@@ -529,7 +548,9 @@ class neuron_database:
             idx+=1
             
         if updated > 0:
-            self.save_database()
+            ## TODO: Fix this to be more specific. 
+            self.save_database(comment = 'catmaid_skids_added')
+            
         
         
         
