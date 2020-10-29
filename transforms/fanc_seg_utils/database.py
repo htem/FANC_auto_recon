@@ -19,7 +19,7 @@ import collections
 import six
 import json
 import git
-from pathlib imort Path
+from pathlib import Path
 
 class neuron_database:
     
@@ -28,13 +28,16 @@ class neuron_database:
 
         self.filename = Path(filename)
         self.__initialize_database()
-        self.target_instnace = None
+        self.target_instance = None
         self.v4_url = 'https://storage.googleapis.com/zetta_lee_fly_vnc_001_segmentation/vnc1_full_v3align_2/realigned_v1/seg/full_run_v1'
-        self.dynamic_seg_url = 'https://standalone.poyntr.co/segmentation/table/vnc1_full_v3align_2'
-        self.dynamic_seg_res = np.array([17.2,17.2,45])
-        self.v4_res = np.array([4.3,4.3,45])
+        self.dynamic_seg_url = 'https://standalone.poyntr.co/segmentation/table/vnc1_full_v3align_2'  
         self.cloudvolume = None
         self.repo = git.repo.Repo(self.filename.parent)
+        
+        # For now, hardcode all resolutions.  If you initialize a catmaid instance, it will at least set it programatically. 
+        self.target_resolution = np.array([4.3,4.3,45])
+        self.dynamic_seg_res = np.array([17.2,17.2,45])
+        self.v4_res = np.array([4.3,4.3,45])
 
 
 
@@ -138,7 +141,7 @@ class neuron_database:
             df.to_csv(filename, mode='a', header=False,index=False, encoding = 'utf-8')
 
             
-            self.repo.index.add(self.filename)
+            self.repo.index.add(self.filename.as_posix())
             self.repo.index.commit('Added neuron:{}'.format(seg_id))
             return(True) 
         else:
@@ -190,7 +193,7 @@ class neuron_database:
         df.to_csv(self.filename,index=False, encoding = 'utf-8')
 
     
-        self.repo.index.add(self.filename)
+        self.repo.index.add(self.filename.as_posix())
         if self.repo.is_dirty(): 
             self.repo.index.commit(comment)
             print('Database Updated')
@@ -414,7 +417,7 @@ class neuron_database:
 
         if vol_url is None:
             vol_url = self.v4_url
-
+        
         self.get_database()
         df = self.neurons
         # If input is a segment id:
@@ -457,7 +460,7 @@ class neuron_database:
                                      output=output,
                                      fuse = fuse)
         
-        skeleton = skeleton_manipulations.set_soma(skeleton,np.array(soma_coords.iloc[0]))
+        skeleton = skeleton_manipulations.set_soma(skeleton,np.array(soma_coords.iloc[0])* self.target_res) 
         pymaid.downsample_neuron(skeleton,resampling_factor=15,inplace=True)
         skeleton = skeleton_manipulations.diameter_smoothing(skeleton,smooth_method='smooth',smooth_bandwidth=1000)
         return(skeleton)
@@ -472,6 +475,8 @@ class neuron_database:
         
         target_instance = catmaid_utilities.catmaid_login('fanc',project_id,keys_path)
         self.target_instnace = target_instance
+        xyz = [self.target_instnace.image_stacks.resolution.values[0][k] for k in self.target_instnace.image_stacks.resolution.values[0].keys()]
+        self.target_res = np.array(xyz)
         
     
     
