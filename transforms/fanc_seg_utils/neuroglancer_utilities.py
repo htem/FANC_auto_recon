@@ -46,7 +46,7 @@ def get_vec(vol, pt):
 
 
 
-def seg_from_pt(pt,vol_url=None,seg_mip=None):
+def seg_from_pt(pt,vol_url=None,mip_res=None):
     ''' Get segment ID at a point. Default volume is the static segmentation layer for now. 
     Args:
         pt (np.array): 3-element point at MIP0
@@ -55,21 +55,19 @@ def seg_from_pt(pt,vol_url=None,seg_mip=None):
         int, segment_ID at specified point '''
     
     if vol_url is None:
-        seg_mip = np.array([17.2,17.2,45])
         vol = CloudVolume('https://storage.googleapis.com/zetta_lee_fly_vnc_001_segmentation/vnc1_full_v3align_2/realigned_v1/seg/full_run_v1',
                           parallel=True,
                           progress=True,
-                          mip=seg_mip,
                           cache=True)
     else:
         vol = CloudVolume(vol_url,
                           parallel=True,
                           progress=True,
-                          mip=seg_mip,
                           cache=True)
         
-        
-    res = seg_mip / np.array([4.3,4.3,45])
+    
+    mip_res = np.array(vol.scale['resolution'])
+    res = mip_res / np.array([4.3,4.3,45])
     segpt = pt // res
     seg_id = vol[segpt[0],segpt[1],segpt[2]]
     return(int(seg_id))
