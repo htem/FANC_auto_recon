@@ -29,8 +29,10 @@ class neuron_database:
         self.filename = Path(filename)
         self.__initialize_database()
         self.target_instance = None
-        self.v4_url = 'https://storage.googleapis.com/zetta_lee_fly_vnc_001_segmentation/vnc1_full_v3align_2/realigned_v1/seg/full_run_v1'
-        self.dynamic_seg_url = 'https://standalone.poyntr.co/segmentation/table/vnc1_full_v3align_2'  
+        self.segmentation_version = 'V4'
+        self.segmentations = {'V3':'https://storage.googleapis.com/zetta_lee_fly_vnc_001_segmentation_temp/vnc1_full_v3align_2/37674-69768_41600-134885_430-4334/seg/v3',
+                              'V4':'https://storage.googleapis.com/zetta_lee_fly_vnc_001_segmentation/vnc1_full_v3align_2/realigned_v1/seg/full_run_v1',
+                              'V4_dynamic': 'https://standalone.poyntr.co/segmentation/table/vnc1_full_v3align_2'}  
         self.cloudvolume = None
         self.repo = git.repo.Repo(self.filename.parent)
         
@@ -38,6 +40,7 @@ class neuron_database:
         self.target_resolution = np.array([4.3,4.3,45])
         self.dynamic_seg_res = np.array([17.2,17.2,45])
         self.v4_res = np.array([4.3,4.3,45])
+        self.segmentation_resolution = None
 
 
 
@@ -53,14 +56,19 @@ class neuron_database:
             print('Database active')
 
     
+   
     def __serialize_coords(self,x):
         if isinstance(x,list):
             return(json.dumps(x))
         else:
             return(json.dumps(np.ndarray.tolist(x)))
             
+    
+    
     def __serialize_annotations(self,x):
         return(json.dumps(x))
+    
+    
     
     def __deserialize_cols(self,x):
         try:
@@ -72,6 +80,13 @@ class neuron_database:
         
     
     
+    def __is_iter(self,x):
+
+        if isinstance(x, collections.Iterable) and not isinstance(x, (six.string_types, pd.DataFrame)):
+            return True
+        else:
+            return False 
+
     
 
     def __check_seg_id(self,seg_id):
@@ -84,6 +99,21 @@ class neuron_database:
         return(False)     
 
 
+    
+    
+    
+    def seg_from_pt(self,pt,segmentation_version=None):
+        
+        if segmentation_version is None:
+            segmentation_version = self.segmentation_version
+            
+        
+        return(neuroglancer_utilities.seg_from_pt(pt,vol_url = self.segmentations[segmentation_version]))
+        
+    
+    
+    
+    
     def add_entry(self,
               soma_coord, 
               Name = None, 
@@ -97,8 +127,10 @@ class neuron_database:
         Name:          str, name for neuron.
         Annotations:   list,str, annotations to add to neuron.
         override:      Bypass check for existing entry. Default=False
-        extra_segids:  int,list extra segment_ids in case the neuron is in pieces. This should be unnecessary once the dynamic seg layer works.'''
-
+        extra_segids:  int,list extra segment_ids in case the neuron is in pieces. This should be unnecessary once the dynamic seg layer works.
+        
+        ## TODO: Use class specific get point with more flexible call to seg_from_pt'''
+        
         updated = self.__update_db(soma_coord,
                                  Name=Name, 
                                  Annotations=Annotations,
@@ -151,12 +183,7 @@ class neuron_database:
         
         
         
-    def __is_iter(self,x):
-        
-        if isinstance(x, collections.Iterable) and not isinstance(x, (six.string_types, pd.DataFrame)):
-            return True
-        else:
-            return False
+
 
 
 
@@ -164,9 +191,10 @@ class neuron_database:
         
     def get_cloudvolume(self,vol_url = None):
         if vol_url is None:
-            vol_url = self.v4_url
+            vol_url = self.segmentations[self.segmentation_version]
 
         self.cloud_volume = CloudVolume(vol_url)
+        self.segmentation_resolution = self.cloud_volume.scale['resolution']
 
 
 
@@ -305,7 +333,7 @@ class neuron_database:
     def get_mesh(self,x,vol_url=None):
 
         if vol_url is None:
-            vol_url = self.v4_url
+            vol_url = self.segmentations[self.segmentation_version]
 
         vol = CloudVolume(vol_url)
         self.get_database()
@@ -336,7 +364,7 @@ class neuron_database:
 
     def plot_mesh(self,x,vol_url=None,save=False,output_dir=None):
         if vol_url is None:
-                vol_url = self.v4_url
+                vol_url = self.segmentations[self.segmentation_version]
         
         if not self.__is_iter(x):
             x = [x]
@@ -416,7 +444,7 @@ class neuron_database:
                      output = 'pymaid'):
 
         if vol_url is None:
-            vol_url = self.v4_url
+            vol_url = self.segmentations[self.segmentation_version]
         
         self.get_database()
         df = self.neurons
