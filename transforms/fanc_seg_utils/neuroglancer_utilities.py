@@ -46,7 +46,7 @@ def get_vec(vol, pt):
 
 
 
-def seg_from_pt(pt,vol_url=None,mip_res=None):
+def seg_from_pt(pt,vol_url=None,seg_mip=None,image_res=None):
     ''' Get segment ID at a point. Default volume is the static segmentation layer for now. 
     Args:
         pt (np.array): 3-element point at MIP0
@@ -65,9 +65,12 @@ def seg_from_pt(pt,vol_url=None,mip_res=None):
                           progress=True,
                           cache=True)
         
+    seg_mip = vol.scale['resolution']
     
-    mip_res = np.array(vol.scale['resolution'])
-    res = mip_res / np.array([4.3,4.3,45])
+    if image_res is None:
+        image_res = np.array([4.3,4.3,45])
+        
+    res = seg_mip / image_res
     segpt = pt // res
     seg_id = vol[segpt[0],segpt[1],segpt[2]]
     return(int(seg_id))
