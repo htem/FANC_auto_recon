@@ -32,18 +32,26 @@ class neuron_database:
         self.segmentation_version = 'V4'
         self.segmentations = {'V3':'https://storage.googleapis.com/zetta_lee_fly_vnc_001_segmentation_temp/vnc1_full_v3align_2/37674-69768_41600-134885_430-4334/seg/v3',
                               'V4':'https://storage.googleapis.com/zetta_lee_fly_vnc_001_segmentation/vnc1_full_v3align_2/realigned_v1/seg/full_run_v1',
-                              'V4_dynamic': 'https://standalone.poyntr.co/segmentation/table/vnc1_full_v3align_2'}  
-        self.cloudvolume = None
-        self.repo = git.repo.Repo(self.filename.parent)
+                              'V4_dynamic': 'https://standalone.poyntr.co/segmentation/table/vnc1_full_v3align_2',
+                              'V4_brain_regions': 'https://storage.googleapis.com/zetta_lee_fly_vnc_001_precomputed/vnc1_full_v3align_2/brain_regions'}  
+        self.cloud_volume = None
+        
+        if self.__check_repo() is True:
+            self.repo = git.repo.Repo(self.filename.parent)
         
         # For now, hardcode all resolutions.  If you initialize a catmaid instance, it will at least set it programatically. 
         self.target_resolution = np.array([4.3,4.3,45])
-        self.dynamic_seg_res = np.array([17.2,17.2,45])
-        self.v4_res = np.array([4.3,4.3,45])
-        self.segmentation_resolution = None
+        
+        self.segmentation_resolutions = {'V3': np.array([4,4,40]), 'V4': np.array([4.3,4.3,45]), 'V4_dynamic': np.array([17.2,17.2,45])}
 
 
-
+    def __check_repo(self):
+        try:
+            git.Repo(self.filename.parent)
+            return(True)
+        except:
+            print('Warning: Database is not in a repo, changes not logged')
+            return(False)
 
 
     def __initialize_database(self):
@@ -108,7 +116,9 @@ class neuron_database:
             segmentation_version = self.segmentation_version
             
         
-        return(neuroglancer_utilities.seg_from_pt(pt,vol_url = self.segmentations[segmentation_version]))
+        return(neuroglancer_utilities.seg_from_pt(pt,
+                                                  vol_url = self.segmentations[segmentation_version],
+                                                  image_res = self.segmentation_resolutions[segmentation_version]))
         
     
     
@@ -172,9 +182,10 @@ class neuron_database:
             df = pd.DataFrame([{'Segment_ID':seg_id, 'Name': Name, 'V4_Soma':v4_pt_s, 'V3_Soma':v3_pt_s,'Annotations':a_s,'Extra_Segment_IDs':e_s,'Catmaid_Skids':''}])
             df.to_csv(filename, mode='a', header=False,index=False, encoding = 'utf-8')
 
-            
-            self.repo.index.add(self.filename.as_posix())
-            self.repo.index.commit('Added neuron:{}'.format(seg_id))
+            if self.__check_repo() is True:
+                self.repo.index.add(self.filename.as_posix())
+                self.repo.index.commit('Added neuron:{}'.format(seg_id))
+                
             return(True) 
         else:
             return(False)   
@@ -202,7 +213,8 @@ class neuron_database:
 
     def get_database(self):
         ## TODO: Add update seg_ids to this. 
-        self.neurons = pd.read_csv(self.filename,converters={'V3_Soma':self.__deserialize_cols,
+        self.neurons = pd.read_csv(self.filename,converters={'V4_Soma':self.__deserialize_cols,
+                                                            'V3_Soma':self.__deserialize_cols,
                                                             'Annotations':self.__deserialize_cols,
                                                             'Extra_Segment_IDs':self.__deserialize_cols,
                                                             'Catmaid_Skids':self.__deserialize_cols})
@@ -221,12 +233,15 @@ class neuron_database:
         df.to_csv(self.filename,index=False, encoding = 'utf-8')
 
     
-        self.repo.index.add(self.filename.as_posix())
-        if self.repo.is_dirty(): 
-            self.repo.index.commit(comment)
-            print('Database Updated')
+        if self.__check_repo() is True:
+            self.repo.index.add(self.filename.as_posix())
+            if self.repo.is_dirty(): 
+                self.repo.index.commit(comment)
+                print('Database Updated')
+            else:
+                print('No change made')
         else:
-            print('No change made')
+            print('Database Updated')
 
 
 
@@ -285,7 +300,32 @@ class neuron_database:
             print('Annotations added')
 
         self.save_database(comment = str(df.Name[df.Segment_ID == x].values[0]) + ':' + 'annotation_update')
-
+        
+        
+        
+        
+    def remove_annotations(self,x,annotations):
+        self.get_database()
+        if not self.__is_iter(annotations):
+            annotations = [annotations]
+            
+        if isinstance(x,(int,np.int64)):
+            current_annotations_dict = self.get_annotations(x)
+            current_annotations = current_annotations_dict[x]
+            change = 0 
+            for i in annotations:
+                if i in current_annotations:
+                    self.neurons.loc[self.neurons.Segment_ID == x,'Annotations'].values[0].remove(i)
+                    change += 1
+            
+        if change > 0:
+            self.save_database(comment = str(self.neurons.Name[self.neurons.Segment_ID == x].values[0]) + ':' + 'annotation_update')
+            print('Annotation Removed')
+        else:
+            print('Annotation does not exist')
+        
+        
+                
 
 
 
@@ -362,14 +402,22 @@ class neuron_database:
 
 
 
-    def plot_mesh(self,x,vol_url=None,save=False,output_dir=None):
+    def plot_mesh(self,x,vol_url=None,plot_neuropil=False,neuropil_url=None,save=False,output_dir=None,opacity=.5):
         if vol_url is None:
                 vol_url = self.segmentations[self.segmentation_version]
+        
+        if plot_neuropil is True and neuropil_url is None:
+                np_url = self.segmentations['V4_brain_regions']
+        
         
         if not self.__is_iter(x):
             x = [x]
 
-        mesh = self.get_mesh(x,vol_url = vol_url)
+        mesh = []
+        for i in x:
+            mesh.append(self.get_mesh(i,vol_url = vol_url))
+        
+        #np_mesh = self.get_mesh(2,vol_url = np_url)
         
         colors = plt.cm.Set1(range(len(mesh)))
         
@@ -377,9 +425,10 @@ class neuron_database:
         
         
         for i in range(len(mesh)):
-            tmeshes.append(trimesh_vtk.mesh_actor(mesh[i],vertex_colors=colors[i,0:3],face_colors=colors[i,0:3]))
+            tmeshes.append(trimesh_vtk.mesh_actor(mesh[i],vertex_colors=colors[i,0:3],face_colors=colors[i,0:3],opacity=opacity))
         
-   
+        if plot_neuropil is True:
+            tmeshes.append(trimesh_vtk.mesh_actor(np_mesh,vertex_colors=[0,0,1],face_colors=[0,0,1],opacity=0.1))
         
         if save is True:
             trimesh_vtk.render_actors(tmeshes,do_save=True,filename=output_dir + str(x) + '.png')
@@ -583,6 +632,43 @@ class neuron_database:
         if updated > 0:
             ## TODO: Fix this to be more specific. 
             self.save_database(comment = 'catmaid_skids_added')
+            
+            
+            import pandas as pd
+
+
+    def soma_annotation_table(self,path=None):
+        if path is None:
+            path = self.filename.parent
+
+        self.get_database()
+        entry = []
+        for index,row in self.neurons.iterrows():
+
+            p1 = str(row.V4_Soma)
+            p1 = p1.replace('[','(')
+            p1 = p1.replace(']',')')
+
+            p2 = str(str(list(row.V4_Soma + np.array([100,100,10]))))
+            p2 = p2.replace('[','(')
+            p2 = p2.replace(']',')')
+
+
+            entry.append( {'Coordinate 1':p1, 
+                     'Coordinate 2': p2, 
+                     'Ellipsoid Dimensions': None, 
+                     'Tags':None, 
+                     'Description': row.Name, 
+                     'Segment IDs': row.Segment_ID,
+                     'Parent ID':None,
+                     'Type':'AABB',
+                     'ID':None} )
+
+        ng_annotations = pd.DataFrame(entry)
+        ng_annotations.to_csv(path / (self.filename.name[0:self.filename.name.rfind('.')] + '_NG_Soma_Annotation.csv'),index=False)
+
+
+
             
         
         
