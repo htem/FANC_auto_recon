@@ -81,7 +81,7 @@ def seg_from_pt(pt,vol_url=None,seg_mip=None,image_res=None):
 def fanc4_to_3(points,scale=2):
     ''' Convert from realigned dataset to original coordinate space.
     Inputs:
-             points: an nx3 array of mip0 pixel coordinates
+             points: an nx3 array of mip0 voxel coordinates
              scale:  selects the granularity of the field being used, but does not change the units.
     
     Returns: a dictionary of transformed x/y/z values and the dx/dy/dz values'''
@@ -112,10 +112,10 @@ def seg_ids_from_link(ng_link):
 
 
 def coords_from_catmaid_url(catmaid_url,voxel_dims = [4.3,4.3,45], return_voxels = False):
-    ''' Input a catmaid url and extract the xyz coordinates. If pixel_coords is true, returns pixel coords in mip0, else returns voxel coords.
+    ''' Input a catmaid url and extract the xyz coordinates. If return_voxels is true, returns voxel coords in mip0, else returns nm coords.
         The coordinates only work for fanc3'''
     
-    if return_voxels is not True:
+    if if not return_voxels:
         x_coord = float(catmaid_url[catmaid_url.find('xp=')+3:catmaid_url.find('&',catmaid_url.find('xp=')+3)]) / voxel_dims[0]
         y_coord = float(catmaid_url[catmaid_url.find('yp=')+3:catmaid_url.find('&',catmaid_url.find('yp=')+3)]) / voxel_dims[1]
         z_coord = float(catmaid_url[catmaid_url.find('zp=')+3:catmaid_url.find('&',catmaid_url.find('zp=')+3)]) / voxel_dims[2]
