@@ -78,9 +78,47 @@ def seg_from_pt(pt,vol_url=None,seg_mip=None,image_res=None):
 
 
 
+def graphene_pt_to_seg(pts,vol):
+    #vol.download(vec, agglomerate=True, stop_layer=None,timestamp=time.time())
+    cutout = vol[list(pts)]
+    return(cutout[0][0][0][0])
+
+
+
+def seg_from_pt_graphene(pts,vol,image_res=np.array([4.3,4.3,45]), max_workers=4):
+    """Get SegIDs from a list of points from a graphene volume object
+    
+    Args:
+      pts: list, nx3 mip0 coords
+      vol: cloudvolume, graphene version
+      image_res: np.array, resolution of the image volume. default is [4.3,4.3,45]
+      max_workers: int,the max number of workers for parallel chunk requests.
+    
+    Returns:
+      (points, data): parallel Numpy arrays of the requested points from all
+          cumulative calls to add_points, and the corresponding data loaded from
+          volume.
+    """
+    seg_mip = vol.scale['resolution']
+        
+    res = seg_mip / image_res
+    pts_scaled = [pt // res for pt in pts]
+    
+    results = []
+    with futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
+        point_futures = [ex.submit(pt_to_seg, k,vol) for k in pts_scaled]
+        
+        for f in futures.as_completed(point_futures):
+            results=[f.result() for f in point_futures]
+       
+        
+
+    return results
+
+
 def fanc4_to_3(points,scale=2):
     ''' Convert from realigned dataset to original coordinate space.
-    Inputs:
+    Args:
              points: an nx3 array of mip0 voxel coordinates
              scale:  selects the granularity of the field being used, but does not change the units.
     
@@ -115,7 +153,7 @@ def coords_from_catmaid_url(catmaid_url,voxel_dims = [4.3,4.3,45], return_voxels
     ''' Input a catmaid url and extract the xyz coordinates. If return_voxels is true, returns voxel coords in mip0, else returns nm coords.
         The coordinates only work for fanc3'''
     
-    if if not return_voxels:
+    if not return_voxels:
         x_coord = float(catmaid_url[catmaid_url.find('xp=')+3:catmaid_url.find('&',catmaid_url.find('xp=')+3)]) / voxel_dims[0]
         y_coord = float(catmaid_url[catmaid_url.find('yp=')+3:catmaid_url.find('&',catmaid_url.find('yp=')+3)]) / voxel_dims[1]
         z_coord = float(catmaid_url[catmaid_url.find('zp=')+3:catmaid_url.find('&',catmaid_url.find('zp=')+3)]) / voxel_dims[2]
