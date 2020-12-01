@@ -175,7 +175,7 @@ class neuron_database:
         if extra_segids is not None:
             e_s = self.__serialize_coords(extra_segids)
         else:
-            e_s = self.__serialize_annotations([''])
+            e_s = None
         
 
         if self.__check_seg_id(seg_id) is False or override is True:
@@ -380,23 +380,34 @@ class neuron_database:
         df = self.neurons
         
         meshes = []
+        if not self.__is_iter(x):
+            x = [x]
+        
         for i in range(len(x)):
             if isinstance(x[i],(int,np.int64)):
                 seg_id = x[i]
                 extra_segids = df.loc[df.Segment_ID == x[i],'Extra_Segment_IDs'].values[0]
+                
+                
 
             elif isinstance(x[i],str):
                 seg_id = [df.loc[[x[i] in n for n in df.Name],'Segment_ID']]
                 extra_segids = df.loc[[x[i] in n for n in df.Name],'Extra_Segment_IDs'].values[0]
-
+                
+                
             if len(extra_segids) > 0:
-                mesh = vol.mesh.get(seg_id+extra_segids,remove_duplicate_vertices = True, fuse = True)
+                extra_segids.append(seg_id)
+                mesh = vol.mesh.get(extra_segids,remove_duplicate_vertices = True, fuse = True)
             else:
                 mesh = vol.mesh.get(seg_id,remove_duplicate_vertices=True,fuse=True)
             
             meshes.append(mesh)
+            
+        if len(meshes) == 1:
+            return(meshes[0])
+        else:
+            return(meshes)
 
-        return meshes
 
 
 
@@ -406,6 +417,7 @@ class neuron_database:
         if vol_url is None:
                 vol_url = self.segmentations[self.segmentation_version]
         
+        # Currently not functional
         if plot_neuropil is True and neuropil_url is None:
                 np_url = self.segmentations['V4_brain_regions']
         
@@ -515,19 +527,27 @@ class neuron_database:
         
         # If there are extra segment IDs attached to the entry, append them, and fuse them together. 
         # This really should be unnecessary once proofreading is online (read: I know how to interact with it)
-        if len(extra_segids) > 0: 
-            seg_id = [seg_id] + extra_segids
+        
+        if len(extra_segids) > 0:
+            print(extra_segids)
+            print(seg_id)
+            extra_segids.append(seg_id) 
             fuse = True
+            
+            annotations = self.get_annotations(x)
+            annotations[x] = annotations[x] + ['FANC4_ID: ' + str(seg_id) + str(extra_segids)] 
         else:
+            extra_segids = seg_id
             fuse = False
+            annotations = self.get_annotations(x)
+            annotations[x] = annotations[x] + ['FANC4_ID: ' + str(seg_id) ] 
 
         ## TODO: Update this for use with dynamic seg. Check segment IDs before appending to anntations, also add a timestamp. 
-        annotations = self.get_annotations(x)
-        annotations[x] = annotations[x] + ['FANC4_ID: ' + str(seg_id)]
+        
 
 
 
-        skeleton = skeletonization.get_skeleton(seg_id,
+        skeleton = skeletonization.get_skeleton(extra_segids,
                                      vol_url,
                                      method=method,
                                      transform=transform,
@@ -596,7 +616,10 @@ class neuron_database:
             else:
                 to_upload = all_neurons
         else:
-            to_upload = [x]
+            if not self.__is_iter(x):
+                x = [x]
+                
+            to_upload = x
             
  
         
