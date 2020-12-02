@@ -24,17 +24,18 @@ from pathlib import Path
 class neuron_database:
     
     ''' Class for keeping track of neurons from the autosegmenatation.'''
-    def __init__(self,filename):
+    def __init__(self,filename,segmentation_version = 'V4_dynamic'):
 
         self.filename = Path(filename)
-        self.__initialize_database()
+        
         self.target_instance = None
-        self.segmentation_version = 'V4'
+        self.segmentation_version = segmentation_version
         self.segmentations = {'V3':'https://storage.googleapis.com/zetta_lee_fly_vnc_001_segmentation_temp/vnc1_full_v3align_2/37674-69768_41600-134885_430-4334/seg/v3',
                               'V4':'https://storage.googleapis.com/zetta_lee_fly_vnc_001_segmentation/vnc1_full_v3align_2/realigned_v1/seg/full_run_v1',
-                              'V4_dynamic': 'https://standalone.poyntr.co/segmentation/table/vnc1_full_v3align_2',
+                              'V4_dynamic': 'graphene://https://standalone.poyntr.co/segmentation/table/vnc1_full_v3align_2',
                               'V4_brain_regions': 'https://storage.googleapis.com/zetta_lee_fly_vnc_001_precomputed/vnc1_full_v3align_2/brain_regions'}  
         self.cloud_volume = None
+        self.__initialize_database()
         
         if self.__check_repo() is True:
             self.repo = git.repo.Repo(self.filename.parent)
@@ -61,6 +62,8 @@ class neuron_database:
             df.to_csv(self.filename,index=False)
             print('Database created')
         else:
+            self.get_cloudvolume(self.segmentations[self.segmentation_version])
+            self.get_database()
             print('Database active')
 
     
@@ -203,8 +206,12 @@ class neuron_database:
     def get_cloudvolume(self,vol_url = None):
         if vol_url is None:
             vol_url = self.segmentations[self.segmentation_version]
-
-        self.cloud_volume = CloudVolume(vol_url)
+        
+        if 'graphene' in vol_url:
+            print('Dynamic Segmentation Enabled')
+            self.cloud_volume = CloudVolume(vol_url,use_https=True)
+        else:
+            self.cloud_volume = CloudVolume(vol_url)
         self.segmentation_resolution = self.cloud_volume.scale['resolution']
 
 
