@@ -78,9 +78,9 @@ def seg_from_pt(pt,vol_url=None,seg_mip=None,image_res=None):
 
 
 
-def graphene_pt_to_seg(pts,vol):
+def graphene_pt_to_seg(pt,vol):
     #vol.download(vec, agglomerate=True, stop_layer=None,timestamp=time.time())
-    cutout = vol[list(pts)]
+    cutout = vol[list(pt)]
     return(cutout[0][0][0][0])
 
 
@@ -89,7 +89,7 @@ def seg_from_pt_graphene(pts,vol,image_res=np.array([4.3,4.3,45]), max_workers=4
     """Get SegIDs from a list of points from a graphene volume object
     
     Args:
-      pts: list, nx3 mip0 coords
+      pts: np.array, nx3 mip0 coords
       vol: cloudvolume, graphene version
       image_res: np.array, resolution of the image volume. default is [4.3,4.3,45]
       max_workers: int,the max number of workers for parallel chunk requests.
@@ -103,10 +103,11 @@ def seg_from_pt_graphene(pts,vol,image_res=np.array([4.3,4.3,45]), max_workers=4
         
     res = seg_mip / image_res
     pts_scaled = [pt // res for pt in pts]
+    print(pts_scaled)
     
     results = []
     with futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
-        point_futures = [ex.submit(pt_to_seg, k,vol) for k in pts_scaled]
+        point_futures = [ex.submit(graphene_pt_to_seg, k,vol) for k in pts_scaled]
         
         for f in futures.as_completed(point_futures):
             results=[f.result() for f in point_futures]
