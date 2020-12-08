@@ -25,27 +25,47 @@ class neuron_database:
     
     ''' Class for keeping track of neurons from the autosegmenatation.'''
     def __init__(self,filename,segmentation_version = 'V4_dynamic'):
-
-        self.filename = Path(filename)
         
+        self.filename = Path(filename)
+        self.Name = self.filename.name[0:self.filename.name.rfind('.')]
         self.target_instance = None
-        self.segmentation_version = segmentation_version
-        self.segmentations = {'V3':'https://storage.googleapis.com/zetta_lee_fly_vnc_001_segmentation_temp/vnc1_full_v3align_2/37674-69768_41600-134885_430-4334/seg/v3',
-                              'V4':'https://storage.googleapis.com/zetta_lee_fly_vnc_001_segmentation/vnc1_full_v3align_2/realigned_v1/seg/full_run_v1',
+        self.cloud_volume = None
+        self.target_resolution = np.array([4.3,4.3,45])
+        self.segmentation_resolution = None
+        self.segmentation_resolutions = {'V3': np.array([4,4,40]), 'V4': np.array([4.3,4.3,45]), 'V4_dynamic': np.array([17.2,17.2,45])}
+        self.segmentations = {'V3':'https://storage.googleapis.com/zetta_lee_fly_vnc_001_segmentation_temp/vnc1_full_v3align_2/37674-69768_41600-134885_430-4334/seg/v3',                                 'V4':'https://storage.googleapis.com/zetta_lee_fly_vnc_001_segmentation/vnc1_full_v3align_2/realigned_v1/seg/full_run_v1',
                               'V4_dynamic': 'graphene://https://standalone.poyntr.co/segmentation/table/vnc1_full_v3align_2',
                               'V4_brain_regions': 'https://storage.googleapis.com/zetta_lee_fly_vnc_001_precomputed/vnc1_full_v3align_2/brain_regions'}  
-        self.cloud_volume = None
+       
+    
+        self.segmentation_version = segmentation_version
         self.__initialize_database()
-        
+ 
         if self.__check_repo() is True:
             self.repo = git.repo.Repo(self.filename.parent)
         
-        # For now, hardcode all resolutions.  If you initialize a catmaid instance, it will at least set it programatically. 
-        self.target_resolution = np.array([4.3,4.3,45])
         
-        self.segmentation_resolutions = {'V3': np.array([4,4,40]), 'V4': np.array([4.3,4.3,45]), 'V4_dynamic': np.array([17.2,17.2,45])}
-
-
+    def __initialize_database(self):
+        fileEmpty =  os.path.exists(self.filename)
+        if not fileEmpty:
+            df = pd.DataFrame(data = None, 
+                              columns =  ['Segment_ID',
+                                          'Name',
+                                          'V4_Soma',
+                                          'V3_Soma',
+                                          'Annotations',
+                                          'Extra_Segment_IDs',
+                                          'Catmaid_Skids'])
+            df.to_csv(self.filename,index=False)
+            print('Database created')
+        else:
+            self.get_cloudvolume(self.segmentations[self.segmentation_version])
+            self.get_database()
+            print('Database active')
+    
+    
+    
+    # Version control things    
     def __check_repo(self):
         try:
             git.Repo(self.filename.parent)
@@ -54,31 +74,24 @@ class neuron_database:
             print('Warning: Database is not in a repo, changes not logged')
             return(False)
 
-
-    def __initialize_database(self):
-        fileEmpty =  os.path.exists(self.filename)
-        if not fileEmpty:
-            df = pd.DataFrame(data = None, columns=['Segment_ID','Name','V4_Soma','V3_Soma','Annotations','Extra_Segment_IDs','Catmaid_Skids'])
-            df.to_csv(self.filename,index=False)
-            print('Database created')
-        else:
-            self.get_cloudvolume(self.segmentations[self.segmentation_version])
-            self.get_database()
-            print('Database active')
-
+    #Set which segmentation to use
+    def set_segmentation(self,version):
+        self.segmentation_version = version
+        self.get_cloudvolume(vol_url=self.segmentations[self.segmentation_version])
+        self.segmentation_resolution = self.segmentation_resolutions[self.segmentation_version]
+        return('Segmentation version updated')
     
-   
+    
+    # Serialize / Deserialize lists for coords/annotations
     def __serialize_coords(self,x):
         if isinstance(x,list):
             return(json.dumps(x))
         else:
             return(json.dumps(np.ndarray.tolist(x)))
-            
-    
+             
     
     def __serialize_annotations(self,x):
         return(json.dumps(x))
-    
     
     
     def __deserialize_cols(self,x):
@@ -91,6 +104,7 @@ class neuron_database:
         
     
     
+    # Check if things are iterable. 
     def __is_iter(self,x):
 
         if isinstance(x, collections.Iterable) and not isinstance(x, (six.string_types, pd.DataFrame)):
@@ -99,7 +113,35 @@ class neuron_database:
             return False 
 
     
+    def get_entries(self,input_var):
+    ''' Get entries by seg id or by name.
+    Args: 
+        input_var: int, str, list   Either a seg_id (int), name (str), or list of either.
+    Returns:
+        subset: pd.DataFrame.    Rows corresponding to input criteria '''
+    df = self.neurons
+    if self.__is_iter(input_var):
+        input_type = type(input_var[0])
+    else:
+        input_type = type(input_var)
+        input_var = [input_var]
 
+    if input_type==int:
+    df.set_index('Segment_ID',inplace=True)
+    subset = df.loc[input_var]
+    
+
+    elif input_type == str:
+            df.set_index('Name',inplace=True)
+            subset = df.loc[input_var]
+
+    else:
+        raise ValueError('Incorrect input type')
+    
+    return(subset)
+    
+    
+    # Check if ID is in the database. 
     def __check_seg_id(self,seg_id):
         self.get_database()
         df = self.neurons
@@ -111,20 +153,27 @@ class neuron_database:
 
 
     
-    
-    
+    # Get a rootID / segmentID from a mip0 coordinate
     def seg_from_pt(self,pt,segmentation_version=None):
+        
+        if not self.__is_iter(pt):
+            pts = [pt]
+        else:
+            pts = pt
+            
         
         if segmentation_version is None:
             segmentation_version = self.segmentation_version
             
-        
-        return(neuroglancer_utilities.seg_from_pt(pt,
+        if 'dynamic' in segmentation_version:
+            return(neuroglancer_utilities.seg_from_pt_graphene(pt,
+                                                        vol_url = self.segmentations[segmentation_version],
+                                                        image_res = self.segmentation_resolutions[segmentation_version]))
+        else:       
+            return(neuroglancer_utilities.seg_from_pt(pt,
                                                   vol_url = self.segmentations[segmentation_version],
                                                   image_res = self.segmentation_resolutions[segmentation_version]))
         
-    
-    
     
     
     def add_entry(self,
@@ -134,9 +183,9 @@ class neuron_database:
               override = False,
               extra_segids = None):
         ''' Add a database entry.
-        Parameters
+        Args
         -----------
-        soma_coord:    np.array, mip0 pixel coordinates.
+        soma_coord:    np.array, mip0 voxel coordinates, or in downsampled voxel coords for the dynamic segmentation.
         Name:          str, name for neuron.
         Annotations:   list,str, annotations to add to neuron.
         override:      Bypass check for existing entry. Default=False
@@ -163,8 +212,15 @@ class neuron_database:
           extra_segids = None):
         
         filename = self.filename
-        seg_id = neuroglancer_utilities.seg_from_pt(v4_pt)
-        v3_transform = neuroglancer_utilities.fanc4_to_3(v4_pt,scale=2)
+        
+        seg_id = self.seg_from_pt([v4_pt])
+        seg_id = int(seg_id[0])
+       
+        # Make sure that the v4 pt is at the correct resolution. The dynamic segmetation 4x downsampled, so need to adjust. 
+        scale_factor = self.segmentation_resolution / self.target_resolution
+        v4_pt_scaled = v4_pt * scale_factor
+        
+        v3_transform = neuroglancer_utilities.fanc4_to_3(v4_pt_scaled,scale=2)
         v3_pt = [v3_transform['x'],v3_transform['y'],v3_transform['z']]
         
         v4_pt_s = self.__serialize_coords(v4_pt)
@@ -182,7 +238,14 @@ class neuron_database:
         
 
         if self.__check_seg_id(seg_id) is False or override is True:
-            df = pd.DataFrame([{'Segment_ID':seg_id, 'Name': Name, 'V4_Soma':v4_pt_s, 'V3_Soma':v3_pt_s,'Annotations':a_s,'Extra_Segment_IDs':e_s,'Catmaid_Skids':''}])
+            df = pd.DataFrame([{'Segment_ID':seg_id, 
+                                'Name': Name, 
+                                'V4_Soma':v4_pt_s, 
+                                'V3_Soma':v3_pt_s,
+                                'Annotations':a_s,
+                                'Extra_Segment_IDs':e_s,
+                                'Catmaid_Skids':''}])
+            
             df.to_csv(filename, mode='a', header=False,index=False, encoding = 'utf-8')
 
             if self.__check_repo() is True:
@@ -192,13 +255,6 @@ class neuron_database:
             return(True) 
         else:
             return(False)   
-
-
-        
-        
-        
-
-
 
 
         
@@ -213,7 +269,6 @@ class neuron_database:
         else:
             self.cloud_volume = CloudVolume(vol_url)
         self.segmentation_resolution = self.cloud_volume.scale['resolution']
-
 
 
 
@@ -249,8 +304,6 @@ class neuron_database:
                 print('No change made')
         else:
             print('Database Updated')
-
-
 
 
 
@@ -542,12 +595,12 @@ class neuron_database:
             fuse = True
             
             annotations = self.get_annotations(x)
-            annotations[x] = annotations[x] + ['FANC4_ID: ' + str(seg_id) + str(extra_segids)] 
+            annotations[x] = annotations[x] + ['{}_ID: '.format(self.segmentation_version) + str(seg_id) + str(extra_segids)] 
         else:
             extra_segids = seg_id
             fuse = False
             annotations = self.get_annotations(x)
-            annotations[x] = annotations[x] + ['FANC4_ID: ' + str(seg_id) ] 
+            annotations[x] = annotations[x] + ['{}_ID: '.format(self.segmentation_version) + str(seg_id) ] 
 
         ## TODO: Update this for use with dynamic seg. Check segment IDs before appending to anntations, also add a timestamp. 
         
@@ -647,7 +700,7 @@ class neuron_database:
                     print('Neuron Exists in This Project')
                 else:
                     i.annotations.append(i.meta_data['skeleton_type'])
-                    i.annotations.append(self.filename.name[0:self.filename.name.rfind('.')])
+                    i.annotations.append(self.name)
                     upload_data = catmaid_utilities.upload_to_CATMAID(i,target_project=target_instance)
                     self.neurons.loc[self.neurons.Segment_ID == to_upload[idx],'Catmaid_Skids'] = json.dumps({target_instance.project_id:upload_data['skeleton_id']})
                     updated = 1
