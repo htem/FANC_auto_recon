@@ -54,7 +54,6 @@ class neuron_database:
                                           'V4_Soma',
                                           'V3_Soma',
                                           'Annotations',
-                                          'Extra_Segment_IDs',
                                           'Catmaid_Skids'])
             df.to_csv(self.filename,index=False)
             print('Database created')
@@ -108,96 +107,100 @@ class neuron_database:
     def __is_iter(self,x):
 
         if isinstance(x, collections.Iterable) and not isinstance(x, (six.string_types, pd.DataFrame)):
-            return True
+            if isinstance(x,dict) and len(x) == 1:
+                return False
+            else:
+                return True
         else:
             return False 
 
+        
+    def get_database(self):
+         self.neurons  = pd.read_csv(self.filename,converters={'V4_Soma':self.__deserialize_cols,
+                                                            'V3_Soma':self.__deserialize_cols,
+                                                            'Annotations':self.__deserialize_cols,
+                                                            'Catmaid_Skids':self.__deserialize_cols})
+
+        
+
+    def save_database(self,comment='Update'):
+
+        if not hasattr(self,'neurons'):
+            self.get_database()
+
+        df = self.neurons.copy(deep=True)
+        for index, row in df.iterrows():
+            df.loc[index,'Annotations'] = self.__serialize_annotations(row.Annotations)
+            df.loc[index,'V4_Soma'] = self.__serialize_coords(row.V4_Soma)
+            df.loc[index,'V3_Soma'] = self.__serialize_coords(row.V3_Soma)
+
+        
+        df.to_csv(self.filename,index=False, encoding = 'utf-8')
+
+    
+        if self.__check_repo() is True:
+            self.repo.index.add(self.filename.as_posix())
+            if self.repo.is_dirty(): 
+                self.repo.index.commit(comment)
+                print('Database Updated')
+            else:
+                print('No change made')
+        else:
+            print('Database Updated')
+
+    
     
     def get_entries(self,input_var):
-    ''' Get entries by seg id or by name.
-    Args: 
-        input_var: int, str, list   Either a seg_id (int), name (str), or list of either.
-    Returns:
-        subset: pd.DataFrame.    Rows corresponding to input criteria '''
-    df = self.neurons
-    if self.__is_iter(input_var):
-        input_type = type(input_var[0])
-    else:
-        input_type = type(input_var)
-        input_var = [input_var]
+        ''' Get entries by seg id or by name.
+        Args: 
+            input_var: int, str, list   Either a seg_id (int), name (str), or list of either.
+        Returns:
+            subset: pd.DataFrame.    Rows corresponding to input criteria '''
+        df = self.neurons.copy(deep=True)
+        
+        if self.__is_iter(input_var):
+            input_type = type(input_var[0])
+        else:
+            input_type = type(input_var)
+            input_var = [input_var]
 
-    if input_type==int:
-    df.set_index('Segment_ID',inplace=True)
-    subset = df.loc[input_var]
-    
+        if input_type==int:
+            df.set_index('Segment_ID',inplace=True)
+            subset = df.loc[input_var]
 
-    elif input_type == str:
+
+        elif input_type == str:
             df.set_index('Name',inplace=True)
             subset = df.loc[input_var]
 
-    else:
-        raise ValueError('Incorrect input type')
-    
-    return(subset)
-    
-    
-    # Check if ID is in the database. 
-    def __check_seg_id(self,seg_id):
-        self.get_database()
-        df = self.neurons
-        for i in df.Segment_ID:
-            if seg_id == i:
-                return(True)
-
-        return(False)     
-
-
-    
-    # Get a rootID / segmentID from a mip0 coordinate
-    def seg_from_pt(self,pt,segmentation_version=None):
-        
-        if not self.__is_iter(pt):
-            pts = [pt]
         else:
-            pts = pt
-            
+            raise ValueError('Incorrect input type')
         
-        if segmentation_version is None:
-            segmentation_version = self.segmentation_version
-            
-        if 'dynamic' in segmentation_version:
-            return(neuroglancer_utilities.seg_from_pt_graphene(pt,
-                                                        vol_url = self.segmentations[segmentation_version],
-                                                        image_res = self.segmentation_resolutions[segmentation_version]))
-        else:       
-            return(neuroglancer_utilities.seg_from_pt(pt,
-                                                  vol_url = self.segmentations[segmentation_version],
-                                                  image_res = self.segmentation_resolutions[segmentation_version]))
         
+        subset.reset_index(inplace=True)
+
+        return(subset)
     
     
     def add_entry(self,
               soma_coord, 
               Name = None, 
-              Annotations = None, 
-              override = False,
-              extra_segids = None):
+              Annotations = None,
+              override = False):
         ''' Add a database entry.
-        Args
-        -----------
-        soma_coord:    np.array, mip0 voxel coordinates, or in downsampled voxel coords for the dynamic segmentation.
-        Name:          str, name for neuron.
-        Annotations:   list,str, annotations to add to neuron.
-        override:      Bypass check for existing entry. Default=False
-        extra_segids:  int,list extra segment_ids in case the neuron is in pieces. This should be unnecessary once the dynamic seg layer works.
-        
-        ## TODO: Use class specific get point with more flexible call to seg_from_pt'''
-        
+            Args
+            -----------
+            soma_coord:    np.array, mip0 voxel coordinates, or in downsampled voxel coords for the dynamic segmentation.
+            Name:          str, name for neuron.
+            Annotations:   list,str, annotations to add to neuron.
+            override:      Bypass check for existing entry. Default=False
+
+            ## TODO: Use class specific get point with more flexible call to seg_from_pt'''
+
         updated = self.__update_db(soma_coord,
                                  Name=Name, 
                                  Annotations=Annotations,
-                                 override=override,
-                                 extra_segids = extra_segids)   
+                                 override=override)   
         if updated is True:
             print('entry added')
         else:
@@ -209,7 +212,7 @@ class neuron_database:
           Name=None, 
           Annotations = None, 
           override=False,
-          extra_segids = None):
+          ):
         
         filename = self.filename
         
@@ -231,10 +234,7 @@ class neuron_database:
         else:
             a_s = None
         
-        if extra_segids is not None:
-            e_s = self.__serialize_coords(extra_segids)
-        else:
-            e_s = None
+
         
 
         if self.__check_seg_id(seg_id) is False or override is True:
@@ -243,7 +243,6 @@ class neuron_database:
                                 'V4_Soma':v4_pt_s, 
                                 'V3_Soma':v3_pt_s,
                                 'Annotations':a_s,
-                                'Extra_Segment_IDs':e_s,
                                 'Catmaid_Skids':''}])
             
             df.to_csv(filename, mode='a', header=False,index=False, encoding = 'utf-8')
@@ -255,59 +254,9 @@ class neuron_database:
             return(True) 
         else:
             return(False)   
-
-
         
-        
-    def get_cloudvolume(self,vol_url = None):
-        if vol_url is None:
-            vol_url = self.segmentations[self.segmentation_version]
-        
-        if 'graphene' in vol_url:
-            print('Dynamic Segmentation Enabled')
-            self.cloud_volume = CloudVolume(vol_url,use_https=True)
-        else:
-            self.cloud_volume = CloudVolume(vol_url)
-        self.segmentation_resolution = self.cloud_volume.scale['resolution']
-
-
-
-
-    def get_database(self):
-        ## TODO: Add update seg_ids to this. 
-        self.neurons = pd.read_csv(self.filename,converters={'V4_Soma':self.__deserialize_cols,
-                                                            'V3_Soma':self.__deserialize_cols,
-                                                            'Annotations':self.__deserialize_cols,
-                                                            'Extra_Segment_IDs':self.__deserialize_cols,
-                                                            'Catmaid_Skids':self.__deserialize_cols})
     
-    
-    
-    def save_database(self,comment=None):
-
-        if not hasattr(self,'neurons'):
-            self.get_database()
-
-        df = self.neurons
-        for i in range(len(df.Annotations)):
-            df.loc[i,'Annotations'] = json.dumps(df.loc[i,'Annotations'])
-
-        df.to_csv(self.filename,index=False, encoding = 'utf-8')
-
-    
-        if self.__check_repo() is True:
-            self.repo.index.add(self.filename.as_posix())
-            if self.repo.is_dirty(): 
-                self.repo.index.commit(comment)
-                print('Database Updated')
-            else:
-                print('No change made')
-        else:
-            print('Database Updated')
-
-
-
-
+    ## Dealing with annotations
     def get_annotations(self,x):
         ''' Get annotations for a given entry.
         Parameters
@@ -320,120 +269,133 @@ class neuron_database:
         
         if not hasattr(self,'neurons'):
             self.get_database()
-    
-        annotations = {}
-        if not self.__is_iter(x):
-            x = [x]
-            
-        for i in x:
-            if isinstance(i,(int,np.int64)):
-                column = 'Segment_ID'
-            elif isinstance(i,str):
-                column = 'Name'
         
-            df = self.neurons
-            for index, row in df.iterrows():
-                if str(i) in str(row[column]):
-                    annotations[int(i)] = row.Annotations
-
-        return(annotations)
+        subset = self.get_entries(x)
+        
+        return(dict(zip(subset.Segment_ID.values,subset.Annotations.values)))
+            
     
-    
-    
-    
+     
     def add_annotations(self,x,annotations):
         ''' Add annotations to an entry
         Parameters
         ----------
-        x:            int, Segment ID 
+        x:            int,str,list Segment ID or name or list of either.
         annotations:  list or str, annotations to add. Will not add redundant annoations.'''
 
 
         self.get_database()
         df = self.neurons
-        if not self.__is_iter(annotations):
-            annotations = [annotations]
-
-        if isinstance(x,(int,np.int64)):
-
-            [df.loc[df.Segment_ID == x,'Annotations'].values[0].append(i) for i in annotations if i not in df.loc[df.Segment_ID == x,'Annotations'].values[0]]
-            print('Annotations added')
-
-        self.save_database(comment = str(df.Name[df.Segment_ID == x].values[0]) + ':' + 'annotation_update')
         
-        
-        
-        
-    def remove_annotations(self,x,annotations):
-        self.get_database()
         if not self.__is_iter(annotations):
             annotations = [annotations]
             
-        if isinstance(x,(int,np.int64)):
-            current_annotations_dict = self.get_annotations(x)
-            current_annotations = current_annotations_dict[x]
-            change = 0 
-            for i in annotations:
-                if i in current_annotations:
-                    self.neurons.loc[self.neurons.Segment_ID == x,'Annotations'].values[0].remove(i)
+        subset = self.get_entries(x)
+        seg_ids = subset.Segment_ID
+        
+        for i in seg_ids:
+            [df.loc[df.Segment_ID == i,'Annotations'].values[0].append(j) for j in annotations if j not in df.loc[df.Segment_ID == i,'Annotations'].values[0]]
+            self.save_database(comment = str(df.Name[df.Segment_ID == i].values[0]) + ':' + 'annotation_update')
+            
+
+        print('Annotations added')
+
+        
+                   
+    def remove_annotations(self,x,annotations):
+        self.get_database()
+        df = self.neurons
+        
+        if not self.__is_iter(annotations):
+            annotations = [annotations]
+               
+        current_annotations_dict = self.get_annotations(x)
+        
+        subset = self.get_entries(x)
+        seg_ids = subset.Segment_ID
+        
+        change = 0
+        affected = []
+        for entry in seg_ids:
+            current_annotations = current_annotations_dict[entry]
+            for annotation in annotations:
+                if annotation in current_annotations:
+                    self.neurons.loc[self.neurons.Segment_ID==entry,'Annotations'].values[0].remove(annotation)
+                    affected.append(subset.loc[subset.Segment_ID == entry,'Name'])
                     change += 1
             
         if change > 0:
-            self.save_database(comment = str(self.neurons.Name[self.neurons.Segment_ID == x].values[0]) + ':' + 'annotation_update')
+            self.save_database(comment = str( str(affected) + ':' + 'annotation_update'))
             print('Annotation Removed')
         else:
             print('Annotation does not exist')
         
-        
-                
-
-
-
-
-    def update_segIDs(self,seg_id=None):
-        ## Doesn't work. Need to figure out how to interact with dynamic seg layer. 
-        ##TODO: Make this work. 
-        new_seg_ids = []
-
+    
+     
+    
+    # Check if ID is in the database. 
+    def __check_seg_id(self,seg_id):
         self.get_database()
         df = self.neurons
+        for i in df.Segment_ID:
+            if seg_id == i:
+                return(True)
 
-        for index, row in df.iterrows():
-            row.Segment_ID = neuroglancer_utilities.seg_from_pt(row.V4_Soma,vol_url=self.dynamic_seg_url,seg_mip = self.dynamic_seg_res)
+        return(False)     
 
-        self.save_database(comment = 'Segment_ID_Update')
-        print('Segment IDs updated')
-
-
-
-
-
-    def add_segIDs(self,x,extra_IDs):
-        # Work around until proofreading is online. If neuron is in pieces, add all the segment IDs, and .get_skeletons will fuse them. 
-        self.get_database()
-        df = self.neurons
-
-        if isinstance(x,(int,np.int64)):
-            comment_base = str(df.Name[df.Segment_ID == x].values[0])
-            df.loc[df.Segment_ID == x,'Extra_Segment_IDs'] = self.__serialize_coords(extra_IDs)
-            print('Extra IDs added')
-
-        elif isinstance(x,str):
-            comment_base = x
-            df.loc[[x in n for n in df.Name],'Extra_Segment_IDs'] = self.__serialize_coords(extra_IDs)
-            print('Extra IDs added')
-
-        self.save_database(comment = comment_base + ':' + 'annotation_update')
-
-        
-
-
-
-
-    def get_mesh(self,x,vol_url=None):
-
+    def get_cloudvolume(self,vol_url = None):
         if vol_url is None:
             vol_url = self.segmentations[self.segmentation_version]
+
+        if 'graphene' in vol_url:
+            print('Dynamic Segmentation Enabled')
+            self.cloud_volume = CloudVolume(vol_url,use_https=True,agglomerate=True)
+        else:
+            self.cloud_volume = CloudVolume(vol_url)
+        self.segmentation_resolution = self.cloud_volume.scale['resolution']
+
+
+    
+    # Get a rootID / segmentID from a mip0 coordinate
+    def seg_from_pt(self,pt,segmentation_version=None):            
+        
+        if segmentation_version is None:
+            segmentation_version = self.segmentation_version
+            
+     
+        return(neuroglancer_utilities.seg_from_pt(pt,
+                                                  vol = self.cloud_volume,
+                                                  image_res = np.array([4.3,4.3,45])))
+        
+
+
+        
+    def update_segIDs(self):
+        
+        if 'dynamic' in self.segmentation_version:
+            self.get_database()
+            
+            for index,row in self.neurons.iterrows():
+                self.neurons.loc[index,'Segment_ID'] = self.seg_from_pt(row.V4_Soma)
+            
+            self.save_database(comment='SEG_ID_UPDATE')
+            print('Segment IDs updated')
+        
+        else:
+             for index,row in self.neurons.iterrows():
+                self.neurons.loc[index,'Segment_ID'] = self.seg_from_pt(row.V4_Soma)
+            
+             print('dynamic segmentation not enabled, retreived flat seg_ids')
+        
+        
+
+
+
+
+    def get_mesh(self,x,vol=None):
+        ## TODO: UPDATE input parsing
+        if vol is None:
+            vol = self.segmentations[self.segmentation_version]
 
         vol = CloudVolume(vol_url)
         self.get_database()
@@ -446,20 +408,15 @@ class neuron_database:
         for i in range(len(x)):
             if isinstance(x[i],(int,np.int64)):
                 seg_id = x[i]
-                extra_segids = df.loc[df.Segment_ID == x[i],'Extra_Segment_IDs'].values[0]
                 
                 
 
             elif isinstance(x[i],str):
                 seg_id = [df.loc[[x[i] in n for n in df.Name],'Segment_ID']]
-                extra_segids = df.loc[[x[i] in n for n in df.Name],'Extra_Segment_IDs'].values[0]
                 
                 
-            if len(extra_segids) > 0:
-                extra_segids.append(seg_id)
-                mesh = vol.mesh.get(extra_segids,remove_duplicate_vertices = True, fuse = True)
-            else:
-                mesh = vol.mesh.get(seg_id,remove_duplicate_vertices=True,fuse=True)
+     
+            mesh = vol.mesh.get(seg_id,remove_duplicate_vertices=True,fuse=True)
             
             meshes.append(mesh)
             
@@ -474,6 +431,7 @@ class neuron_database:
 
 
     def plot_mesh(self,x,vol_url=None,plot_neuropil=False,neuropil_url=None,save=False,output_dir=None,opacity=.5):
+        ## TODO UPDATE INPUT PARSING
         if vol_url is None:
                 vol_url = self.segmentations[self.segmentation_version]
         
@@ -572,7 +530,6 @@ class neuron_database:
         # If input is a segment id:
         if isinstance(x,(int,np.int64)):
             seg_id = x
-            extra_segids = df.loc[df.Segment_ID == x,'Extra_Segment_IDs'].values[0]
             name = df.loc[df.Segment_ID == x,'Name']
             soma_coords = df.V3_Soma[df.Segment_ID == x]
         
@@ -580,7 +537,6 @@ class neuron_database:
         elif isinstance(x,str):
             name = x
             seg_id = [df.loc[[x in n for n in df.Name],'Segment_ID']]
-            extra_segids = df.loc[[x in n for n in df.Name],'Extra_Segment_IDs'].values[0]
             soma_coords = df.V3_Soma[df.Segment_ID == x]
         
         #TODO: Add get by annotations
@@ -588,26 +544,14 @@ class neuron_database:
         # If there are extra segment IDs attached to the entry, append them, and fuse them together. 
         # This really should be unnecessary once proofreading is online (read: I know how to interact with it)
         
-        if len(extra_segids) > 0:
-            print(extra_segids)
-            print(seg_id)
-            extra_segids.append(seg_id) 
-            fuse = True
-            
-            annotations = self.get_annotations(x)
-            annotations[x] = annotations[x] + ['{}_ID: '.format(self.segmentation_version) + str(seg_id) + str(extra_segids)] 
-        else:
-            extra_segids = seg_id
-            fuse = False
-            annotations = self.get_annotations(x)
-            annotations[x] = annotations[x] + ['{}_ID: '.format(self.segmentation_version) + str(seg_id) ] 
+        fuse = False
+        annotations = self.get_annotations(x)
+        annotations[x] = annotations[x] + ['{}_ID: '.format(self.segmentation_version) + str(seg_id) ] 
 
         ## TODO: Update this for use with dynamic seg. Check segment IDs before appending to anntations, also add a timestamp. 
         
 
-
-
-        skeleton = skeletonization.get_skeleton(extra_segids,
+        skeleton = skeletonization.get_skeleton(seg_id,
                                      vol_url,
                                      method=method,
                                      transform=transform,
