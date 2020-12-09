@@ -58,7 +58,12 @@ def single_skeleton(seg_id,
 
 
 def get_mesh(seg_id,cv_url):
-    vol = CloudVolume(cv_url)
+    
+    if 'graphene' in vol_url:  
+        segmentation = CloudVolume(vol_url,use_https=True,agglomerate=True)
+    else:
+        segmentation = CloudVolume(vol_url)
+    
     return(vol.mesh.get(seg_id))
 
 
