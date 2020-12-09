@@ -349,7 +349,7 @@ class neuron_database:
 
         if 'graphene' in vol_url:
             print('Dynamic Segmentation Enabled')
-            self.cloud_volume = CloudVolume(vol_url,use_https=True,agglomerate=True)
+            self.cloud_volume = CloudVolume(vol_url,use_https=True)
         else:
             self.cloud_volume = CloudVolume(vol_url)
         self.segmentation_resolution = self.cloud_volume.scale['resolution']
@@ -392,13 +392,18 @@ class neuron_database:
 
 
 
-    def get_mesh(self,x,vol=None):
+    def get_mesh(self,x,vol_url=None):
         ## TODO: UPDATE input parsing
-        if vol is None:
-            vol = self.segmentations[self.segmentation_version]
+        
+        if vol_url is None:
+            vol_url = self.segmentations[self.segmentation_version]
+            
+        if 'graphene' in vol_url:  
+            vol = CloudVolume(vol_url,use_https=True,agglomerate=True)
+        else:
+            vol = CloudVolume(vol_url)
+            
 
-        vol = CloudVolume(vol_url)
-        self.get_database()
         df = self.neurons
         
         meshes = []
@@ -525,7 +530,7 @@ class neuron_database:
         if vol_url is None:
             vol_url = self.segmentations[self.segmentation_version]
         
-        self.get_database()
+
         df = self.neurons
         # If input is a segment id:
         if isinstance(x,(int,np.int64)):
