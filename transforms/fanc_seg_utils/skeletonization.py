@@ -19,7 +19,8 @@ import pandas as pd
 ##TODO: fix caches
 
 def get_skeleton(seg_id,
-                 cv_path,method='kimimaro',
+                 cv_path,
+                 method='kimimaro',
                  transform=True, 
                  cache_path = None, 
                  annotations = None, 
@@ -30,6 +31,7 @@ def get_skeleton(seg_id,
                  **kwargs):
     
     ## TODO: Add merge function to other skeletonization formats using pymaid stitch. Right now, it only works with kimimaro and uses kimimaro.join_close_components
+    ## TODO: Remove resolution hardcoding.
     ''' Downloads a skeleton generated with kimimaro,meshparty, or skeletor based on its segment ID. 
     Parameters
     ----------
@@ -70,15 +72,7 @@ def get_skeleton(seg_id,
         if 'soma_coords' not in kwargs.keys():
             raise ValueError('meshparty skeletonization requires a soma coordinate.')
         
-        sk_params = {'cache_path': None,
-                      'NG_voxel_resolution': np.array([4.3,4.3,45]),
-                      'merge_size_threshold': 100,
-                      'merge_max_dist':1000,
-                      'merge_distance_step':500,
-                      'soma_radius':1200,
-                      'invalidation_distance':8500,
-                      'merge_collapse_soma':True,
-                      'format_kwargs':format_kwargs}
+        sk_params = skeletonization.meshparty_defaults
 
         for i in sk_params:
             if i in kwargs.keys():
@@ -91,13 +85,8 @@ def get_skeleton(seg_id,
             
     
     elif 'skeletor' in method:
-        sk_params = {'iter_lim':10, 
-                     'sk_method': 'vertex_clusters', 
-                     'sampling_dist': 1500, 
-                     'output': 'swc',
-                     'diam_method':'knn', 
-                     'knn_n':5, 
-                     'diam_aggregate':'mean'}
+        sk_params = skeletonization.skeletor_defaults
+        
         for i in sk_params:
             if i in kwargs.keys():
                 sk_params[i] = kwargs[i]
@@ -365,7 +354,7 @@ def meshparty_skeletonize(mesh,
                    merge_size_threshold=100,
                    merge_max_dist=1000,
                    merge_distance_step=500,
-                   soma_radius=24000,
+                   soma_radius=14000,
                    invalidation_distance=8500,
                    merge_collapse_soma=True,
                    **format_kwargs):
@@ -618,9 +607,9 @@ skeletonization.meshparty_defaults = {'cache_path': None,
               'xyz_scaling':1,
               'radius': True}
 
-skeletonization.skeletor_defaults = {'iter_lim':10, 
+skeletonization.skeletor_defaults = {'iter_lim':4, 
                      'sk_method': 'vertex_clusters', 
-                     'sampling_dist': 1500, 
+                     'sampling_dist': 50, 
                      'output': 'swc',
                      'diam_method':'knn', 
                      'knn_n':5, 
