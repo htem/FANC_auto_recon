@@ -380,6 +380,9 @@ class neuron_database:
         df = self.neurons
         
         meshes = []
+        if not self.__is_iter(x):
+            x = [x]
+        
         for i in range(len(x)):
             if isinstance(x[i],(int,np.int64)):
                 seg_id = x[i]
@@ -413,12 +416,8 @@ class neuron_database:
         if not self.__is_iter(x):
             x = [x]
 
-        mesh = []
-        for i in x:
-            mesh.append(self.get_mesh(i,vol_url = vol_url))
-        
-        #np_mesh = self.get_mesh(2,vol_url = np_url)
-        
+        mesh = self.get_mesh(x,vol_url = vol_url)
+           
         colors = plt.cm.Set1(range(len(mesh)))
         
         tmeshes = []
