@@ -207,10 +207,10 @@ def kimimaro_skeletons(segment_ids,
             names = name
      
     
-    if 'graphene' in vol_url:  
-        segmentation = CloudVolume(vol_url,use_https=True,agglomerate=True)
+    if 'graphene' in cv_path:  
+        segmentation = CloudVolume(cv_path,use_https=True,agglomerate=True)
     else:
-        segmentation = CloudVolume(vol_url)
+        segmentation = CloudVolume(cv_path)
     
     
 
@@ -554,10 +554,10 @@ def get_cv_mesh(segment_ids,
  
     
     
-    if 'graphene' in vol_url:  
-        segmentation = CloudVolume(vol_url,use_https=True,agglomerate=True)
+    if 'graphene' in cv_path:  
+        segmentation = CloudVolume(cv_path,use_https=True,agglomerate=True)
     else:
-        segmentation = CloudVolume(vol_url)
+        segmentation = CloudVolume(cv_path)
 
     meshes = []
     for i in range(len(segment_ids)):
