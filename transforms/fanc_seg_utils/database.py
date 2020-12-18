@@ -21,7 +21,7 @@ import json
 import git
 from pathlib import Path
 
-class neuron_database:
+class Neuron_database:
     
     ''' Class for keeping track of neurons from the autosegmenatation.'''
     def __init__(self,filename,segmentation_version = 'V4_dynamic'):
@@ -56,7 +56,9 @@ class neuron_database:
                                           'Annotations',
                                           'Catmaid_Skids'])
             df.to_csv(self.filename,index=False)
-            print('Database created')
+            print('Database created')            
+            self.get_cloudvolume(self.segmentations[self.segmentation_version])
+
         else:
             self.get_cloudvolume(self.segmentations[self.segmentation_version])
             self.get_database()
@@ -78,6 +80,7 @@ class neuron_database:
         self.segmentation_version = version
         self.get_cloudvolume(vol_url=self.segmentations[self.segmentation_version])
         self.segmentation_resolution = self.segmentation_resolutions[self.segmentation_version]
+        self.update_segIDs()
         return('Segmentation version updated')
     
     
@@ -221,7 +224,7 @@ class neuron_database:
        
         # Make sure that the v4 pt is at the correct resolution. The dynamic segmetation 4x downsampled, so need to adjust. 
         scale_factor = self.segmentation_resolution / self.target_resolution
-        v4_pt_scaled = v4_pt * scale_factor
+        v4_pt_scaled = v4_pt #* scale_factor
         
         v3_transform = neuroglancer_utilities.fanc4_to_3(v4_pt_scaled,scale=2)
         v3_pt = [v3_transform['x'],v3_transform['y'],v3_transform['z']]
@@ -349,7 +352,7 @@ class neuron_database:
 
         if 'graphene' in vol_url:
             print('Dynamic Segmentation Enabled')
-            self.cloud_volume = CloudVolume(vol_url,use_https=True)
+            self.cloud_volume = CloudVolume(vol_url,use_https=True,agglomerate=True)
         else:
             self.cloud_volume = CloudVolume(vol_url)
         self.segmentation_resolution = self.cloud_volume.scale['resolution']
