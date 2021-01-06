@@ -24,7 +24,7 @@ from pathlib import Path
 class Neuron_database:
     
     ''' Class for keeping track of neurons from the autosegmenatation.'''
-    def __init__(self,filename,segmentation_version = 'V4_dynamic'):
+    def __init__(self,filename,segmentation_version = 'V4_dynamic',load_database = False):
         
         self.filename = Path(filename)
         self.Name = self.filename.name[0:self.filename.name.rfind('.')]
@@ -32,20 +32,20 @@ class Neuron_database:
         self.cloud_volume = None
         self.target_resolution = np.array([4.3,4.3,45])
         self.segmentation_resolution = None
-        self.segmentation_resolutions = {'V3': np.array([4,4,40]), 'V4': np.array([4.3,4.3,45]), 'V4_dynamic': np.array([17.2,17.2,45])}
-        self.segmentations = {'V3':'https://storage.googleapis.com/zetta_lee_fly_vnc_001_segmentation_temp/vnc1_full_v3align_2/37674-69768_41600-134885_430-4334/seg/v3',                                 'V4':'https://storage.googleapis.com/zetta_lee_fly_vnc_001_segmentation/vnc1_full_v3align_2/realigned_v1/seg/full_run_v1',
-                              'V4_dynamic': 'graphene://https://standalone.poyntr.co/segmentation/table/vnc1_full_v3align_2',
-                              'V4_brain_regions': 'https://storage.googleapis.com/zetta_lee_fly_vnc_001_precomputed/vnc1_full_v3align_2/brain_regions'}  
+        self.segmentation_resolutions = {'V4': np.array([4.3,4.3,45]), 'V4_dynamic': np.array([17.2,17.2,45])}
+        self.segmentations = {   'V4':'https://storage.googleapis.com/zetta_lee_fly_vnc_001_segmentation/vnc1_full_v3align_2/realigned_v1/seg/full_run_v1',
+                              'V4_dynamic': 'graphene://https://standalone.poyntr.co/segmentation/table/vnc1_full_v3align_2'}  
        
     
         self.segmentation_version = segmentation_version
-        self.__initialize_database()
+        self.__initialize_database(load_database)
  
         if self.__check_repo() is True:
             self.repo = git.repo.Repo(self.filename.parent)
         
         
-    def __initialize_database(self):
+    def __initialize_database(self,load_database):
+        # Check if the database exists, if not create a new one.
         fileEmpty =  os.path.exists(self.filename)
         if not fileEmpty:
             df = pd.DataFrame(data = None, 
@@ -56,18 +56,21 @@ class Neuron_database:
                                           'Annotations',
                                           'Catmaid_Skids'])
             df.to_csv(self.filename,index=False)
-            print('Database created')            
             self.get_cloudvolume(self.segmentations[self.segmentation_version])
+            print('Database created')            
 
         else:
             self.get_cloudvolume(self.segmentations[self.segmentation_version])
-            self.get_database()
+            if load_database is True:
+                self.get_database()
+            
             print('Database active')
     
     
     
-    # Version control things    
+        
     def __check_repo(self):
+        # Version control things
         try:
             git.Repo(self.filename.parent)
             return(True)
@@ -75,11 +78,15 @@ class Neuron_database:
             print('Warning: Database is not in a repo, changes not logged')
             return(False)
 
-    #Set which segmentation to use
+    
     def set_segmentation(self,version):
+        #Set which segmentation to use
         self.segmentation_version = version
+        # Get appropriate cloud volume
         self.get_cloudvolume(vol_url=self.segmentations[self.segmentation_version])
+        # Set resolution
         self.segmentation_resolution = self.segmentation_resolutions[self.segmentation_version]
+        # Update segment IDs
         self.update_segIDs()
         return('Segmentation version updated')
     
@@ -106,9 +113,9 @@ class Neuron_database:
         
     
     
-    # Check if things are iterable. 
+    
     def __is_iter(self,x):
-
+        # Check if things are iterable. 
         if isinstance(x, collections.Iterable) and not isinstance(x, (six.string_types, pd.DataFrame)):
             if isinstance(x,dict) and len(x) == 1:
                 return False
@@ -119,18 +126,19 @@ class Neuron_database:
 
         
     def get_database(self):
-         self.neurons  = pd.read_csv(self.filename,converters={'V4_Soma':self.__deserialize_cols,
-                                                            'V3_Soma':self.__deserialize_cols,
-                                                            'Annotations':self.__deserialize_cols,
-                                                            'Catmaid_Skids':self.__deserialize_cols})
+        # Read database. 
+        self.neurons  = pd.read_csv(self.filename,converters={'V4_Soma':self.__deserialize_cols,
+                                                        'V3_Soma':self.__deserialize_cols,
+                                                        'Annotations':self.__deserialize_cols,
+                                                        'Catmaid_Skids':self.__deserialize_cols})
 
         
 
     def save_database(self,comment='Update'):
-
+        # Check if the database is loaded into memory. 
         if not hasattr(self,'neurons'):
             self.get_database()
-
+        # Reserialize and save
         df = self.neurons.copy(deep=True)
         for index, row in df.iterrows():
             df.loc[index,'Annotations'] = self.__serialize_annotations(row.Annotations)
@@ -152,15 +160,17 @@ class Neuron_database:
             print('Database Updated')
 
     
+
     
-    def get_entries(self,input_var):
+    def get_entries(self,input_var,invert=False):
         ''' Get entries by seg id or by name.
         Args: 
             input_var: int, str, list   Either a seg_id (int), name (str), or list of either.
+            invert: bool, invert index to return everything except input
         Returns:
             subset: pd.DataFrame.    Rows corresponding to input criteria '''
         df = self.neurons.copy(deep=True)
-        
+
         if self.__is_iter(input_var):
             input_type = type(input_var[0])
         else:
@@ -169,21 +179,27 @@ class Neuron_database:
 
         if input_type==int:
             df.set_index('Segment_ID',inplace=True)
-            subset = df.loc[input_var]
+            if invert is True:
+                subset = df.loc[~df.index.isin(input_var)]
+            else:
+                subset = df.loc[df.index.isin(input_var)]
 
 
         elif input_type == str:
             df.set_index('Name',inplace=True)
-            subset = df.loc[input_var]
+            if invert is True:
+                subset = df.loc[~df.index.isin(input_var)]
+            else:
+                subset = df.loc[df.index.isin(input_var)]
 
         else:
             raise ValueError('Incorrect input type')
-        
-        
+
+
         subset.reset_index(inplace=True)
 
         return(subset)
-    
+
     
     def add_entry(self,
               soma_coord, 
@@ -198,7 +214,7 @@ class Neuron_database:
             Annotations:   list,str, annotations to add to neuron.
             override:      Bypass check for existing entry. Default=False
 
-            ## TODO: Use class specific get point with more flexible call to seg_from_pt'''
+            '''
 
         updated = self.__update_db(soma_coord,
                                  Name=Name, 
@@ -209,7 +225,15 @@ class Neuron_database:
         else:
             print('entry already exists')
     
+    def remove_entry(self, input_var):
+        
+        subset = self.get_entries(input_var,invert = True)
+        self.neurons = subset
+        db.save_database(comment='Entries Removed')
+        
+        
 
+    
     def __update_db(self,
           v4_pt, 
           Name=None, 
@@ -481,111 +505,42 @@ class Neuron_database:
                      vol_url = None,
                      method = 'kimimaro',
                      transform = True,
-                     cache_path = None,
-                     output = 'pymaid',
-                     save = False,
-                     save_path = None):
+                     save = False):
         
-        if not self.__is_iter(x):
-            x = [x]
+        if vol_url is None:
+            vol = self.CloudVolume
+        entries = self.get_entries(x)
+
+    
         
+        nlist = []
+        for i in entries:
+            neuron = skeletonization.neuron_from_skeleton(i.Segment_ID,
+                                                 vol,
+                                                 method=method,
+                                                 soma_coord = i.V4_Soma,
+                                                 transform = transform)
+            neuron.annotations = i.Annotations
   
-        
-        if len(x) > 1:
-            nlist = []
-            for i in range(len(x)):
-                nlist.append(self.__get_skeleton(x[i], 
-                         vol_url = vol_url,
-                         method = method,
-                         transform = transform,
-                         cache_path = cache_path,
-                         output = output))
+     
             
-        
-        else:
-            nlist =  self.__get_skeleton(x[0], 
-                         vol_url = vol_url,
-                         method = method,
-                         transform = transform,
-                         cache_path = cache_path,
-                         output = output)
             
         neuron_list = pymaid.CatmaidNeuronList(nlist)
+        
         if save is True:
             for i in neuron_list:
                 pymaid.to_swc(i,filename = save_path + i.neuron_name[0][0])
             
             
-        return(neuron_list) ## TODO Add Navis output 
+        return(neuron_list)
             
                                  
             
 
 
 
-    def __get_skeleton(self,x,
-                     vol_url = None,
-                     method = 'Kimimaro',
-                     transform = True,
-                     cache_path = None,
-                     output = 'pymaid'):
-
-        if vol_url is None:
-            vol_url = self.segmentations[self.segmentation_version]
-        
-
-        df = self.neurons
-        # If input is a segment id:
-        if isinstance(x,(int,np.int64)):
-            seg_id = x
-            name = df.loc[df.Segment_ID == x,'Name']
-            soma_coords = df.V3_Soma[df.Segment_ID == x]
-        
-        # If input is a name:
-        elif isinstance(x,str):
-            name = x
-            seg_id = [df.loc[[x in n for n in df.Name],'Segment_ID']]
-            soma_coords = df.V3_Soma[df.Segment_ID == x]
-        
-        #TODO: Add get by annotations
-        
-        # If there are extra segment IDs attached to the entry, append them, and fuse them together. 
-        # This really should be unnecessary once proofreading is online (read: I know how to interact with it)
-        
-        fuse = False
-        annotations = self.get_annotations(x)
-        annotations[x] = annotations[x] + ['{}_ID: '.format(self.segmentation_version) + str(seg_id) ] 
-
-        ## TODO: Update this for use with dynamic seg. Check segment IDs before appending to anntations, also add a timestamp. 
-        
-
-        skeleton = skeletonization.get_skeleton(seg_id,
-                                     vol_url,
-                                     method=method,
-                                     transform=transform,
-                                     cache_path=cache_path,
-                                     annotations=annotations[x],
-                                     name=name,
-                                     output=output,
-                                     fuse = fuse)
-        
-        skeleton = skeleton_manipulations.set_soma(skeleton,np.array(soma_coords.iloc[0])* self.target_res) 
-        pymaid.downsample_neuron(skeleton,resampling_factor=15,inplace=True)
-        skeleton = skeleton_manipulations.diameter_smoothing(skeleton,smooth_method='smooth',smooth_bandwidth=1000)
-        return(skeleton)
-
     
     
-    
-    
-    
-    
-    def initialize_catmaid_instance(self,keys_path, project_id):
-        
-        target_instance = catmaid_utilities.catmaid_login('fanc',project_id,keys_path)
-        self.target_instnace = target_instance
-        xyz = [self.target_instnace.image_stacks.resolution.values[0][k] for k in self.target_instnace.image_stacks.resolution.values[0].keys()]
-        self.target_res = np.array(xyz)
         
     
     
