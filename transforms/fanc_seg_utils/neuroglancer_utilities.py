@@ -131,7 +131,10 @@ def fanc4_to_3(points,scale=2):
         full_url = base + '/' + 'z/{}/'.format(str(int(points[2]))) + 'x/{}/'.format(str(int(points[0]))) + 'y/{}/'.format(str(int(points[1])))
         r = requests.get(full_url)
     
-    return(r.json())
+    try:
+        return(r.json())
+    except:
+        return(r)
     
   
 
@@ -144,3 +147,12 @@ def seg_ids_from_link(ng_link):
 
 
 
+def is_iter(x):
+    # Check if things are iterable. 
+    if isinstance(x, collections.Iterable) and not isinstance(x, (six.string_types, pd.DataFrame)):
+        if isinstance(x,dict) and len(x) == 1:
+            return False
+        else:
+            return True
+    else:
+        return False 
