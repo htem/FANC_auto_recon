@@ -515,11 +515,12 @@ class Neuron_database:
     
         
         nlist = []
-        for i in entries:
-            neuron = skeletonization.neuron_from_skeleton(i.Segment_ID,
+        for index,row in entries.iterrows():
+            
+            neuron = skeletonization.neuron_from_skeleton(row.Segment_ID,
                                                  vol,
                                                  method=method,
-                                                 soma_coord = i.V4_Soma,
+                                                 soma_coord = row.V4_Soma,
                                                  transform = transform)
             neuron.annotations = i.Annotations
   
