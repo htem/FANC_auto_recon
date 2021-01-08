@@ -45,7 +45,7 @@ def neuron_from_skeleton(segment_id,
                          contraction_params = skeletonization.contraction_defaults,
                          skeltonization_params = skeletonization.skeletonization_defaults):
     
-    if isinstance(vol,'str'):
+    if isinstance(vol,str):
         cv = set_cv(vol)
     else:
         cv = vol
