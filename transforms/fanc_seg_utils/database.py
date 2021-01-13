@@ -24,7 +24,7 @@ from pathlib import Path
 class Neuron_database:
     
     ''' Class for keeping track of neurons from the autosegmenatation.'''
-    def __init__(self,filename,segmentation_version = 'V4_dynamic',load_database = False):
+    def __init__(self,filename,segmentation_version = 'V4_dynamic',load_database = False,token=None):
         
         self.filename = Path(filename)
         self.Name = self.filename.name[0:self.filename.name.rfind('.')]
@@ -35,10 +35,11 @@ class Neuron_database:
         self.segmentation_resolutions = {'V4': np.array([4.3,4.3,45]), 'V4_2': np.array([4.3,4.3,45]), 'V4_dynamic': np.array([17.2,17.2,45])}
         self.segmentations = {  'V4':'https://storage.googleapis.com/zetta_lee_fly_vnc_001_segmentation/vnc1_full_v3align_2/realigned_v1/seg/full_run_v1',
                                 'V4_2': 'https://storage.googleapis.com/zetta_lee_fly_vnc_001_segmentation/vnc1_full_v3align_2/realigned_v1/seg/full_run_v2',
-                                'V4_dynamic': 'graphene://https://standalone.poyntr.co/segmentation/table/vnc1_full_v3align_2'}  
+                                'V4_dynamic': 'graphene://https://wclee.dev.zetta.ai/segmentation/table/vnc1_full_v3align_2'}  
        
     
         self.segmentation_version = segmentation_version
+        self.token = {segmentation_version:token}
         self.__initialize_database(load_database)
  
         if self.__check_repo() is True:
@@ -377,7 +378,7 @@ class Neuron_database:
 
         if 'graphene' in vol_url:
             print('Dynamic Segmentation Enabled')
-            self.cloud_volume = CloudVolume(vol_url,use_https=True,agglomerate=True)
+            self.cloud_volume = CloudVolume(vol_url,use_https=True,agglomerate=True,secrets=self.token[self.segmentation_version])
         else:
             self.cloud_volume = CloudVolume(vol_url)
         self.segmentation_resolution = self.cloud_volume.scale['resolution']
@@ -427,7 +428,7 @@ class Neuron_database:
             vol_url = self.segmentations[self.segmentation_version]
             
         if 'graphene' in vol_url:  
-            vol = CloudVolume(vol_url,use_https=True,agglomerate=True)
+            vol = CloudVolume(vol_url,use_https=True,agglomerate=True,secrets=self.token[self.segmentation_version])
         else:
             vol = CloudVolume(vol_url)
             
@@ -448,8 +449,10 @@ class Neuron_database:
                 seg_id = [df.loc[[x[i] in n for n in df.Name],'Segment_ID']]
                 
                 
-     
-            mesh = vol.mesh.get(seg_id,remove_duplicate_vertices=True,fuse=True)
+        if 'graphene' in vol_url:
+            mesh = vol.mesh.get(seg_id,remove_duplicate_vertices=True,fuse=True,use_byte_offsets=True)
+        else:
+            mesh = vol.mesh.get(seg_id,remove_duplicate_vertices=True,fuse=True,use_byte_offsets=False)
             
             meshes.append(mesh)
             

@@ -18,8 +18,7 @@ skeletonization.contraction_defaults = {'epsilon': 1e-05,'iter_lim': 8, 'precisi
 
 
 
-skeletonization.skeletonization_defaults = {'cache_path': None,
-                                              'NG_voxel_resolution': np.array([4.3,4.3,45]),
+skeletonization.skeletonization_defaults = {'NG_voxel_resolution': np.array([4.3,4.3,45]),
                                               'CATMAID_voxel_resolution': np.array([4.3,4.3,45]),
                                               'merge_size_threshold': 100,
                                               'merge_max_dist':1000,
@@ -58,10 +57,10 @@ def neuron_from_skeleton(seg_id,
     else:
         if soma_coord is None:
             raise ValueError('Skeleton generation requires a soma point for Mesh Party')  
-        mesh = get_mesh(cv,i) 
+        mesh = get_mesh(cv,seg_id) 
         cmesh = skeletor_contraction(mesh,**contraction_params)
-        mp_mesh = meshparty.trimesh_io.Mesh(cmesh.vertices,cmesh.faces,cmesh.face_normals)
-        mp_skel = meshparty_skeletonize(mp_mesh,soma_coords,**skeltonization_params)
+        mp_mesh = trimesh_io.Mesh(cmesh.vertices,cmesh.faces,cmesh.face_normals)
+        mp_skel = meshparty_skeletonize(mp_mesh,soma_coord,**skeltonization_params)
         recalculate_radius = True
     
     # Convert to pymaid, add radius, and transform
@@ -110,8 +109,12 @@ def get_kimimaro_skeleton(cv,seg_id):
     return(cv.skeleton.get(seg_id))
 
 
-def get_mesh(seg_id,cv):
-    return(cv.mesh.get(seg_id))
+def get_mesh(cv,seg_id):
+    if 'graphene' in cv.meta.info['mesh']:
+        mesh = cv.mesh.get(seg_id,use_byte_offsets=True)[seg_id]
+    else:
+        mesh = cv.mesh.get(seg_id,use_byte_offsets=False)
+    return(mesh)
 
 
 # 3. Skeletonize using skeletor and meshparty 
@@ -137,9 +140,12 @@ def meshparty_skeletonize(mesh,
     adjusted_soma = soma_coords * NG_voxel_resolution
     
     # Repair mesh
-    mesh.merge_large_components(size_threshold=merge_size_threshold,
-                                max_dist=merge_max_dist,
-                                dist_step=merge_distance_step)
+    try:
+        mesh.merge_large_components(size_threshold=merge_size_threshold,
+                                    max_dist=merge_max_dist,
+                                    dist_step=merge_distance_step)
+    except:
+        print('mesh heal failed')
     
     # Skeletonize
     skeleton =skeletonize.skeletonize_mesh(mesh,
