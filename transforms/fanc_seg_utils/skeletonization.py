@@ -35,7 +35,7 @@ skeletonization.diameter_smoothing_defaults = {'smooth_method':'smooth',
 
 ## PRIMARY FUNCTION:
 
-def neuron_from_skeleton(segment_id,
+def neuron_from_skeleton(seg_id,
                          vol,
                          transform = True,
                          method='kimimaro',
@@ -51,14 +51,13 @@ def neuron_from_skeleton(segment_id,
         cv = vol
     
     if 'kimimaro' in method:
-        km_skel = get_kimimaro_skeleton(segment_id)
-        mp_skel = km_to_mp(km_skels)
+        km_skel = get_kimimaro_skeleton(cv,seg_id)
+        mp_skel = km_to_mp(km_skel)
         recalculate_radius = False
         mesh = None
     else:
         if soma_coord is None:
             raise ValueError('Skeleton generation requires a soma point for Mesh Party')  
-        mp_skels = []
         mesh = get_mesh(cv,i) 
         cmesh = skeletor_contraction(mesh,**contraction_params)
         mp_mesh = meshparty.trimesh_io.Mesh(cmesh.vertices,cmesh.faces,cmesh.face_normals)
@@ -69,16 +68,28 @@ def neuron_from_skeleton(segment_id,
     ng_voxel_res = skeltonization_params['NG_voxel_resolution']
     cm_voxel_res = skeltonization_params['CATMAID_voxel_resolution']
     
-    neuron = mp_to_pymaid(skeleton,
+    neuron = mp_to_pymaid(mp_skel,
                           node_labels=node_labels,
                           xyz_scaling=xyz_scaling,
                           recalculate_radius = recalculate_radius,
                           mesh = mesh)
-    neuron.nodes[['x','y','z']] = pymaid_neuron.nodes[['x','y','z']] / ng_voxel_res  * cm_voxel_res
+    neuron.nodes[['x','y','z']] = neuron.nodes[['x','y','z']] / ng_voxel_res  * cm_voxel_res
     
-    neuron = diameter_smoothing(neuron,smooth_method='smooth', smooth_bandwidth=1000)
-    pymaid_neuron = transform_neuron(neuron,voxel_resolution = skeltonization_params['NG_voxel_resolution'])
-    return(pymaid_neuron)
+        
+    neuron = skeleton_manipulations.diameter_smoothing(neuron,smooth_method='smooth', smooth_bandwidth=1000)
+    
+    if soma_coord is not None:
+        neuron = skeleton_manipulations.set_soma(neuron,soma_coord)
+    
+    neuron.downsample(10)
+   
+    if transform is True:
+        transformed_neuron = transform_neuron(neuron,voxel_resolution = skeltonization_params['NG_voxel_resolution'])
+        return(transformed_neuron)
+    else:
+        return(neuron)
+        
+    
     
 
                                           
@@ -95,8 +106,8 @@ def set_cv(cv_path):
 
 # 2. Download skeletons and meshes
 
-def get_kimimaro_skeleton(cv,seg_ids):
-    return(cv.skeleton.get(segment_ids))
+def get_kimimaro_skeleton(cv,seg_id):
+    return(cv.skeleton.get(seg_id))
 
 
 def get_mesh(seg_id,cv):
@@ -155,7 +166,7 @@ def km_to_mp(skel):
     return(meshparty_skel)
 
 
-def mp_to_pymaid(skeleton,node_labels=None, xyz_scaling=1, recalculate_radius = True, mesh = None):
+def mp_to_pymaid(meshparty_skel,node_labels=None, xyz_scaling=1, recalculate_radius = True, mesh = None):
     '''
     Convert a meshparty skeleton into a dataframe for navis/catmaid import.
     Args
@@ -168,7 +179,7 @@ def mp_to_pymaid(skeleton,node_labels=None, xyz_scaling=1, recalculate_radius = 
  
     
     '''
-    ds = skeleton.distance_to_root
+    ds = meshparty_skel.distance_to_root
     order_old = np.argsort(ds)
     new_ids = np.arange(len(ds))
     order_map = dict(zip(order_old, new_ids))
@@ -179,9 +190,9 @@ def mp_to_pymaid(skeleton,node_labels=None, xyz_scaling=1, recalculate_radius = 
     else:
         node_labels = np.array(node_labels)[order_old]
         
-    xyz = skeleton.vertices[order_old]
+    xyz = meshparty_skel.vertices[order_old]
     par_ids = np.array([order_map.get(nid, -1)
-                        for nid in skeleton._parent_node_array[order_old]])
+                        for nid in meshparty_skel._parent_node_array[order_old]])
     
     data = {'node_id': node_labels,
          'parent_id': par_ids,
@@ -193,6 +204,8 @@ def mp_to_pymaid(skeleton,node_labels=None, xyz_scaling=1, recalculate_radius = 
     df['label'] = np.ones(len(df))
     if recalculate_radius:
         df['radius']= sk.radii(df,mesh,method = 'ray')
+    else:
+        df['radius'] = meshparty_skel.vertex_properties['rs']
 
 
     neuron = pymaid.from_swc(df)

@@ -230,7 +230,7 @@ class Neuron_database:
         
         subset = self.get_entries(input_var,invert = True)
         self.neurons = subset
-        db.save_database(comment='Entries Removed')
+        self.save_database(comment='Entries Removed')
         
         
 
@@ -522,7 +522,9 @@ class Neuron_database:
                                                  method=method,
                                                  soma_coord = row.V4_Soma,
                                                  transform = transform)
-            neuron.annotations = i.Annotations
+            neuron.annotations = row.Annotations
+            neuron.neuron_name = row.Name
+            nlist.append(neuron)
   
      
             
