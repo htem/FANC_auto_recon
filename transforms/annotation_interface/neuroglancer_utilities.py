@@ -58,19 +58,15 @@ def get_vec(vol, pt):
 def seg_from_pt(pts,vol,image_res=np.array([4.3,4.3,45]),max_workers=4):
     ''' Get segment ID at a point. Default volume is the static segmentation layer for now. 
     Args:
-        pt (np.array): 3-element point at MIP0
+        pts (list): list of 3-element np.arrays of MIP0 coordinates
         vol_url (str): cloud volume url
     Returns:
         list, segment_ID at specified point '''
     
     
     seg_mip = vol.scale['resolution']
-        
-    
     res = seg_mip / image_res
-    if np.size(np.shape(pts)) < 2:
-        pts = [pts]
-        
+
     pts_scaled = [pt // res for pt in pts]
     results = []
     with futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
@@ -79,45 +75,6 @@ def seg_from_pt(pts,vol,image_res=np.array([4.3,4.3,45]),max_workers=4):
         for f in futures.as_completed(point_futures):
             results=[f.result() for f in point_futures]
        
-        
-
-    return results
-
-
-
-
-
-
-def seg_from_pt_graphene(pts,vol_url,image_res=np.array([4.3,4.3,45]), max_workers=4):
-    """Get SegIDs from a list of points from a graphene volume object
-    
-    Args:
-      pts: np.array, nx3 mip0 coords
-      vol: cloudvolume, graphene version
-      image_res: np.array, resolution of the image volume. default is [4.3,4.3,45]
-      max_workers: int,the max number of workers for parallel chunk requests.
-    
-    Returns:
-      (points, data): parallel Numpy arrays of the requested points from all
-          cumulative calls to add_points, and the corresponding data loaded from
-          volume.
-    """
-    vol= CloudVolume(vol_url,use_https=True,agglomerate=True)
-    seg_mip = vol.scale['resolution']
-        
-    res = seg_mip / image_res
-    pts_scaled = [pt // res for pt in pts]
-    print(pts_scaled)
-    
-    results = []
-    with futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
-        point_futures = [ex.submit(lambda pt,vol: vol[list(pt)][0][0][0][0], k,vol) for k in pts_scaled]
-        
-        for f in futures.as_completed(point_futures):
-            results=[f.result() for f in point_futures]
-       
-        
-
     return results
 
 
@@ -150,13 +107,3 @@ def fanc4_to_3(points,scale=2):
 
 
 
-
-def is_iter(x):
-    # Check if things are iterable. 
-    if isinstance(x, collections.Iterable) and not isinstance(x, (six.string_types, pd.DataFrame)):
-        if isinstance(x,dict) and len(x) == 1:
-            return False
-        else:
-            return True
-    else:
-        return False 

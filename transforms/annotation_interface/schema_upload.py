@@ -1,11 +1,8 @@
 import sys
 import numpy as np
 import pandas as pd
-from cloudvolume import CloudVolume
-import json
 from annotationframeworkclient import FrameworkClient
 import nglui
-from pathlib import Path
 
 
 def soma_table_entries(state,layer_name = 'cells'):
