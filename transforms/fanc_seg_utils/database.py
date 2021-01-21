@@ -92,6 +92,13 @@ class Neuron_database:
         self.update_segIDs()
         return('Segmentation version updated')
     
+    def initialize_catmaid_instance(self,keys_path, project_id):
+        
+        target_instance = catmaid_utilities.catmaid_login('fanc',project_id,keys_path)
+        self.target_instnace = target_instance
+        xyz = [self.target_instnace.image_stacks.resolution.values[0][k] for k in self.target_instnace.image_stacks.resolution.values[0].keys()]
+        self.target_res = np.array(xyz)
+    
     
     # Serialize / Deserialize lists for coords/annotations
     def __serialize_coords(self,x):
