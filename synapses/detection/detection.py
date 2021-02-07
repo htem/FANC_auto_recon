@@ -181,7 +181,7 @@ def __from_labels_to_locs(labels, regions, voxel_size,
             else:
                 raise RuntimeError('score not defined')
             scores.append(score)
-        locs.append(loc_abs * voxel_size)
+        locs.append(loc_abs)
     if score_vol is not None:
         assert len(locs) == len(scores)
         return locs, scores
@@ -242,12 +242,9 @@ def find_targets(source_locs, dirvectors,
     target_locs = []
     distances = []
     for loc in source_locs:
-        loc_voxel = (loc / voxel_size).astype(np.uint32)
+        loc_voxel = loc.astype(np.uint32)
         dirvector = dirvectors[loc_voxel[0], loc_voxel[1], loc_voxel[2], :]
-        target_loc = loc + dirvector
-        target_loc = np.round(target_loc / voxel_size) # snap to voxel grid,
-        # assuming MSE trained direction vector models.
-        target_loc *= voxel_size
+        target_loc = loc + dirvector / voxel_size
         target_locs.append(target_loc)
         dist = np.linalg.norm(np.array(list(loc)) - np.array(list(target_loc)))
         distances.append(dist)
