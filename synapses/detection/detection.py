@@ -243,7 +243,7 @@ def find_targets(source_locs, dirvectors,
     distances = []
     for loc in source_locs:
         loc_voxel = (loc / voxel_size).astype(np.uint32)
-        dirvector = dirvectors[:, loc_voxel[0], loc_voxel[1], loc_voxel[2]]
+        dirvector = dirvectors[loc_voxel[0], loc_voxel[1], loc_voxel[2], :]
         target_loc = loc + dirvector
         target_loc = np.round(target_loc / voxel_size) # snap to voxel grid,
         # assuming MSE trained direction vector models.
