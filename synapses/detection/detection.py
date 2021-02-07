@@ -5,7 +5,6 @@ import numpy.ma as ma
 from scipy import ndimage
 from skimage import measure
 
-from .nms import find_maxima
 
 logger = logging.getLogger(__name__)
 
@@ -211,15 +210,6 @@ def find_locations(probmap, parameters,
     if parameters.extract_type == 'cc':
         regions, pred_labels = __from_probmap_to_labels(probmap,
                                                         parameters.cc_threshold)
-    elif parameters.extract_type == 'nms':
-        centers, __, __ = find_maxima(probmap, list(voxel_size),
-                                      list(parameters.nms_radius))
-        pred_locs = []
-        scorelist = []
-        for loc in centers.values():
-            if loc['score'] > parameters.score_thr:
-                pred_locs.append(loc['center'] * voxel_size)
-                scorelist.append(loc['score'])
     else:
         raise RuntimeError(
             'unknown extract_type option set: {}'.format(parameters.loc_type))
