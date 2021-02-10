@@ -16,6 +16,10 @@ def line_anno(post, pre):
 
 if sys.argv[1].endswith('.npy'):  # Works on .npy files saved from np.save
     output = np.load(sys.argv[1])
+    # Right now the .npy files I have are stored in nm, so convert to units of
+    # voxels at (4.3, 4.3, 45) nm voxel size
+    output = output / (45, 4.3, 4.3, 45, 4.3, 4.3)
+
     flip_npy_from_zyx_to_xyz = True
     # Right now the .npy files I have are stored in zyx, so flip them to xyz
     if flip_npy_from_zyx_to_xyz:
@@ -23,6 +27,9 @@ if sys.argv[1].endswith('.npy'):  # Works on .npy files saved from np.save
         output[:,3:6] = output[:,5:2:-1]
 else:  # Works on raw files saved from np.tofile
     output = np.fromfile(sys.argv[1], dtype=np.int32).reshape(-1, 6)
+    # Right now the raw files Ran produces are in units of (8.6, 8.6, 45) nm
+    # voxels, so convert to units of (4.3, 4.3, 45) nm voxels
+    output = output * (2, 2, 1, 2, 2, 1)
 
 annotations = [line_anno(output[i,0:3],output[i,3:6]) for i in range(output.shape[0])]
 print(json.dumps(annotations, indent=2))
