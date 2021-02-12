@@ -74,7 +74,7 @@ else:
 
     # The Feb 7 predictions are in units of mip1 voxels ((8.6, 8.6, 45) nm)
     # so convert to mip0 voxels for easier entering into ng
-    links = links * (2, 2, 1, 2, 2, 1)
+    links = links * (2, 2, 1, 2, 2, 1) + np.array([1,1,0,1,1,0])
 
     #links is now pre-post, xyz, in units of voxels at (4.3, 4.3, 45)nm
 
