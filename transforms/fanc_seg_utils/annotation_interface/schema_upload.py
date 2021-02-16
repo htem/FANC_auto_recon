@@ -19,7 +19,7 @@ def soma_table_entries(state,layer_name = 'cells'):
     entries = []
     for i in cell_layer['annotations']:
         entry = {'tag': i['description'],
-                 'pt': {'position': i['pointA']}}
+                 'pt': {'position': i['point']}}
         entries.append(entry)
     return(entries)
         
