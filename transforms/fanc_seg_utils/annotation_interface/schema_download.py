@@ -13,6 +13,7 @@ from .neuroglancer_utilities import seg_from_pt
 def download_annotation_table(client,table_name,ids=range(1000)):
     entries = client.annotation.get_annotation(table_name,ids)
     annotation_table = pd.DataFrame(entries)
+    
     return(annotation_table)
 
 
@@ -44,7 +45,7 @@ def generate_soma_table(annotation_table,
     if 'Dynamic' in segmentation_version:
         cv = CloudVolume(cloud_paths[segmentation_version]['url'],agglomerate=True,use_https=True,secrets=token)
     else:
-        cv = CloudVolume(cloud_paths[segmentation_version]['url'])
+        cv = CloudVolume(cloud_paths[segmentation_version]['url'],use_https=True,secrets=token)
         
     seg_ids = seg_from_pt(annotation_table.pt_position,cv)
     
