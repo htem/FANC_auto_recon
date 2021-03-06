@@ -3,10 +3,22 @@
 # Jasper Phelps
 # Initial commit Feb 10, 2021
 
-# Provide functions that check whether certain coordinates are within certain
-# regions of the FANC synapse ground truth cutouts.
+# Provide utilities related to the 9 synapse-containing cubes of image data
+# that had all synapses manually annotated and 11 synapse-free cubes of image
+# data that were used for training and evaluation of automated synapse
+# detection networks based on Buhmann et al. bioRxiv 2020
+# (https://www.biorxiv.org/content/10.1101/2019.12.12.874172v2) for FANC.
+
+# NOTE THAT ALL COORDINATES ARE SPECIFIED IN ZYX ORDER AND IN UNITS OF
+# NANOMETERS, ASSUMING A VOXEL SIZE OF (40, 4, 4) nm.
+
+# First functions in this script are related to getting the names of the
+# different cutouts and their ground truth synaptic link annotations.
+
+# Subsequent functions are related to checking whether certain coordinates are
+# within certain regions of the FANC synapse ground truth cutouts.
 #
-# Each cutout contains a central region, usually the region 2 microns.
+# Each cutout contains a central region, usually the region 2 microns
 # (sometimes 1 micron) away from all edges of the cutout, where synapses were
 # annotated. This is the 'annotated' or 'full' region. Within the annotated
 # region, the lower 75% of slices (smaller z coordinates) were used for
@@ -16,8 +28,6 @@
 # The 'train50' (first 50%) and 'test' (50%-75%)regions were not used, but are
 # included anyway in this script in case they're ever needed.
 #
-# NOTE THAT ALL COORDINATES ARE SPECIFIED IN ZYX ORDER AND IN UNITS OF
-# NANOMETERS, ASSUMING A VOXEL SIZE OF (40, 4, 4) nm.
 
 
 import sys
@@ -28,13 +38,50 @@ from typing import List
 import numpy as np
 
 
-synapse_cutouts = [f'synapse_cutout{i}' for i in [2, 3, 4, 6, 7, 8, 9, 10, 11]]
-no_synapse_cutouts = [f'no_synapse_cutout{i}' for i in [0, 1, 2, 3, 4, 5, 8, 9, 10, 11, 12]]
-all_cutouts = synapse_cutouts + no_synapse_cutouts
+_synapse_cutouts = [f'synapse_cutout{i}' for i in [2, 3, 4, 6, 7, 8, 9, 10, 11]]
+_no_synapse_cutouts = [f'no_synapse_cutout{i}' for i in [0, 1, 2, 3, 4, 5, 8, 9, 10, 11, 12]]
+cutout_names = _synapse_cutouts + _no_synapse_cutouts
 
 
 def print_cutout_names():
-    print(all_cutouts)
+    print(cutout_names)
+
+def get_cutout_names():
+    return cutout_names
+
+def get_empty_cutout_names():
+    return _no_synapse_cutouts
+
+def get_annotated_cutout_names():
+    return _synapse_cutouts
+
+# TODO some functions that return paths related to each cutout?
+
+#default_base_path = (
+#    '/n/groups/htem/temcagt/datasets/vnc1_r066/'
+#    'synapsePrediction+templateAlignment/0_synapsePrediction/'
+#    'synapse_ground_truth')
+default_base_path = os.path.join(os.path.dirname(__file__),
+                                 'ground_truth_link_annotations')
+default_csv_name_format = '{}_link_annotations.csv'
+def load_annotations(cutout_name: str,
+                     base_path=default_base_path,
+                     csv_name_format=default_csv_name_format):
+    """
+    Load the ground truth synaptic links annotated in a requested cutout.
+    Returns: Nx6 numpy array representing N synaptic link annotations, with
+    6 columns representing pre_z, pre_y, pre_x, post_z, post_y, post_x
+    coordinates in nanometers (assuming a voxel size of [40, 4, 4] nm).
+    """
+    if cutout_name in _no_synapse_cutouts:
+        print('WARNING: You requested annotations for a synapse-free cutout. Was this intended?')
+        return np.array([], dtype=np.uint16)
+    assert cutout_name in _synapse_cutouts, cutout_name + ' is not a valid cutout name.'
+
+    fn = os.path.join(base_path, csv_name_format.format(cutout_name))
+    assert os.path.exists(fn), 'No file found at ' + fn
+    links = np.genfromtxt(fn, delimiter=',', skip_header=1, dtype=np.uint16)
+    return links
 
 
 def in_annotated_region(pts: 'np.array', cutout: str):
@@ -89,7 +136,7 @@ def generate_rois(save_path=rois_fn):
     import daisy  #github.com/funkelab/daisy, use 0.3-dev branch
     rois = {}
     special_case_dealt_with = False
-    for cutout in all_cutouts:
+    for cutout in cutout_names:
         rois[cutout] = {}
 
         config_f = 'cutout_configs/' + cutout + '_config.json'
@@ -158,7 +205,9 @@ if not os.path.exists(rois_fn):
     except ModuleNotFoundError:
         print(f'ROIs could not be loaded from {rois_fn}, and generate_rois() '
               'failed. Install github.com/funkelab/daisy/tree/0.3-dev or get '
-              'the ROIs file from a friend.')
+              'the ROIs file from github.com/htem/FANC_auto_recon/blob/master'
+              '/synapses/ground_truth/synapse_cutout_rois.json.')
         raise
+
 with open(rois_fn, 'r') as f:
     rois = json.load(f)
