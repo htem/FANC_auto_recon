@@ -64,7 +64,7 @@ def get_annotated_cutout_names():
 default_base_path = os.path.join(os.path.dirname(__file__),
                                  'ground_truth_link_annotations')
 default_csv_name_format = '{}_link_annotations.csv'
-def load_annotations(cutout_name: str,
+def load_annotations(cutout_name,
                      base_path=default_base_path,
                      csv_name_format=default_csv_name_format):
     """
@@ -76,12 +76,43 @@ def load_annotations(cutout_name: str,
     if cutout_name in _no_synapse_cutouts:
         print('WARNING: You requested annotations for a synapse-free cutout. Was this intended?')
         return np.array([], dtype=np.uint16)
+    if isinstance(cutout_name, int):
+        cutout_name = 'synapse_cutout{}'.format(cutout_name)
+        print('Loading annotations for {}'.format(cutout_name))
     assert cutout_name in _synapse_cutouts, cutout_name + ' is not a valid cutout name.'
 
     fn = os.path.join(base_path, csv_name_format.format(cutout_name))
     assert os.path.exists(fn), 'No file found at ' + fn
     links = np.genfromtxt(fn, delimiter=',', skip_header=1, dtype=np.uint16)
     return links
+
+def load_all_annotations(base_path=default_base_path,
+                         csv_name_format=default_csv_name_format):
+    return {name: load_annotations(name, base_path=base_path,
+                                   csv_name_format=csv_name_format)
+            for name in _synapse_cutouts}
+
+
+def load_segmentation(cutout_name):
+    """
+    Returns the segmentation for a synapse cutout.
+    Segmentation is returned as numpy array containing segment IDs for each
+    voxel. Also returned is the voxel size and voxel offset.
+    """
+    from cloudvolume import CloudVolume
+    path = 'gs://zetta_lee_fly_vnc_001_synapse_cutout/{}/seg_small_cube'
+    print('Connecting to ' + cutout_name)
+    vol = CloudVolume(path.format(cutout_name), use_https=True)
+    mip0_info = vol.info['scales'][0]
+    print(mip0_info)
+    seg = vol[:]
+    seg = seg.squeeze().T  # CloudVolumes are xyz. Want zyx for this script
+    return seg, mip0_info['resolution'][::-1], mip0_info['voxel_offset'][::-1]
+
+
+def load_all_segmentations():
+    return {name: load_segmentation(name)
+            for name in _synapse_cutouts}
 
 
 def in_annotated_region(pts: 'np.array', cutout: str):
@@ -131,7 +162,8 @@ def in_roi(pts: 'np.array', start: tuple, end: tuple):
     return (pts >= start).all(axis=1) and (pts < end).all(axis=1)
 
 
-rois_fn = 'synapse_cutout_rois.json'
+rois_fn = os.path.join(os.path.dirname(__file__),
+                       'synapse_cutout_rois.json')
 def generate_rois(save_path=rois_fn):
     import daisy  #github.com/funkelab/daisy, use 0.3-dev branch
     rois = {}
