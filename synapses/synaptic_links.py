@@ -24,26 +24,31 @@ def flip_pre_post_order(array):
     array[:, 3:6] = tmp
 
 
-def load(fn, verbose=True):
+def load(fn, convention='xyz', voxel_size=None, verbose=False):
     """
     Given a filename pointing to a file containing synaptic links, load them
-    and return them as an Nx6 numpy array.
+    and return them as an Nx6 numpy array. First 3 columns represent
+    presynaptic coordinates, last 3 columns represent postsynaptic coordinates.
     """
+    assert convention in ['xyz', 'zyx']
+
     if fn.endswith('.npy'):
         if verbose: print('Mode 1: npy')
         # For opening .npy files saved from np.save
         links = np.load(fn)
 
         # The .npy files Jasper generated on Feb 8 were saved in zyx, so flip them to xyz
-        if True:
+        if True:  # Update this if convention changes
             flip_xyz_zyx_convention(links)
         # The .npy files Jasper generated on Feb 8 were saved in post-pre order
-        if True:
+        if True:  # Update this if convention changes
             flip_pre_post_order(links)
 
+        if voxel_size is None:
+            voxel_size = (4, 4, 40)
         # The .npy files Jasper generated on Feb 8 are saved in nm, so convert to
         # units of voxels at (4, 4, 40) nm voxel size for easier entering into ng
-        links = links / (4, 4, 40, 4, 4, 40)
+        links = links / (voxel_size * 2)
 
         #links is now pre-post, xyz, in units of voxels at (4, 4, 40)nm
 
@@ -53,12 +58,17 @@ def load(fn, verbose=True):
         links = np.genfromtxt(fn, delimiter=',', skip_header=1, dtype=np.uint16)
 
         # Ground truth annotations were saved in zyx, so flip them to xyz
-        if True:
+        if True:  # Update this if convention changes
             flip_xyz_zyx_convention(links)
+        # Ground truth annotations were saved in pre-post order, so OK as is
+        if False:  # Update this if convention changes
+            flip_pre_post_order(links)
 
+        if voxel_size is None:
+            voxel_size = (4, 4, 40)
         # Ground truth annotations were saved in nm, so convert to units of voxels
         # at (4, 4, 40) nm voxel size for easier entering into ng
-        links = links / (4, 4, 40, 4, 4, 40)
+        links = links / (voxel_size * 2)
 
         #links is now pre-post, xyz, in units of voxels at (4, 4, 40)nm
 
@@ -73,8 +83,11 @@ def load(fn, verbose=True):
 
         # The Feb 7 predictions are in units of mip1 voxels ((8.6, 8.6, 45) nm)
         # so convert to mip0 voxels for easier entering into ng
-        links = links * (2, 2, 1, 2, 2, 1) + np.array([1,1,0,1,1,0])
+        links = links * (2, 2, 1, 2, 2, 1) + np.array([1, 1, 0, 1, 1, 0])
 
         #links is now pre-post, xyz, in units of voxels at (4.3, 4.3, 45)nm
+
+    if convention == 'zyx':
+        flip_xyz_zyx_convention(links)
 
     return links
