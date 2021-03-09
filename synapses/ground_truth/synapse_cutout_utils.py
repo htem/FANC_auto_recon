@@ -4,9 +4,9 @@
 # Initial commit Feb 10, 2021
 
 # Provide utilities related to the 9 synapse-containing cubes of image data
-# that had all synapses manually annotated and 11 synapse-free cubes of image
+# (that had all synapses manually annotated) and 11 synapse-free cubes of image
 # data that were used for training and evaluation of automated synapse
-# detection networks based on Buhmann et al. bioRxiv 2020
+# detection networks using the method from Buhmann et al. bioRxiv 2020
 # (https://www.biorxiv.org/content/10.1101/2019.12.12.874172v2) for FANC.
 
 # NOTE THAT ALL COORDINATES ARE SPECIFIED IN ZYX ORDER AND IN UNITS OF
@@ -27,13 +27,11 @@
 #
 # The 'train50' (first 50%) and 'test' (50%-75%)regions were not used, but are
 # included anyway in this script in case they're ever needed.
-#
 
 
 import sys
 import os
 import json
-from typing import List
 
 import numpy as np
 
@@ -65,6 +63,8 @@ default_base_path = os.path.join(os.path.dirname(__file__),
                                  'ground_truth_link_annotations')
 default_csv_name_format = '{}_link_annotations.csv'
 def load_annotations(cutout_name,
+                     validation_region='full',
+                     validation_target='postsynapse',
                      base_path=default_base_path,
                      csv_name_format=default_csv_name_format):
     """
@@ -78,36 +78,69 @@ def load_annotations(cutout_name,
         return np.array([], dtype=np.uint16)
     if isinstance(cutout_name, int):
         cutout_name = 'synapse_cutout{}'.format(cutout_name)
-        print('Loading annotations for {}'.format(cutout_name))
     assert cutout_name in _synapse_cutouts, cutout_name + ' is not a valid cutout name.'
 
     fn = os.path.join(base_path, csv_name_format.format(cutout_name))
     assert os.path.exists(fn), 'No file found at ' + fn
+    print('Loading annotations for {}'.format(cutout_name))
     links = np.genfromtxt(fn, delimiter=',', skip_header=1, dtype=np.uint16)
+    if validation_region is not None:
+        if validation_target == 'postsynapse':
+            valid = in_region(links[:, 3:6], cutout_name, validation_region)
+        elif validation_target == 'presynapse':
+            valid = in_region(links[:, 0:3], cutout_name, validation_region)
+        else:
+            raise ValueError("validation_target must be either 'postsynapse'"
+                             " or 'presynapse' but was " + validation_target)
+        print(f'Found {sum(valid)} valid points out of {len(links)}')
+        #print('Invalid points:')
+        #print(links[~valid, 5:2:-1])
+        # I checked the invalid points in CATMAID to make sure that they
+        # actually corresponded to annotations that were slightly outside the
+        # annotated ROI, and indeed they all did. Couldn't confirm that every
+        # invalid point was found but I saw invalid points on low and high x,
+        # low and high y, and low and high z, so pretty sure this in_region
+        # function works as intended.
+        links = links[valid, :]
     return links
 
-def load_all_annotations(base_path=default_base_path,
+def load_all_annotations(validation_region='full',
+                         validation_target='postsynapse',
+                         base_path=default_base_path,
                          csv_name_format=default_csv_name_format):
-    return {name: load_annotations(name, base_path=base_path,
+    return {cutout: load_annotations(cutout, base_path=base_path,
                                    csv_name_format=csv_name_format)
-            for name in _synapse_cutouts}
+            for cutout in _synapse_cutouts}
 
 
 def load_segmentation(cutout_name):
     """
     Returns the segmentation for a synapse cutout.
-    Segmentation is returned as numpy array containing segment IDs for each
-    voxel. Also returned is the voxel size and voxel offset.
+    Segmentation is returned as a dict with 3 entries:
+        'data': numpy array containing segment IDs for each voxel.
+        'voxel_size': list of 3 values representing the voxel size.
+        'voxel_offset': list of 3 values representing the voxel offset.
     """
+    if cutout_name in _no_synapse_cutouts:
+        raise ValueError('Only synapse-containing cutouts have segmentations'
+                         f' but you asked for {cutout_name}')
+    if isinstance(cutout_name, int):
+        cutout_name = 'synapse_cutout{}'.format(cutout_name)
+    assert cutout_name in _synapse_cutouts, cutout_name + ' is not a valid cutout name.'
+
     from cloudvolume import CloudVolume
     path = 'gs://zetta_lee_fly_vnc_001_synapse_cutout/{}/seg_small_cube'
-    print('Connecting to ' + cutout_name)
+    print('Downloading segmentation for ' + cutout_name)
     vol = CloudVolume(path.format(cutout_name), use_https=True)
     mip0_info = vol.info['scales'][0]
-    print(mip0_info)
+    #print(mip0_info)
     seg = vol[:]
-    seg = seg.squeeze().T  # CloudVolumes are xyz. Want zyx for this script
-    return seg, mip0_info['resolution'][::-1], mip0_info['voxel_offset'][::-1]
+    seg = seg.squeeze().T  # CloudVolumes are xyzc. Want zyx for this script
+    return {
+        'data': seg,
+        'voxel_size': mip0_info['resolution'][::-1],
+        'voxel_offset': mip0_info['voxel_offset'][::-1]
+    }
 
 
 def load_all_segmentations():
@@ -115,51 +148,70 @@ def load_all_segmentations():
             for name in _synapse_cutouts}
 
 
-def in_annotated_region(pts: 'np.array', cutout: str):
+def in_annotated_region(pts: np.array, cutout: str):
     """
-    Given an n by 3 numpy array representing zyx-ordered points in units of nm,
+    Given an Nx3 numpy array representing zyx-ordered points in units of nm,
     test which points are within the full annotated region of the named cutout.
     Call 'print_cutout_names()' for a list of valid cutout names.
+    Returns: length N np.array of booleans
     """
     start = rois[cutout]['full']['start']
     end = rois[cutout]['full']['end']
     return in_roi(pts, start, end)
 
 
-def in_training_region(pts: 'np.array', cutout: str):
+def in_training_region(pts: np.array, cutout: str):
     """
-    Given an n by 3 numpy array representing zyx-ordered points in units of nm,
+    Given an Nx3 numpy array representing zyx-ordered points in units of nm,
     test which points are within the training region of the named cutout (lower
     75% of z slices).
     Call 'print_cutout_names()' for a list of valid cutout names.
+    Returns: length N np.array of booleans
     """
     start = rois[cutout]['train75']['start']
     end = rois[cutout]['train75']['end']
     return in_roi(pts, start, end)
 
 
-def in_validation_region(pts: 'np.array', cutout: str):
+def in_validation_region(pts: np.array, cutout: str):
     """
-    Given an n by 3 numpy array representing zyx-ordered points in units of nm,
+    Given an Nx3 numpy array representing zyx-ordered points in units of nm,
     test which points are within the validation region of the named cutout
     (upper 25% of the z slices).
     Call 'print_cutout_names()' for a list of valid cutout names.
+    Returns: length N np.array of booleans
     """
     start = rois[cutout]['validation']['start']
     end = rois[cutout]['validation']['end']
     return in_roi(pts, start, end)
 
-
-def in_roi(pts: 'np.array', start: tuple, end: tuple):
+def in_region(pts: np.array, cutout: str, region_name: str):
     """
-    Given an n by 3 numpy array representing zyx-ordered points in units of nm,
+    Given an Nx3 numpy array representing zyx-ordered points in units of nm,
+    test which points are within the given region of the named cutout.
+    Call 'print_cutout_names()' for a list of valid cutout names.
+    Returns: length N np.array of booleans
+    """
+    assert region_name in rois[cutout], (
+        region_name + ' is not a valid region name for ' + cutout
+        + '. Options are ' + str(list(rois[cutout].keys()))
+    )
+    start = rois[cutout][region_name]['start']
+    end = rois[cutout][region_name]['end']
+    return in_roi(pts, start, end)
+
+
+def in_roi(pts: np.array, start: tuple, end: tuple) -> np.array:
+    """
+    Given an Nx3 numpy array representing zyx-ordered points in units of nm,
     test which points are within a box whose start (lower-left) and end
     (upper-right) points are given.
+    Returns: length N np.array of booleans
     """
     pts = np.array(pts)
     if len(pts.shape) == 1:
         pts = pts[np.newaxis, :]
-    return (pts >= start).all(axis=1) and (pts < end).all(axis=1)
+    return np.logical_and((pts >= start).all(axis=1), (pts < end).all(axis=1))
 
 
 rois_fn = os.path.join(os.path.dirname(__file__),
