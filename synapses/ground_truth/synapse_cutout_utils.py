@@ -53,7 +53,6 @@ def get_empty_cutout_names():
 def get_annotated_cutout_names():
     return _synapse_cutouts
 
-# TODO some functions that return paths related to each cutout?
 
 #default_base_path = (
 #    '/n/groups/htem/temcagt/datasets/vnc1_r066/'
@@ -89,12 +88,18 @@ def load_annotations(cutout_name,
             valid = in_region(links[:, 3:6], cutout_name, validation_region)
         elif validation_target == 'presynapse':
             valid = in_region(links[:, 0:3], cutout_name, validation_region)
+        elif validation_target == 'both':
+            valid_post = in_region(links[:, 3:6], cutout_name, validation_region)
+            valid_pre  = in_region(links[:, 0:3], cutout_name, validation_region)
+            valid = np.logical_and(valid_pre, valid_post)
         else:
             raise ValueError("validation_target must be either 'postsynapse'"
                              " or 'presynapse' but was " + validation_target)
-        print(f'Found {sum(valid)} valid points out of {len(links)}')
+        print(f'Found {sum(valid)} in-region points out of {len(links)}'
+              f' (validation_region: {validation_region}, validation_target:'
+              f' {validation_target})')
         #print('Invalid points:')
-        #print(links[~valid, 5:2:-1])
+        #print(links[~valid, 5:2:-1])  # Print in xyz order for pasting into catmaid
         # I checked the invalid points in CATMAID to make sure that they
         # actually corresponded to annotations that were slightly outside the
         # annotated ROI, and indeed they all did. Couldn't confirm that every
@@ -104,12 +109,11 @@ def load_annotations(cutout_name,
         links = links[valid, :]
     return links
 
-def load_all_annotations(validation_region='full',
-                         validation_target='postsynapse',
-                         base_path=default_base_path,
-                         csv_name_format=default_csv_name_format):
-    return {cutout: load_annotations(cutout, base_path=base_path,
-                                   csv_name_format=csv_name_format)
+def load_all_annotations(**kwargs):
+    """
+    See load_annotations() for kwargs options
+    """
+    return {cutout: load_annotations(cutout, **kwargs)
             for cutout in _synapse_cutouts}
 
 
@@ -129,7 +133,7 @@ def load_segmentation(cutout_name):
     assert cutout_name in _synapse_cutouts, cutout_name + ' is not a valid cutout name.'
 
     from cloudvolume import CloudVolume
-    path = 'gs://zetta_lee_fly_vnc_001_synapse_cutout/{}/seg_small_cube'
+    path = 'gs://zetta_lee_fly_vnc_001_synapse_cutout/{}/seg_medium_cube'
     print('Downloading segmentation for ' + cutout_name)
     vol = CloudVolume(path.format(cutout_name), use_https=True)
     mip0_info = vol.info['scales'][0]
@@ -211,6 +215,9 @@ def in_roi(pts: np.array, start: tuple, end: tuple) -> np.array:
     pts = np.array(pts)
     if len(pts.shape) == 1:
         pts = pts[np.newaxis, :]
+    #problems = pts[pts[:, 0] == 5000, :]
+    #print('problems:', problems)
+    #print(problems < end)
     return np.logical_and((pts >= start).all(axis=1), (pts < end).all(axis=1))
 
 
