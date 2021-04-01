@@ -5,7 +5,7 @@ from annotationframeworkclient import FrameworkClient
 import nglui
 
 
-def soma_table_entries(state,layer_name = 'cells'):
+def soma_table_entries(state,layer_name = 'cells',description=None):
     ''' Generate entries for a soma table using the bound_tag schema 
     Args:
     state: json, json state from get_json_state
@@ -18,8 +18,12 @@ def soma_table_entries(state,layer_name = 'cells'):
     cell_layer = nglui.parser.get_layer(state,layer_name)
     entries = []
     for i in cell_layer['annotations']:
-        entry = {'tag': i['description'],
-                 'pt': {'position': i['point']}}
+        if description is None:
+            entry = {'tag': i['description'],
+                     'pt': {'position': i['point']}}
+        else:
+            entry = {'tag': description,
+                     'pt': {'position': i['point']}}
         entries.append(entry)
     return(entries)
         
