@@ -23,8 +23,7 @@ def download_annotation_table(client,table_name,ids=range(1000)):
 
 def generate_soma_table(annotation_table,
                         segmentation_version='Dynamic_V1',
-                        resolution=np.array([4.3,4.3,45]),
-                        token=None):
+                        resolution=np.array([4.3,4.3,45])):
     ''' Generate a soma table used for microns analysis. This is the workaround for a materialization engine
     Args:
         annotation_table: pd.DataFrame, output from download_cell_table. Retreived from the annotation engine.
@@ -40,12 +39,12 @@ def generate_soma_table(annotation_table,
                                        'pt_position','pt_root_id',
                                        'soma_x_nm','soma_y_nm','soma_z_nm',
                                        'found'])
-    with open(Path.home() / 'cloudvolume' / 'segmentations.json') as f:
+    with open(Path.home() / '.cloudvolume' / 'segmentations.json') as f:
             cloud_paths = json.load(f)
     if 'Dynamic' in segmentation_version:
-        cv = CloudVolume(cloud_paths[segmentation_version]['url'],agglomerate=True,use_https=True,secrets=token)
+        cv = CloudVolume(cloud_paths[segmentation_version]['url'],agglomerate=True,use_https=True,progress=False)
     else:
-        cv = CloudVolume(cloud_paths[segmentation_version]['url'],use_https=True,secrets=token)
+        cv = CloudVolume(cloud_paths[segmentation_version]['url'],use_https=True,progress=False)
         
     seg_ids = seg_from_pt(annotation_table.pt_position,cv)
     
@@ -62,8 +61,7 @@ def generate_soma_table(annotation_table,
 
 def generate_synapse_table(annotation_table,
                         segmentation_version='Dynamic_V1',
-                        resolution=np.array([4.3,4.3,45]),
-                        token=None):
+                        resolution=np.array([4.3,4.3,45])):
     ''' Generate a soma table used for microns analysis. This is the workaround for a materialization engine
     Args:
         annotation_table: pd.DataFrame, output from download_cell_table. Retreived from the annotation engine.
@@ -82,12 +80,12 @@ def generate_synapse_table(annotation_table,
                                       'ctr_pos_x_vx','ctr_pos_y_vx','ctr_pos_z_vx',
                                       'post_pos_x_vx','post_pos_y_vx','post_pos_z_vx'])
 
-    with open(Path.home() / 'cloudvolume' / 'segmentations.json') as f:
+    with open(Path.home() / '.cloudvolume' / 'segmentations.json') as f:
             cloud_paths = json.load(f)
     if 'Dynamic' in segmentation_version:
-        cv = CloudVolume(cloud_paths[segmentation_version]['url'],agglomerate=True,use_https=True,secrets=token)
+        cv = CloudVolume(cloud_paths[segmentation_version]['url'],agglomerate=True,use_https=True,progress=False)
     else:
-        cv = CloudVolume(cloud_paths[segmentation_version]['url'])
+        cv = CloudVolume(cloud_paths[segmentation_version]['url'],progress=False)
         
     pre_ids = seg_from_pt(annotation_table.pre_pt_position,cv)
     post_ids = seg_from_pt(annotation_table.post_pt_position,cv)
