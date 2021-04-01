@@ -11,19 +11,18 @@ from annotationframeworkclient import FrameworkClient
 def setup_credentials(tokens,segmentations,overwrite=False):
     ''' Setup the api keys and segmentation links in ~/cloudvolume. 
     Args:
-        tokens: dict, hex string api tokens. The other modules currently use two. 'api' and 'dev' and both are currently necessary. api
-                is used for generating an annotation framework client, and dev is used for creating a cloudvolume object.
+        token: dict, graphene server token formatted as {"token":token}. 
         segmentations: dict, segmentation paths and respective resolutions. Format is {'segmentation_name':{'url':'path_to_segmentation','resolution':'[x,y,z]'}}' '''
 
 
-    BASE = Path.home() / 'cloudvolume'
+    BASE = Path.home() / '.cloudvolume'
 
 
     if Path.exists(BASE / 'secrets'):
         if Path.exists(BASE / 'secrets' / 'chunkedgraph-secret.json') and overwrite is False:
             print('credentials exist')
         else:
-            with open(Path.home() / 'cloudvolume' / 'secrets'/'chunkedgraph-secret.json',mode='w') as f:
+            with open(BASE / 'secrets'/'chunkedgraph-secret.json',mode='w') as f:
                 json.dump(tokens,f)
         print('credentials created')
 
@@ -39,46 +38,38 @@ def setup_credentials(tokens,segmentations,overwrite=False):
         print('setup complete')
 
 
-
 def get_client():
-    ''' Establish an ngl client for interacting with the annotation framework. This requires you to have ~/cloudvolume/secrets/chunkedgraph-secret.json set up with a token
-    for both the dev and api servers. Use .generate_token(api_token,dev_token) to set this up if you do not have it already.
+    ''' Establish an ngl client for interacting with the annotation framework. 
     Returns: 
         client, FrameworkClient object
-        tokens, dict, hex string api tokens for dev and api servers.'''
-    if Path.exists(Path.home() / 'cloudvolume' / 'secrets'/'chunkedgraph-secret.json'):
-        with open(Path.home() / 'cloudvolume' / 'secrets'/'chunkedgraph-secret.json') as f:
-                tokens = json.load(f)
-    else:
-        raise ValueError('chunkedgraph-secret.json does not exist. Does ~/cloudvolume/secrets?')
+        token, str, graphene server token'''
     
-    if isinstance(tokens,dict):
-        # This token is for accessing the cloud volume for the V1 chunkedgraph. 
-        dev_token = tokens['dev']
-        # This token is for interacting with the annotation framework.
-        auth_token = tokens['api']
-    else:
-        raise ValueError('For now we need an api token and a dev token. Add both to chunkedgraph-secret.json')
-
-        
+    token = get_token()    
     datastack_name = 'vnc_v0' # from https://api.zetta.ai/wclee/info/
 
     client = FrameworkClient(
         datastack_name,
         server_address = "https://api.zetta.ai/wclee",
-        auth_token = auth_token
+        auth_token = token
     )
-    return(client,{'dev':dev_token,'api':auth_token})
+    return(client,token)
 
 
-def get_token(version='dev'):
-    fname = Path.home() / 'cloudvolume' / 'secrets' / 'chunkedgraph-secret.json'
-    with open(fname) as f:
-        keys = json.load(f)
-    return(keys[version])
+def get_token(SECRET_PATH=None):
+    
+    if SECRET_PATH is None:
+        SECRET_PATH = Path.home() / '.cloudvolume' / 'secrets'/'chunkedgraph-secret.json'
+    
+    if Path.exists(SECRET_PATH):
+        with open(SECRET_PATH) as f:
+                token = json.load(f)['token']
+    else:
+        raise ValueError('{} does not exist.'.format(SECRET_PATH))
+    
+    return(token)
 
 def get_cv_path(version=None):
-    fname = Path.home() / 'cloudvolume' / 'segmentations.json'
+    fname = Path.home() / '.cloudvolume' / 'segmentations.json'
     with open(fname) as f:
         paths = json.load(f)
     
