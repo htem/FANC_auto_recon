@@ -9,14 +9,16 @@ import nglui
 from concurrent import futures
 from pathlib import Path
 from ..neuroglancer_utilities import seg_from_pt
+from ..transforms import cloudvolume_utils
 
 
-def download_annotation_table(client,table_name,id_range=10000):
+def download_annotation_table(client,table_name):
     
     annotation_table = pd.DataFrame(columns=['deleted','valid','schema_type','reference_table','user_id','created','table_name','id','flat_segmentation_source','description'])
-    bins = np.array_split(np.arange(1,client.annotation.get_annotation_count(table_name)+1),100)
-        for i in range(len(bins)): 
-            annotation_table = annotation_table.append(client.annotation.get_annotation(table_name,annotation_ids=list(bins[i])))
+    table_size = client.annotation.get_annotation_count(table_name)+1
+    bins = np.array_split(np.arange(1,table_size),np.ceil(table_size/100))
+    for i in range(len(bins)): 
+        annotation_table = annotation_table.append(client.annotation.get_annotation(table_name,annotation_ids=list(bins[i])))
 
     return(annotation_table)
 
