@@ -10,6 +10,7 @@ from concurrent import futures
 from pathlib import Path
 from ..neuroglancer_utilities import seg_from_pt
 from ..transforms import cloudvolume_utils
+from .. import neuroglancer_utilities
 
 
 def download_annotation_table(client,table_name):
@@ -20,6 +21,7 @@ def download_annotation_table(client,table_name):
     for i in range(len(bins)): 
         annotation_table = annotation_table.append(client.annotation.get_annotation(table_name,annotation_ids=list(bins[i])))
 
+    annotation_table.table_name = table_name
     return(annotation_table)
 
 
@@ -28,7 +30,7 @@ def download_annotation_table(client,table_name):
 
 
 def generate_soma_table(annotation_table,
-                        segmentation_version='Dynamic_V1',
+                        segmentation_version='Dynamic_V4',
                         resolution=np.array([4.3,4.3,45])):
     ''' Generate a soma table used for microns analysis. This is the workaround for a materialization engine
     Args:
@@ -48,9 +50,9 @@ def generate_soma_table(annotation_table,
     with open(Path.home() / '.cloudvolume' / 'segmentations.json') as f:
             cloud_paths = json.load(f)
     if 'Dynamic' in segmentation_version:
-        cv = CloudVolume(cloud_paths[segmentation_version]['url'],agglomerate=True,use_https=True,progress=True)
+        cv = CloudVolume(cloud_paths[segmentation_version]['url'],agglomerate=True,use_https=True,progress=False)
     else:
-        cv = CloudVolume(cloud_paths[segmentation_version]['url'],use_https=True,progress=True)
+        cv = CloudVolume(cloud_paths[segmentation_version]['url'],use_https=True,progress=False)
         
     seg_ids = seg_from_pt(annotation_table.pt_position,cv)
     
@@ -115,3 +117,33 @@ def generate_synapse_table(annotation_table,
     return(synapse_table)
     
     
+def find_neurons(tag, client=None, segmentation_version='Dynamic_V4', return_IDs = True, partial_match = True):
+    if client is None:
+        client,token = neuroglancer_utilities.get_client()
+        
+    tables = client.annotation.get_tables()
+    annotations = pd.DataFrame(columns=['deleted', 'valid', 'schema_type', 'reference_table', 'user_id',
+       'created', 'table_name', 'id', 'flat_segmentation_source',
+       'description', 'tag', 'pt_position', 'superceded_id'])
+    for i in tables:
+        meta = client.annotation.get_table_metadata(i)
+        if meta['schema_type'] == 'bound_tag':
+            try:
+                annotations = annotations.append(download_annotation_table(client,i))
+            except:
+                print(i +' Failed')
+    
+    if partial_match is True:
+        queried_annotations = annotations.loc[[tag in i for i in annotations.tag]]
+    else:
+        queried_annotations = annotations.loc[annotations.tag == tag]
+        
+    if len(queried_annotations) > 0:
+        materialized_annotations = generate_soma_table(queried_annotations,segmentation_version=segmentation_version)
+    else:
+        return('No neurons matching this query')
+    
+    if return_IDs:
+        return(materialized_annotations.pt_root_id.values)
+
+    return(materialized_annotations)
