@@ -8,8 +8,7 @@ from annotationframeworkclient import FrameworkClient
 import nglui
 from concurrent import futures
 from pathlib import Path
-from ..transforms import cloudvolume_utils
-from ..segmentation import authentication_utils
+from ..segmentation import authentication_utils,rootID_lookup
 
 
 def download_annotation_table(client,table_name,get_deleted=False):
@@ -58,7 +57,7 @@ def generate_soma_table(annotation_table,
     else:
         cv = CloudVolume(cloud_paths[segmentation_version]['url'],use_https=True,progress=False)
         
-    seg_ids = cloudvolume_utils.seg_from_pt(annotation_table.pt_position,cv)
+    seg_ids = rootID_lookup.seg_from_pt(annotation_table.pt_position,cv)
     
     soma_table.name = annotation_table.tag
     soma_table.pt_position = annotation_table.pt_position
@@ -99,8 +98,8 @@ def generate_synapse_table(annotation_table,
     else:
         cv = CloudVolume(cloud_paths[segmentation_version]['url'],progress=False)
         
-    pre_ids = cloudvolume_utils.seg_from_pt(annotation_table.pre_pt_position,cv)
-    post_ids = cloudvolume_utils.seg_from_pt(annotation_table.post_pt_position,cv)
+    pre_ids = rootID_lookup.seg_from_pt(annotation_table.pre_pt_position,cv)
+    post_ids = rootID_lookup.seg_from_pt(annotation_table.post_pt_position,cv)
     
     synapse_table.pre_root_id = pre_ids
     synapse_table.post_root_id = post_ids
