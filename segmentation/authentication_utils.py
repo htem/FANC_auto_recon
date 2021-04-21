@@ -7,13 +7,14 @@ import json
 from annotationframeworkclient import FrameworkClient
 
 
-def setup_credentials(tokens,segmentations,overwrite=False):
+def setup_credentials(tokens,segmentations=None,overwrite=False):
     ''' Setup the api keys and segmentation links in ~/cloudvolume. 
     Args:
-        token: dict, graphene server token formatted as {"token":token}. 
+        token: str, auth token for chunk graph. 
         segmentations: dict, segmentation paths and respective resolutions. Format is {'segmentation_name':{'url':'path_to_segmentation','resolution':'[x,y,z]'}}' '''
 
-
+    tokens = {'token':tokens}
+    
     BASE = Path.home() / '.cloudvolume'
 
 
