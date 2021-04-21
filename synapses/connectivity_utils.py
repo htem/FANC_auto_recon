@@ -1,22 +1,6 @@
-import sys
-if '/Users/brandon/Documents/Repositories/Python/FANC_auto_recon/transforms/' not in sys.path:
-    sys.path.append('/Users/brandon/Documents/Repositories/Python/FANC_auto_recon/transforms/')
-from .. import neuroglancer_utilities
-from ..annotations import schema_download,schema_upload,statemanager
-from ..skeletonization import catmaid_utilities,skeleton_manipulations,skeletonization
-
-
 import pandas as pd
 import numpy as np
-from annotationframeworkclient import FrameworkClient
-import nglui
-from matplotlib import cm
-from nglui.statebuilder import *
-from matplotlib import pyplot as plt
-from cloudvolume import CloudVolume
-from meshparty import trimesh_vtk
 import json
-from matplotlib import pyplot as plt
 import re
 
 
