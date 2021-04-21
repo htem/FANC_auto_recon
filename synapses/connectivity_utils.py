@@ -17,7 +17,7 @@ from cloudvolume import CloudVolume
 from meshparty import trimesh_vtk
 import json
 from matplotlib import pyplot as plt
-
+import re
 
 
 def get_adj(pre_ids,post_ids,symmetric = False):
@@ -70,6 +70,9 @@ def batch_partners(fname,root_id,direction,threshold=None):
         if len(chunk_result) > 0:
             result = result.append(chunk_result, ignore_index=True)
     
+    cs = lambda x : [int(i) for i in re.findall('[0-9]+',x)]
+    result.pre_pt = [cs(i) for i in result.pre_pt]
+    result.post_pt = [cs(i) for i in result.post_pt]   
     return(result)
 
 def get_partner_synapses(root_id,df,direction='inputs',threshold=None):
