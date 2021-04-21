@@ -13,7 +13,12 @@ from ..transforms import cloudvolume_utils
 from .. import neuroglancer_utilities
 
 
-def download_annotation_table(client,table_name):
+def download_annotation_table(client,table_name,get_deleted=False):
+    
+    meta_data = client.annotation.get_table_metadata(table_name)
+    if meta_data['deleted'] is not None:
+        if get_deleted is False:
+            return(None)
     
     annotation_table = pd.DataFrame(columns=['deleted','valid','schema_type','reference_table','user_id','created','table_name','id','flat_segmentation_source','description'])
     table_size = client.annotation.get_annotation_count(table_name)+1
@@ -28,7 +33,7 @@ def download_annotation_table(client,table_name):
 
 
 
-
+## TODO: update seg_from_pt with GSpointloader 
 def generate_soma_table(annotation_table,
                         segmentation_version='Dynamic_V4',
                         resolution=np.array([4.3,4.3,45])):
@@ -68,7 +73,7 @@ def generate_soma_table(annotation_table,
 
 
 def generate_synapse_table(annotation_table,
-                        segmentation_version='Dynamic_V1',
+                        segmentation_version='Dynamic_V4',
                         resolution=np.array([4.3,4.3,45])):
     ''' Generate a soma table used for microns analysis. This is the workaround for a materialization engine
     Args:
@@ -117,7 +122,7 @@ def generate_synapse_table(annotation_table,
     return(synapse_table)
     
     
-def find_neurons(tag, client=None, segmentation_version='Dynamic_V4', return_IDs = True, partial_match = True):
+def find_neurons(tag, client=None, segmentation_version='Dynamic_V4', return_IDs = False, partial_match = True, search_deleted = False):
     if client is None:
         client,token = neuroglancer_utilities.get_client()
         
@@ -129,7 +134,7 @@ def find_neurons(tag, client=None, segmentation_version='Dynamic_V4', return_IDs
         meta = client.annotation.get_table_metadata(i)
         if meta['schema_type'] == 'bound_tag':
             try:
-                annotations = annotations.append(download_annotation_table(client,i))
+                annotations = annotations.append(download_annotation_table(client,i,get_deleted=search_deleted))
             except:
                 print(i +' Failed')
     
@@ -143,6 +148,7 @@ def find_neurons(tag, client=None, segmentation_version='Dynamic_V4', return_IDs
     else:
         return('No neurons matching this query')
     
+    materialized_annotations['table_name'] = queried_annotations.table_name
     if return_IDs:
         return(materialized_annotations.pt_root_id.values)
 
