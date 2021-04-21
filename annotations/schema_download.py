@@ -8,9 +8,8 @@ from annotationframeworkclient import FrameworkClient
 import nglui
 from concurrent import futures
 from pathlib import Path
-from ..neuroglancer_utilities import seg_from_pt
 from ..transforms import cloudvolume_utils
-from .. import neuroglancer_utilities
+from ..segmentation import authentication_utils
 
 
 def download_annotation_table(client,table_name,get_deleted=False):
@@ -59,7 +58,7 @@ def generate_soma_table(annotation_table,
     else:
         cv = CloudVolume(cloud_paths[segmentation_version]['url'],use_https=True,progress=False)
         
-    seg_ids = seg_from_pt(annotation_table.pt_position,cv)
+    seg_ids = cloudvolume_utils.seg_from_pt(annotation_table.pt_position,cv)
     
     soma_table.name = annotation_table.tag
     soma_table.pt_position = annotation_table.pt_position
@@ -100,8 +99,8 @@ def generate_synapse_table(annotation_table,
     else:
         cv = CloudVolume(cloud_paths[segmentation_version]['url'],progress=False)
         
-    pre_ids = seg_from_pt(annotation_table.pre_pt_position,cv)
-    post_ids = seg_from_pt(annotation_table.post_pt_position,cv)
+    pre_ids = cloudvolume_utils.seg_from_pt(annotation_table.pre_pt_position,cv)
+    post_ids = cloudvolume_utils.seg_from_pt(annotation_table.post_pt_position,cv)
     
     synapse_table.pre_root_id = pre_ids
     synapse_table.post_root_id = post_ids
@@ -124,7 +123,7 @@ def generate_synapse_table(annotation_table,
     
 def find_neurons(tag, client=None, segmentation_version='Dynamic_V4', return_IDs = False, partial_match = True, search_deleted = False):
     if client is None:
-        client,token = neuroglancer_utilities.get_client()
+        client,token = authentication_utils.get_client()
         
     tables = client.annotation.get_tables()
     annotations = pd.DataFrame(columns=['deleted', 'valid', 'schema_type', 'reference_table', 'user_id',
