@@ -12,7 +12,7 @@ def catmaid_login(project,project_id,key_file_path=None):
     ----------
     project :     project name in your api key dictionary.  Example uses 'fanc'
     pid:          project ID in the case that there are multiple stacks in the catmaid instance
-    key_file:     full file name of the api keys for your catmaid project, check example for format. Default will be ~/.cloudvolume/secrets/catmaid_keys.txt  DO NOT KEEP THIS IN SOURCE CONTROL!!!
+    key_file:     full file name of the api keys for your catmaid project, check example for format. Default will be ~/.cloudvolume/secrets/catmaid_keys.txt  
     Returns
     -------
     myInstance:   A CATMAID login instance.  
