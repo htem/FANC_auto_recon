@@ -1,0 +1,1 @@
+{"FANC":{"website": "https://radagast.hms.harvard.edu/catmaidvnc/#", "username": "None", "password": "None", "token": "YOUR TOKEN"}}
