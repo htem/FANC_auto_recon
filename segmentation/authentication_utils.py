@@ -67,6 +67,22 @@ def get_token(SECRET_PATH=None):
     
     return(token)
 
+def update_token(token,SECRET_PATH=None):
+    
+    if isinstance(token,str):
+        token = {'token':token}
+        
+    if SECRET_PATH is None:
+        SECRET_PATH = Path.home() / '.cloudvolume' / 'secrets'/'chunkedgraph-secret.json'
+    
+    if Path.exists(SECRET_PATH):
+        with open(SECRET_PATH,mode='w') as f:
+                json.dump(token,f)
+    else:
+        raise ValueError('{} does not exist.'.format(SECRET_PATH))
+    
+    return('token updated')
+
 def get_cv_path(version=None):
     fname = Path.home() / '.cloudvolume' / 'segmentations.json'
     with open(fname) as f:
@@ -76,3 +92,5 @@ def get_cv_path(version=None):
         return(paths)
     else:
         return(paths[version])
+
+    
