@@ -58,9 +58,6 @@ def get_partner_synapses(root_id,df,direction='inputs',threshold=None):
     return(partners)
 
 
-
-
-
 def batch_partners(fname,root_id,direction,threshold=None):
 
     result = pd.DataFrame(columns=['post_id', 'pre_pt', 'post_pt', 'source', 'pre_id'])
@@ -75,22 +72,3 @@ def batch_partners(fname,root_id,direction,threshold=None):
     result.post_pt = [cs(i) for i in result.post_pt]   
     return(result)
 
-def get_partner_synapses(root_id,df,direction='inputs',threshold=None):
-    if direction == 'inputs':
-        to_find = 'post_id'
-        to_threshold = 'pre_id'
-        
-    elif direction == 'outputs':
-        to_find = 'pre_id'   
-        to_threshold = 'post_id'
-    
-    partners = df.loc[df[to_find]==root_id]
-        
-    if threshold is not None:
-        counts = partners[to_threshold].value_counts()
-        t_idx = counts >= threshold
-        
-        partners = partners[partners[to_threshold].isin(set(t_idx.index[t_idx==1]))]
-
-    
-    return(partners)
