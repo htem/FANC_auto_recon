@@ -180,7 +180,7 @@ def seg_from_pt(pts,vol,image_res=np.array([4.3,4.3,45]),max_workers=4):
     Returns:
         list, segment_ID at specified point '''
     
-    cv.progress = False
+    vol.progress = False
     seg_mip = vol.scale['resolution']
     res = seg_mip / image_res
 
