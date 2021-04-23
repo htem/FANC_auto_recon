@@ -24,9 +24,9 @@ def fanc4_to_3(points, scale=2, return_dict=False):
     if len(np.shape(points)) > 1:
         # JSP: This code block doesn't work for me
         full_url = base + 'values_array'
-        points_dict = {'x': list(points[:,0]),
-                       'y': list(points[:,1]),
-                       'z': list(points[:,2])}
+        points_dict = {'x': list(points[:,0].astype(str)),
+                       'y': list(points[:,1].astype(str)),
+                       'z': list(points[:,2].astype(str))}
         r = requests.post(full_url, json=points_dict)
     else:
         full_url = (base + 'z/{}/'.format(str(int(points[2])))
