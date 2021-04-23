@@ -78,6 +78,9 @@ def fanc3_to_4(pts, mode='descent', precision=1.5, verbose=False):
         def mag(v):
             """Magnitude of a vector"""
             return np.sum(v**2)**0.5
+        def mags(m):
+            """Magnitudes of n vectors in an nxm matrix"""
+            return np.sum(m**2, axis=1)**0.5
 
         def find_inverse_by_descent(pt, precision, max_iterations=10):
             def report():
@@ -97,14 +100,37 @@ def fanc3_to_4(pts, mode='descent', precision=1.5, verbose=False):
 
             return inv.astype(np.uint32)
 
+
+        def find_inverse_by_descent_parallel(pts, precision, max_iterations=10):
+            def report():
+                print(i)
+                print(pts)
+                print(inv)
+                print(fanc4_to_3(inv))
+                print(error_mags)
+                print()
+            inv = pts.copy()
+            error_vecs = fanc4_to_3(inv) - pts
+            error_mags = mags(error_vecs)
+            i = 0
+            #if verbose: report()
+            while any(error_mags > precision) and i < max_iterations:
+                rows_to_process = error_mags > precision
+                inv[rows_to_process, :] = inv[rows_to_process, :] - error_vecs[rows_to_process]
+                error_vecs[rows_to_process, :] = fanc4_to_3(inv[rows_to_process, :]) - pts[rows_to_process, :]
+                error_mags = mags(error_vecs)
+                i += 1
+                if verbose: report()
+            if i >= max_iterations:
+                print('WARNING: Max iterations ({}) reached.'.format(max_iterations))
+
+            return inv.astype(np.uint32)
+
         if len(pts.shape) == 1:  # Vector
             return find_inverse_by_descent(pts, precision=precision)
         elif len(pts.shape) == 2:  # Matrix
-            # TODO TODO TODO write a version of find_inverse_by_descent that
-            # parallelizes iterations for all given points to reduce http
-            # requests. Currently the function is applied serially to each
-            # point, which is slow.
-            return np.apply_along_axis(find_inverse_by_descent, 1, pts, precision)
+            #return np.apply_along_axis(find_inverse_by_descent, 1, pts, precision)  # Serial (slow)
+            return find_inverse_by_descent_parallel(pts, precision)  # Parallel (fast)
 
     elif mode is 'inversefield':
         # Use if the inverse field (v3->v4) has been calculated.
@@ -127,7 +153,7 @@ test_pts_v4 = np.array([
 
 def test_fanc3_to_4(verbose=True):
     pts3to4 = fanc3_to_4(test_pts_v3, verbose=verbose)
-    error = pts3to4 - test_pts_v4
+    error = np.subtract(pts3to4, test_pts_v4, dtype=float)
 
     print('True v4 points:')
     print(test_pts_v4)
@@ -142,7 +168,7 @@ def test_fanc3_to_4(verbose=True):
 
 def test_fanc4_to_3():
     pts4to3 = fanc4_to_3(test_pts_v4)
-    error = pts4to3 - test_pts_v3
+    error = np.subtract(pts4to3, test_pts_v3, dtype=float)
 
     print('True v3 points:')
     print(test_pts_v3)
