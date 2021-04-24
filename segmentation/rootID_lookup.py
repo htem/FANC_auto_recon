@@ -138,6 +138,37 @@ class GSPointLoader(object):
 
         return points, data
     
+
+def segIDs_from_pts(cv,coords,n=100000,max_tries = 3):
+    seg_ids = []
+    failed = []
+    bins = np.array_split(np.arange(0,len(coords)),np.ceil(len(coords)/10000))
+    
+    for i in bins: 
+        pt_loader = GSPointLoader(cv)
+        pt_loader.add_points(coords[i])
+        try:
+            chunk_ids = pt_loader.load_all()[1].reshape(len(coords[i]),)
+            seg_ids.append(chunk_ids)
+        except:
+            print('Failed, retrying')
+            fail_check = 0
+            while fail_check < max_tries:
+                try:
+                    chunk_ids = pt_loader.load_all()[1].reshape(len(coords[i]),)
+                    seg_ids.append(chunk_ids)
+                    fail_check = max_tries + 1
+                except:
+                    print('Fail: {}'.format(fail_check))
+                    fail_check+=1
+            
+            if fail_check == max_tries:
+                failed.append(i)       
+    
+    
+    return np.concatenate(seg_ids)
+    
+    
 def batch_roots(cv,df,n=100000):
     groups = int(np.ceil(len(df)/n))
     full = []
