@@ -21,7 +21,7 @@ def get_adj(pre_ids,post_ids,symmetric = False):
     return(adj)
 
 
-def get_partner_synapses(root_id,df,direction='inputs',threshold=None):
+def get_partner_synapses(root_id, df, direction='inputs', threshold=None):
     if direction == 'inputs':
         to_find = 'post_id'
         to_threshold = 'pre_id'
@@ -42,7 +42,7 @@ def get_partner_synapses(root_id,df,direction='inputs',threshold=None):
     return(partners)
 
 
-def batch_partners(fname,root_id,direction,threshold=None):
+def batch_partners(fname,root_id, direction, threshold=None):
 
     result = pd.DataFrame(columns=['post_id', 'pre_pt', 'post_pt', 'source', 'pre_id'])
 
@@ -51,7 +51,7 @@ def batch_partners(fname,root_id,direction,threshold=None):
         if len(chunk_result) > 0:
             result = result.append(chunk_result, ignore_index=True)
     
-    cs = lambda x : [int(i) for i in re.findall('[0-9]+',x)]
+    cs = lambda x : [int(i) for i in re.findall('[0-9]+', x)]
     result.pre_pt = [cs(i) for i in result.pre_pt]
     result.post_pt = [cs(i) for i in result.post_pt]   
     return(result)
