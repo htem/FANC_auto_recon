@@ -5,3 +5,4 @@ pymaid
 skeletor
 meshparty
 navis
+nglui
