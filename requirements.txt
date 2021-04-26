@@ -1,8 +1,9 @@
 numpy
 matplotlib
 cloud-volume
-pymaid
+python-catmaid
 skeletor
 meshparty
 navis
 nglui
+pyperclip

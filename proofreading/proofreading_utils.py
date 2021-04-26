@@ -37,7 +37,7 @@ def render_fragments(pts,
     
     return state.render_state()
 
-def skel2seg(skeleton_id, verbose=False):
+def skel2seg(skeleton_id, project_id=13, copy_link=True, verbose=False):
     """
     Given a skeleton ID of a skeleton in the FANC community CATMAID project
     (https://radagast.hms.harvard.edu/catmaidvnc/?pid=13), create a
@@ -65,4 +65,12 @@ def skel2seg(skeleton_id, verbose=False):
         agglomerate=True
     )
 
-    return render_fragments(nodes_v4, production_seg)
+    neuroglancer_link = render_fragments(nodes_v4, production_seg)
+    if copy_link:
+        try:
+            import pyperclip
+            pyperclip.copy(neuroglancer_link)
+        except:
+            print("Install pyperclip (pip install pyperclip) for the option to"
+                  " programmatically copy the output above to the clipboard")
+    return neuroglancer_link
