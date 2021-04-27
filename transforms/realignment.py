@@ -91,8 +91,8 @@ def fanc4_to_3(*pts, subpixel_interpolation=False, scale=2, return_dict=False):
 
 def fanc3_to_4(*pts, mode='descent', precision=1, verbose=False):
     """
-    Convert points from alignment V4 (used on neuroglancer) to their
-    corresponding locations in alignment V3 (used on CATMAID).
+    Convert points from alignment V3 (used on CATMAID) to their
+    corresponding locations in alignment V4 (used on neuroglancer).
 
     Args:
         pts:       A nx3 array of points in mip0 voxel coordinates.
