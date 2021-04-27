@@ -26,7 +26,7 @@ class GSPointLoader(object):
 
         Parameters
         ----------
-        cloud_volume :  cloudvolume.CloudVolume
+        cloud_volume :  cloudvolume.CloudVolume (SET AGGLOMERATE = FALSE for the cloudvolume object.)
 
         """
         CVtype = cloudvolume.frontends.precomputed.CloudVolumePrecomputed
@@ -152,7 +152,7 @@ def segIDs_from_pts(cv,coords,n=100000,max_tries = 3):
             seg_ids.append(chunk_ids)
         except:
             print('Failed, retrying')
-            fail_check = 0
+            fail_check = 1
             while fail_check < max_tries:
                 try:
                     chunk_ids = pt_loader.load_all()[1].reshape(len(coords[i]),)
@@ -166,7 +166,7 @@ def segIDs_from_pts(cv,coords,n=100000,max_tries = 3):
                 failed.append(i)       
     
     
-    return np.concatenate(seg_ids)
+    return cv.get_roots(np.concatenate(seg_ids))
     
     
 def batch_roots(cv,df,n=100000):
