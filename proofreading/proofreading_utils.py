@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
-from ..segmentation import authentication_utils
 from ..segmentation import rootID_lookup
 from ..transforms import realignment
+from ..segmentation import authentication_utils,rootID_lookup
 from nglui import statebuilder,annotation,easyviewer,parser
 from nglui.statebuilder import *
 import numpy as np
@@ -62,7 +62,7 @@ def skel2seg(skeleton_id, project_id=13, copy_link=True, verbose=False):
     from cloudvolume import CloudVolume as CV
     production_seg = CV(
         authentication_utils.get_cv_path('FANC_production_segmentation')['url'],
-        agglomerate=True
+        agglomerate=False
     )
 
     neuroglancer_link = render_fragments(nodes_v4, production_seg)
