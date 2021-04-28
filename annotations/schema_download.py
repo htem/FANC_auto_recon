@@ -12,6 +12,13 @@ from ..segmentation import authentication_utils,rootID_lookup
 
 
 def download_annotation_table(client,table_name,get_deleted=False):
+    ''' Download annotation tables from the annotation portal. This is a workaround until we have a working materialization engine. 
+    Args:
+        client: FrameworkClient object
+        table_name: str, name of the table to download.
+        get_deleted: bool, return tables that have been deleted. Default = False.
+    Returns:
+        annotation_table: DataFrame, Unmaterialized annotation table with spatial points necessary for materialization. '''
     
     meta_data = client.annotation.get_table_metadata(table_name)
     if meta_data['deleted'] is not None:
@@ -33,7 +40,7 @@ def download_annotation_table(client,table_name,get_deleted=False):
 
 ## TODO: update seg_from_pt with GSpointloader 
 def generate_soma_table(annotation_table,
-                        segmentation_version='Dynamic_V4',
+                        segmentation_version='FANC_production_segmentation',
                         resolution=np.array([4.3,4.3,45])):
     ''' Generate a soma table used for microns analysis. This is the workaround for a materialization engine
     Args:
@@ -42,8 +49,10 @@ def generate_soma_table(annotation_table,
                               This will only work if you have a segmentations.json in your cloudvolume folder. See examples for format.
         resolution: np.array, Resolution of the mip0 coordinates of the version (not necessarily the same as the segmentation layer resolution).
                               For all but the original FANC segmentation, this will be [4.3,4.3,45]
-        token: str, currently, CloudVolume requires a workaround for passing google secret tokens. This won't work unless you edit your cloudvolume 
-                              file to remove the check for hexidecimal formatting of tokens. Updates should be coming to fix this. 
+                              
+    Returns:
+        soma_table: DataFrame, materialized soma table with rootIDs cooresponding to specified segmentation. 
+
         '''
 
     soma_table = pd.DataFrame(columns=['name','cell_type',
@@ -71,13 +80,12 @@ def generate_soma_table(annotation_table,
 
 
 def generate_synapse_table(annotation_table,
-                        segmentation_version='Dynamic_V4',
+                        segmentation_version='FANC_production_segmentation',
                         resolution=np.array([4.3,4.3,45])):
     ''' Generate a soma table used for microns analysis. This is the workaround for a materialization engine
     Args:
         annotation_table: pd.DataFrame, output from download_cell_table. Retreived from the annotation engine.
-        segmentation_version: str, Currently we have 4 for FANC. Two flat segmentations ("Flat_1" and "Flat_2") and two dynamic ("Dynamic_V1/V2"). 
-                              This will only work if you have a segmentations.json in your cloudvolume folder. See examples for format.
+        segmentation_version: str, This will reference /.cloudvolume/segmentations.json. Default is 'FANC_production_segmentation'
         resolution: np.array, Resolution of the mip0 coordinates of the version (not necessarily the same as the segmentation layer resolution).
                               For all but the original FANC segmentation, this will be [4.3,4.3,45]
         token: str, currently, CloudVolume requires a workaround for passing google secret tokens. This won't work unless you edit your cloudvolume 
@@ -120,7 +128,7 @@ def generate_synapse_table(annotation_table,
     return(synapse_table)
     
     
-def find_neurons(tag, client=None, segmentation_version='Dynamic_V4', return_IDs = False, partial_match = True, search_deleted = False):
+def find_neurons(tag, client=None, segmentation_version='FANC_production_segmentation', return_IDs = False, partial_match = True, search_deleted = False):
     if client is None:
         client,token = authentication_utils.get_client()
         
