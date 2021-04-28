@@ -10,7 +10,7 @@ import numpy as np
 
 def render_fragments(pts,
                      target_volume,
-                     threshold = 5,
+                     threshold = 25,
                      img_source = None,
                      seg_source = None,
                      state_server = None):
