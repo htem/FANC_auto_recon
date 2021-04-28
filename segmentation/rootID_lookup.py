@@ -142,8 +142,8 @@ class GSPointLoader(object):
 
 def segIDs_from_pts(cv,coords,n=100000,max_tries = 3):
     
-    if cloud_volume.agglomerate is True:
-        cloud_volume.agglomerate = False
+    if cv.agglomerate is True:
+        cv.agglomerate = False
     
     seg_ids = []
     failed = []
