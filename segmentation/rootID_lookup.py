@@ -29,6 +29,7 @@ class GSPointLoader(object):
         cloud_volume :  cloudvolume.CloudVolume (SET AGGLOMERATE = FALSE for the cloudvolume object.)
 
         """
+            
         CVtype = cloudvolume.frontends.precomputed.CloudVolumePrecomputed
         if not isinstance(cloud_volume, CVtype):
             raise TypeError('Expected CloudVolume, got "{}"'.format(type(cloud_volume)))
@@ -140,6 +141,10 @@ class GSPointLoader(object):
     
 
 def segIDs_from_pts(cv,coords,n=100000,max_tries = 3):
+    
+    if cloud_volume.agglomerate is True:
+        cloud_volume.agglomerate = False
+    
     seg_ids = []
     failed = []
     bins = np.array_split(np.arange(0,len(coords)),np.ceil(len(coords)/10000))
