@@ -18,13 +18,14 @@ def download_annotation_table(client,table_name,get_deleted=False):
         table_name: str, name of the table to download.
         get_deleted: bool, return tables that have been deleted. Default = False.
     Returns:
-        annotation_table: DataFrame, Unmaterialized annotation table with spatial points necessary for materialization. '''
+        annotation_table: DataFrame, Unmaterialized annotation table with spatial points necessary for materialization. ''' 
+    if table_name not in client.annotation.get_tables():
+        return('Table does not exist')
     
     meta_data = client.annotation.get_table_metadata(table_name)
     if meta_data['deleted'] is not None:
         if get_deleted is False:
             return(None)
-    
     annotation_table = pd.DataFrame(columns=['deleted','valid','schema_type','reference_table','user_id','created','table_name','id','flat_segmentation_source','description'])
     table_size = client.annotation.get_annotation_count(table_name)+1
     bins = np.array_split(np.arange(1,table_size),np.ceil(table_size/100))
