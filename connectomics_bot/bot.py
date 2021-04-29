@@ -108,13 +108,14 @@ def handle_command(command):
 
 
 
-def payload_delivery(response,user_id,channel_id):
+def payload_delivery(response,user_id,channel_id,thread_ts=None):
     
     if isinstance(response,pd.core.frame.DataFrame):
         fname = str(random.randint(1111111,9999999)) + '.csv'
         response.to_csv(fname)
         r = slack_web_client.files_upload(
               channels=channel_id,
+              thread_ts= thread_ts,
               filetype='csv',
               filename=fname,
               title='query response',
@@ -125,6 +126,7 @@ def payload_delivery(response,user_id,channel_id):
         payload = {
             "channel": channel_id,
             "username": "connectomics_bot",
+            "thread_ts": thread_ts,
             "text": 'Query Response:',
             "blocks": [
                 {"type": "section",
@@ -136,6 +138,7 @@ def payload_delivery(response,user_id,channel_id):
         payload = {
                 "channel": channel_id,
                 "username": "connectomics_bot",
+                "thread_ts": thread_ts,
                 "text": 'Query Response:',
                 "blocks": [
                     {"type": "section",
@@ -161,21 +164,24 @@ def message(payload):
     user_id = event.get("user")
     text = event.get("text")
     
-   
+
     sender = payload['authorizations'][0]['user_id']
     receiver = user_id
 
     print(text)
     if event.get("channel_type") == 'im' and sender != receiver and 'bot_id' not in event:
+        thread_ts = event.get('ts')
+        
         payload = {
             "channel": channel_id,
             "username": "connectomics_bot",
+            "thread_ts":thread_ts,
             "text": 'Getting data...'}
         r = slack_web_client.chat_postMessage(**payload)
         
         x = threading.Thread(
             target=initiate_process,
-            args=(text,user_id,channel_id))
+            args=(text,user_id,channel_id,thread_ts))
         x.start()
              
         return 
@@ -183,14 +189,15 @@ def message(payload):
     else:
         return 
     
-def initiate_process(text,user_id,channel_id):
+def initiate_process(text,user_id,channel_id,thread_ts):
     
     response = handle_command(text)
     
-    r = payload_delivery(response,user_id,channel_id)
+    r = payload_delivery(response,user_id,channel_id,thread_ts)
     
     payload = {
         "channel": channel_id,
+        "thread_ts": thread_ts,
         "username": "connectomics_bot",
         "text": 'Complete!'}
 
