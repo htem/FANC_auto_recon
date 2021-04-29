@@ -8,9 +8,11 @@ from nglui.statebuilder import *
 import numpy as np
 
 
+
 def render_fragments(pts,
                      target_volume,
-                     threshold = 25,
+                     segment_threshold = 10,
+                     node_threshold = None,
                      img_source = None,
                      seg_source = None,
                      state_server = None):
@@ -26,7 +28,16 @@ def render_fragments(pts,
     
     ids,counts = np.unique(seg_ids,return_counts=True)
     value_counts = np.array(list(zip(ids,counts)),dtype=int)
-    ids_to_use = value_counts[value_counts[:,1]>threshold][:,0]
+    
+    if segment_threshold and not node_threshold:
+        ids_to_use = value_counts.sort_values(ascending=False)[0:segment_threshold]
+    elif node_threshold and not segment_threshold:
+        ids_to_use = value_counts[value_counts[:,1]>threshold][:,0]
+    elif node_threshold and segment_threshold:
+        print('Warning: cannot use segment and node threshold concurrently,defaulting to segment threshold')
+        ids_to_use = value_counts.sort_values(ascending=False)[0:segment_threshold]
+    else:
+        ids_to_use = seg_ids     
     
     img_layer = ImageLayerConfig(img_source,name='Image_Layer')
 
