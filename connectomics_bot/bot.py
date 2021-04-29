@@ -78,8 +78,7 @@ def parse_input(command):
     
     response = get_response_key(command)
     
-    if response:
-        
+    if response:      
         args = parse_args(command)
         use_args = {}
   
@@ -90,9 +89,7 @@ def parse_input(command):
         if len(use_args) > 0:
             return response,use_args
         else:
-            return response,None
-
-    
+            return response,None  
     else:
         return(None,None)
         
@@ -112,9 +109,6 @@ def handle_command(command):
 
 
 def payload_delivery(response,user_id,channel_id):
-    """Create and send an onboarding welcome message to new users. Save the
-    time stamp of this message so we can update this message in the future.
-    """
     
     if isinstance(response,pd.core.frame.DataFrame):
         fname = str(random.randint(1111111,9999999)) + '.csv'
@@ -155,12 +149,8 @@ def payload_delivery(response,user_id,channel_id):
 
 
     
-
-# ============== Message Events ============= #
-# When a user sends a DM, the event type will be 'message'.
-# Here we'll link the message callback to the 'message' event.
+    
 @app.route('/', methods=['POST'])
-
 @slack_events_adapter.on("message")
 def message(payload):
     """Collect DMs to the bot.
