@@ -44,7 +44,7 @@ def get_top_downstream_partners(root_id,cutoff=10,threshold=1):
     fname = Path.cwd() / 't1_synapse_roots_v4.csv'
     direction = 'outputs'
     partners = connectivity_utils.batch_partners(fname,root_id,direction,threshold=threshold)
-    top = partners.pre_id.value_counts()[0:cutoff]
+    top = partners.post_id.value_counts()[0:cutoff]
     return top
 
 
@@ -105,8 +105,12 @@ def skel2seg(skid,project=13):
     target_volume = CloudVolume(authentication_utils.get_cv_path('FANC_production_segmentation')['url'],use_https=True,agglomerate=False)
     transformed = realignment.fanc3_to_4(skeleton_nodes_voxel)
 
-    return proofreading_utils.render_fragments(transformed,target_volume) 
+    link = proofreading_utils.render_fragments(transformed,target_volume) 
+    return('<'+link+'>')
 
+
+
+## Secondary methods
 
 def update_roots():
     print('Not implemented yet')
