@@ -146,7 +146,7 @@ def payload_delivery(response,user_id,channel_id):
                 "blocks": [
                     {"type": "section",
                         "text": {
-                        "type": "plain_text",
+                        "type": "mrkdwn",
                             "text": response}}]}
         
         r = slack_web_client.chat_postMessage(**payload)
