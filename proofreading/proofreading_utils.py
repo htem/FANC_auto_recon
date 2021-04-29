@@ -8,6 +8,32 @@ from nglui.statebuilder import *
 import numpy as np
 
 
+def render_scene(seg_ids,
+                     target_volume,
+                     img_source = None,
+                     seg_source = None,
+                     state_server = None):
+    
+    if img_source is None:
+        img_source = authentication_utils.get_cv_path('Image')['url']
+    if seg_source is None:
+        seg_source = authentication_utils.get_cv_path('FANC_production_segmentation')['url']
+    if state_server is None:
+        state_server = 'https://api.zetta.ai/json/post'
+       
+    img_layer = ImageLayerConfig(img_source,name='FANCv4')
+
+
+    seg_layer = SegmentationLayerConfig(name = 'seg_Mar2021_proofreading',
+                                   source = seg_source,
+                                   selected_ids_column=None,
+                                   fixed_ids= seg_ids,
+                                   active = False)
+
+    state = StateBuilder([img_layer,seg_layer],resolution=[4.3,4.3,45],state_server=state_server)
+    
+    return state.render_state()
+
 
 def render_fragments(pts,
                      target_volume,
@@ -30,27 +56,17 @@ def render_fragments(pts,
     value_counts = np.array(list(zip(ids,counts)),dtype=int)
     
     if segment_threshold and not node_threshold:
-        ids_to_use = value_counts.sort_values(ascending=False)[0:segment_threshold]
+        ids_to_use = value_counts[np.argsort(-value_counts[:,1])[0:segment_threshold],0]
     elif node_threshold and not segment_threshold:
-        ids_to_use = value_counts[value_counts[:,1]>threshold][:,0]
+        ids_to_use = value_counts[value_counts[:,1]>node_threshold][:,0]
     elif node_threshold and segment_threshold:
         print('Warning: cannot use segment and node threshold concurrently,defaulting to segment threshold')
-        ids_to_use = value_counts.sort_values(ascending=False)[0:segment_threshold]
+        ids_to_use = value_counts[np.argsort(-value_counts[:,1])]
     else:
-        ids_to_use = seg_ids     
+        ids_to_use = seg_ids 
     
-    img_layer = ImageLayerConfig(img_source,name='Image_Layer')
 
-
-    seg_layer = SegmentationLayerConfig(name = 'Segmentation_Layer',
-                                   source = seg_source,
-                                   selected_ids_column=None,
-                                   fixed_ids= ids_to_use,
-                                   active = False)
-
-    state = StateBuilder([img_layer,seg_layer],resolution=[4.3,4.3,45],state_server=state_server)
-    
-    return state.render_state()
+    return render_scene(ids_to_use,target_volume,img_source = img_source, seg_source = seg_source, state_server = state_server)
 
 def skel2seg(skeleton_id, project_id=13, copy_link=True,threshold=5, verbose=False):
     """
