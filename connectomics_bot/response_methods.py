@@ -89,7 +89,7 @@ def find_neuron(annotation):
 
 
 
-def skel2seg(skid,project=13):
+def skel2seg(skid, project=13, segment_threshold = 10, node_threshold = None):
     
     CI = catmaid_utilities.catmaid_login('FANC',project)
     try:
@@ -100,17 +100,21 @@ def skel2seg(skid,project=13):
     n.downsample(inplace=True)
 
     nodes = n.nodes[['x','y','z']].values/ np.array([4.3,4.3,45])
-    skeleton_nodes_voxel = realignment.fanc3_to_4(nodes,verbose=False)
+    skeleton_nodes_voxel = realignment.fanc3_to_4(nodes, verbose=False)
 
-    target_volume = CloudVolume(authentication_utils.get_cv_path('FANC_production_segmentation')['url'],use_https=True,agglomerate=False)
+    target_volume = CloudVolume(authentication_utils.get_cv_path('FANC_production_segmentation')['url'], use_https=True, agglomerate=False)
     transformed = realignment.fanc3_to_4(skeleton_nodes_voxel)
 
-    link = proofreading_utils.render_fragments(transformed,target_volume) 
+    link = proofreading_utils.render_fragments(transformed, target_volume, segment_threshold, node_threshold,) 
     return('<'+link+'>')
 
 
 
 ## Secondary methods
+
+def empty_link():
+    target_volume = CloudVolume(authentication_utils.get_cv_path('FANC_production_segmentation')['url'],use_https=True,agglomerate=False)
+    return(proofreading_utils.render_scene(seg_ids = None,target_volume=target_volume))
 
 def update_roots():
     print('Not implemented yet')
