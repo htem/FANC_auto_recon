@@ -30,7 +30,11 @@ response_dict = {
     ],
     'skel2seg': [
         rsp.skel2seg
+    ],
+    'empty link':[
+        rsp.empty_link
     ]
+        
     
 }
 
