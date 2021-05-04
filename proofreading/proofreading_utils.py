@@ -6,14 +6,17 @@ from ..segmentation import authentication_utils,rootID_lookup
 from nglui import statebuilder,annotation,easyviewer,parser
 from nglui.statebuilder import *
 import numpy as np
-
+import pandas as pd
 
 def render_scene(seg_ids,
                      target_volume,
                      img_source = None,
                      seg_source = None,
-                     state_server = None):
-    
+                     state_server = None,
+                     annotation_layer = False,
+                     annotation_points = None):
+    ## TODO: Render brain regions.
+    ## TODO: Make annotation rendering richer. 
     if img_source is None:
         img_source = authentication_utils.get_cv_path('Image')['url']
     if seg_source is None:
@@ -29,10 +32,16 @@ def render_scene(seg_ids,
                                    selected_ids_column=None,
                                    fixed_ids= seg_ids,
                                    active = False)
-
-    state = StateBuilder([img_layer,seg_layer],resolution=[4.3,4.3,45],state_server=state_server)
-    
-    return state.render_state()
+    if annotation_layer is True:
+        df = pd.DataFrame([[i] for i in annotation_points],columns=['Points'])
+        pt_map = statebuilder.PointMapper(point_column='Points')
+        
+        ann_layer = statebuilder.AnnotationLayerConfig('skeleton',color='r',mapping_rules = pt_map)
+        state = StateBuilder([img_layer,seg_layer,ann_layer],resolution=[4.3,4.3,45],state_server=state_server)
+        return state.render_state(df)
+    else:
+        state = StateBuilder([img_layer,seg_layer],resolution=[4.3,4.3,45],state_server=state_server)
+        return state.render_state() 
 
 
 def render_fragments(pts,
@@ -41,7 +50,8 @@ def render_fragments(pts,
                      node_threshold = None,
                      img_source = None,
                      seg_source = None,
-                     state_server = None):
+                     state_server = None,
+                     include_skeleton = True):
     
     if img_source is None:
         img_source = authentication_utils.get_cv_path('Image')['url']
@@ -65,8 +75,18 @@ def render_fragments(pts,
     else:
         ids_to_use = seg_ids 
     
-
-    return render_scene(ids_to_use,target_volume,img_source = img_source, seg_source = seg_source, state_server = state_server)
+    if include_skeleton is True:
+        skeleton_pts = pts
+    else:
+        skeleton_pts = None
+    
+    return render_scene(ids_to_use,
+                        target_volume,
+                        img_source = img_source, 
+                        seg_source = seg_source, 
+                        state_server = state_server,
+                        annotation_layer = include_skeleton,
+                        annotation_points = skeleton_pts)
 
 def skel2seg(skeleton_id, project_id=13, copy_link=True,threshold=5, verbose=False):
     """
