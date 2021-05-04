@@ -62,16 +62,16 @@ def generate_soma_table(annotation_table,
                                        'found'])
     with open(Path.home() / '.cloudvolume' / 'segmentations.json') as f:
             cloud_paths = json.load(f)
-    if 'Dynamic' in segmentation_version:
-        cv = CloudVolume(cloud_paths[segmentation_version]['url'],agglomerate=True,use_https=True,progress=False)
+    if 'FANC_production_segmentation' in segmentation_version:
+        cv = CloudVolume(cloud_paths[segmentation_version]['url'],agglomerate=False,use_https=True,progress=False)
     else:
         cv = CloudVolume(cloud_paths[segmentation_version]['url'],use_https=True,progress=False)
         
-    seg_ids = rootID_lookup.seg_from_pt(annotation_table.pt_position,cv)
+    root_ids = rootID_lookup.segIDs_from_pts(cv,annotation_table.pt_position)
     
     soma_table.name = annotation_table.tag
     soma_table.pt_position = annotation_table.pt_position
-    soma_table.pt_root_id = seg_ids
+    soma_table.pt_root_id = root_ids
     soma_table.soma_x_nm = np.array([i[0] for i in annotation_table.pt_position]) * resolution[0]
     soma_table.soma_y_nm = np.array([i[1] for i in annotation_table.pt_position]) * resolution[1]
     soma_table.soma_z_nm = np.array([i[2] for i in annotation_table.pt_position]) * resolution[2]
