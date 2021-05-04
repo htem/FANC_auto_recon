@@ -25,13 +25,14 @@ slack_web_client = WebClient(token=os.environ['SLACK_BOT_TOKEN'])
 
 
 
-default_response = 'I do not understand. Here are some things you can ask for:\n 1. get upstream partners of 123456789\n 2. get downstream partners of 123456789 with a 10 synapse threshold\n 3. get top 10 upstream partners of 123456789\n 4. get all annotation tables\n 5. get annotation tables by bmark89@uw.edu\n 6. get annotation table: T1MN_somas\n 7. find neuron annotated with: MN\n 8. get neuroglancer link for skeleton ID 12345 in project 13'
+default_response = '*Here are some things you can ask for:*\n *1.* get upstream partners of 123456789\n *2.* get downstream partners of 123456789 with a 10 synapse threshold\n *3.* get top 10 upstream partners of 123456789\n *4.* get all annotation tables\n *5.* get annotation tables by bmark89@uw.edu\n 6. get annotation table: T1MN_somas\n *7.* find neuron annotated with: MN\n *8.* get neuroglancer link for skeleton ID 12345 in project 13 with a 10 segment threshold\n\n *More documentation will be available soon!*'
     
     
 def parse_args(command):
     ##TODO: Add find neuron in an individual table. 
     ##TODO: Add materialization across multiple segmentations.
     ##TODO: Find regex that actually works in find neuron / get annotation table. I do not know why '(?<=").*(?=")' does not work. 
+    args = {}
     if 'annotation' in command or 'annotated' in command:
         
         args = {'table_name':None,
@@ -64,11 +65,23 @@ def parse_args(command):
         args['root_id'] = match[0]
     
     if len(re.findall('skeleton [IiDd]+',command))>0:
+        args = {'skid':None,
+                'project':None,
+                'segment_threshold':None,
+                'node_threshold':None}
+        
         values = re.findall('[0-9]+',command)
-        if len(values)>1:
-            args = {'skid':int(values[0]),'project':int(values[1])}
+        if 'project' in command:
+            args['skid']= int(values[0])
+            args['project']= int(re.findall('(?<=project )[\d]+',command)[0])
         else:
-            args = {'skid':int(values[0]),'project':13}
+            args['skid']= int(values[0])
+            args['project']= 13 
+
+        if 'segment threshold' in command:
+            args['segment_threshold']= int(re.findall('[\d]+(?= segment threshold)',command)[0])
+        elif 'node threshold' in command:
+            args['node_threshold']= int(re.findall('[\d]+(?= node threshold)',command)[0])
     
     return(args)
 
