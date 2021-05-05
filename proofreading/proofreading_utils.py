@@ -51,7 +51,7 @@ def render_fragments(pts,
                      img_source = None,
                      seg_source = None,
                      state_server = None,
-                     include_skeleton = True):
+                     include_skeleton = False):
     
     if img_source is None:
         img_source = authentication_utils.get_cv_path('Image')['url']
