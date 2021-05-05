@@ -33,6 +33,7 @@ def download_annotation_table(client,table_name,get_deleted=False):
         annotation_table = annotation_table.append(client.annotation.get_annotation(table_name,annotation_ids=list(bins[i])))
 
     annotation_table.table_name = table_name
+    annotation_table.reset_index(inplace=True)
     return(annotation_table)
 
 
