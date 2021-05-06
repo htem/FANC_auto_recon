@@ -151,7 +151,9 @@ def find_neurons(tag, client=None, segmentation_version='FANC_production_segment
     else:
         queried_annotations = annotations.loc[annotations.tag == tag]
         
+
     if len(queried_annotations) > 0:
+        queried_annotations.reset_index(inplace=True)
         materialized_annotations = generate_soma_table(queried_annotations,segmentation_version=segmentation_version)
     else:
         return('No neurons matching this query')
