@@ -145,7 +145,7 @@ def segIDs_from_pts(cv,coords,n=100000,max_tries = 3):
     if cv.agglomerate is True:
         cv.agglomerate = False
     
-    seg_ids = []
+    sv_ids = []
     failed = []
     bins = np.array_split(np.arange(0,len(coords)),np.ceil(len(coords)/10000))
     
@@ -154,14 +154,14 @@ def segIDs_from_pts(cv,coords,n=100000,max_tries = 3):
         pt_loader.add_points(coords[i])
         try:
             chunk_ids = pt_loader.load_all()[1].reshape(len(coords[i]),)
-            seg_ids.append(chunk_ids)
+            sv_ids.append(chunk_ids)
         except:
             print('Failed, retrying')
             fail_check = 1
             while fail_check < max_tries:
                 try:
                     chunk_ids = pt_loader.load_all()[1].reshape(len(coords[i]),)
-                    seg_ids.append(chunk_ids)
+                    sv_ids.append(chunk_ids)
                     fail_check = max_tries + 1
                 except:
                     print('Fail: {}'.format(fail_check))
@@ -171,10 +171,18 @@ def segIDs_from_pts(cv,coords,n=100000,max_tries = 3):
                 failed.append(i)       
     
     
-    return cv.get_roots(np.concatenate(seg_ids))
+    sv_id_full = np.concatenate(sv_ids)
+    root_ids = cv.get_roots(sv_id_full)
+    # Check for super voxel IDs == 0, they will return nothing when the root is looked up and cuase indexing problems. Instead replace with 0.
+    if len(np.where(sv_id_full==0)[0])>0:
+        index_to_insert = np.where(sv_id_full==0)[0]
+        root_ids = np.insert(root_ids,index_to_insert,0)   
+    
+    return root_ids
     
     
 def batch_roots(cv,df,n=100000):
+    '''Look up root IDs from a supervoxel ID synapse table.'''
     groups = int(np.ceil(len(df)/n))
     full = []
     df = df.join(pd.DataFrame(np.ones([len(df),2]),columns={'pre_roots','post_roots'},dtype='int64'))
@@ -209,7 +217,7 @@ def flip_pre_post_order(array):
 
 
 def seg_from_pt(pts,vol,image_res=np.array([4.3,4.3,45]),max_workers=4):
-    ''' Get segment ID at a point. Default volume is the static segmentation layer for now. 
+    ''' Get segment ID at a point. USE segIDs_from_pts INSTEAD!!
     Args:
         pts (list): list of 3-element np.arrays of MIP0 coordinates
         vol_url (str): cloud volume url
