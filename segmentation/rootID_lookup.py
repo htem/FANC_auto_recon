@@ -172,14 +172,20 @@ def segIDs_from_pts(cv,coords,n=100000,max_tries = 3):
     
     
     sv_id_full = np.concatenate(sv_ids)
-    root_ids = cv.get_roots(sv_id_full)
-    # Check for super voxel IDs == 0, they will return nothing when the root is looked up and cuase indexing problems. Instead replace with 0.
-    if len(np.where(sv_id_full==0)[0])>0:
-        index_to_insert = np.where(sv_id_full==0)[0]
-        root_ids = np.insert(root_ids,index_to_insert,0)   
+    root_ids = get_roots(sv_id_full)  
     
     return root_ids
     
+
+def get_roots(sv_ids,cv):
+    roots = cv.get_roots(sv_ids)
+    # Make sure there are no zeros. .get_roots drops only the first zero, so reinsert if >0 zeros exist.
+    if len(np.where(sv_ids==0)[0])>0:
+        index_to_insert = np.where(sv_ids==0)[0][0]
+        roots = np.insert(roots,index_to_insert,0)   
+
+    return roots    
+
     
 def batch_roots(cv,df,n=100000):
     '''Look up root IDs from a supervoxel ID synapse table.'''
@@ -266,15 +272,15 @@ def write_table(table_name,source_name,gs):
         root_ids = root_ids.reshape([len(root_ids)])
         pre_ids = root_ids[0::2]
         post_ids = root_ids[1::2]
-        cols = {'pre_id','post_id','pre_pt','post_pt','source'}
+        cols = {'pre_SV','post_SV','pre_pt','post_pt','source','pre_root','post_root'}
         df = pd.DataFrame(columns=cols)
 
-        df.pre_id = pre_ids
-        df.post_id = post_ids
+        df.pre_SV = pre_ids
+        df.post_SV = post_ids
         df.pre_pt = list(links_formatted[0::2])
         df.post_pt = list(links_formatted[1::2])
         df.source = source_name.name
         # Remove 0 value SV ids
-        df = df[df.eval('df.pre_id!=0 & df.post_id!=0')]
+        df = df[df.eval('df.pre_SV!=0 & df.post_SV!=0')]
         
         df.to_csv(table_name, mode='a', header=False,index=False, encoding = 'utf-8')
