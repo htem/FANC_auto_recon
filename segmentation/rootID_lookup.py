@@ -274,4 +274,7 @@ def write_table(table_name,source_name,gs):
         df.pre_pt = list(links_formatted[0::2])
         df.post_pt = list(links_formatted[1::2])
         df.source = source_name.name
+        # Remove 0 value SV ids
+        df = df[df.eval('df.pre_id!=0 & df.post_id!=0')]
+        
         df.to_csv(table_name, mode='a', header=False,index=False, encoding = 'utf-8')
