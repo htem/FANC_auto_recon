@@ -172,7 +172,7 @@ def segIDs_from_pts(cv,coords,n=100000,max_tries = 3):
     
     
     sv_id_full = np.concatenate(sv_ids)
-    root_ids = get_roots(sv_id_full)  
+    root_ids = get_roots(sv_id_full,cv)  
     
     return root_ids
     
