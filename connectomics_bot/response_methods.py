@@ -103,10 +103,9 @@ def skel2seg(skid, project=13, segment_threshold = 10, node_threshold = None):
     n.downsample(inplace=True)
 
     nodes = n.nodes[['x','y','z']].values/ np.array([4.3,4.3,45])
-    skeleton_nodes_voxel = realignment.fanc3_to_4(nodes, verbose=False)
 
     target_volume = CloudVolume(authentication_utils.get_cv_path('FANC_production_segmentation')['url'], use_https=True, agglomerate=False)
-    transformed = realignment.fanc3_to_4(skeleton_nodes_voxel)
+    transformed = realignment.fanc3_to_4(nodes,verbose=False)
 
     link = proofreading_utils.render_fragments(transformed, target_volume, segment_threshold, node_threshold,) 
     return('<'+link+'>')

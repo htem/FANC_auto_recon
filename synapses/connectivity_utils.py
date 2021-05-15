@@ -23,12 +23,12 @@ def get_adj(pre_ids,post_ids,symmetric = False):
 
 def get_partner_synapses(root_id, df, direction='inputs', threshold=None):
     if direction == 'inputs':
-        to_find = 'post_id'
-        to_threshold = 'pre_id'
+        to_find = 'post_root'
+        to_threshold = 'pre_root'
         
     elif direction == 'outputs':
-        to_find = 'pre_id'   
-        to_threshold = 'post_id'
+        to_find = 'pre_root'   
+        to_threshold = 'post_root'
     
     partners = df.loc[df[to_find]==root_id]
         
@@ -44,7 +44,7 @@ def get_partner_synapses(root_id, df, direction='inputs', threshold=None):
 
 def batch_partners(fname,root_id, direction, threshold=None):
 
-    result = pd.DataFrame(columns=['post_id', 'pre_pt', 'post_pt', 'source', 'pre_id'])
+    result = pd.DataFrame(columns=['pre_SV','post_SV','pre_pt','post_pt','source','pre_root','post_root'])
 
     for chunk in pd.read_csv(fname, chunksize=10000):
         chunk_result = get_partner_synapses(root_id,chunk,direction=direction,threshold=threshold)
