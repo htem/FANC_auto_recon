@@ -1,128 +1,208 @@
 #!/usr/bin/env python3
 
-from ..segmentation import rootID_lookup
+from ..segmentation import authentication_utils,rootID_lookup
 from ..transforms import realignment
 from ..segmentation import authentication_utils,rootID_lookup
+from ..skeletonization import catmaid_utilities
 from nglui import statebuilder,annotation,easyviewer,parser
 from nglui.statebuilder import *
+from cloudvolume import CloudVolume
 import numpy as np
 import pandas as pd
-
-def render_scene(seg_ids,
-                     target_volume,
-                     img_source = None,
-                     seg_source = None,
-                     state_server = None,
-                     annotation_layer = False,
-                     annotation_points = None):
-    ## TODO: Render brain regions.
-    ## TODO: Make annotation rendering richer. 
-    if img_source is None:
-        img_source = authentication_utils.get_cv_path('Image')['url']
-    if seg_source is None:
-        seg_source = authentication_utils.get_cv_path('FANC_production_segmentation')['url']
-    if state_server is None:
-        state_server = 'https://api.zetta.ai/json/post'
-       
-    img_layer = ImageLayerConfig(img_source,name='FANCv4')
+import pymaid
+import json
+from matplotlib import cm,colors
 
 
-    seg_layer = SegmentationLayerConfig(name = 'seg_Mar2021_proofreading',
-                                   source = seg_source,
-                                   selected_ids_column=None,
-                                   fixed_ids= seg_ids,
-                                   active = False)
-    if annotation_layer is True:
-        df = pd.DataFrame([[i] for i in annotation_points],columns=['Points'])
-        pt_map = statebuilder.PointMapper(point_column='Points')
-        
-        ann_layer = statebuilder.AnnotationLayerConfig('skeleton',color='r',mapping_rules = pt_map)
-        state = StateBuilder([img_layer,seg_layer,ann_layer],resolution=[4.3,4.3,45],state_server=state_server)
-        return state.render_state(df)
-    else:
-        state = StateBuilder([img_layer,seg_layer],resolution=[4.3,4.3,45],state_server=state_server)
-        return state.render_state() 
 
 
-def render_fragments(pts,
-                     target_volume,
-                     segment_threshold = 10,
-                     node_threshold = None,
-                     img_source = None,
-                     seg_source = None,
-                     state_server = None,
-                     include_skeleton = False):
+def skel2seg(skid, project=13, segment_threshold=10, node_threshold=None,return_as='url'):
     
-    if img_source is None:
-        img_source = authentication_utils.get_cv_path('Image')['url']
-    if seg_source is None:
-        seg_source = authentication_utils.get_cv_path('FANC_production_segmentation')['url']
-    if state_server is None:
-        state_server = 'https://api.zetta.ai/json/post'
+    CI = catmaid_utilities.catmaid_login('FANC',project)
+    try:
+        n = pymaid.get_neurons(skid)
+    except:
+        return('No matching skeleton ID in project {}'.format(project))
     
-    seg_ids = rootID_lookup.segIDs_from_pts(target_volume,pts)
+    n.downsample(inplace=True)
+
+    nodes = n.nodes[['x','y','z']].values/ np.array([4.3,4.3,45])
+
+    target_volume = CloudVolume(authentication_utils.get_cv_path('FANC_production_segmentation')['url'], use_https=True, agglomerate=False)
+    transformed = realignment.fanc3_to_4(nodes)
+
+    seg_ids = rootID_lookup.segIDs_from_pts(target_volume, transformed)
     
-    ids,counts = np.unique(seg_ids,return_counts=True)
-    value_counts = np.array(list(zip(ids,counts)),dtype=int)
+    neuron_df,skeleton_df = fragment_dataframes(seg_ids,
+                                     transformed,
+                                     segment_threshold=segment_threshold,
+                                     node_threshold=node_threshold)
+    annotations = [{'name':'skeleton coords',
+                'type':'points',
+                'data': skeleton_df}]
+    return render_scene(neurons=neuron_df, annotations=annotations, return_as=return_as)
+ 
     
+
+    
+def fragment_dataframes(seg_ids, coords, segment_threshold=20, node_threshold=None):
+    ''' Generate dataframes for skeleton nodes, and subsequent neuron fragments
+        seg_ids: list,array      List of rootIDs associated with the skeleton
+        coords:  nx3 array       skeleton coords in voxel space
+        segment_threshold: int   if not None, the number of segments to include in the dataframe. Will include the most overlapping segment IDs
+        node_threshold: int      if not None, the number of nodes required for a segment ID to be included'''
+    
+    ids,counts = np.unique(seg_ids, return_counts=True)
+    value_counts = np.array(list(zip(ids, counts)), dtype=int)
+    value_counts=value_counts[value_counts[:, 0]!=0, :]
+
+    primary_neuron = value_counts[value_counts[:, 1]==max(value_counts[:, 1]), 0]
+    fragments = value_counts[value_counts[:, 0]!=primary_neuron, :]
+
     if segment_threshold and not node_threshold:
-        ids_to_use = value_counts[np.argsort(-value_counts[:,1])[0:segment_threshold],0]
+        ids_to_use = fragments[np.argsort(-fragments[:, 1])[0:segment_threshold], 0]
     elif node_threshold and not segment_threshold:
-        ids_to_use = value_counts[value_counts[:,1]>node_threshold][:,0]
+        ids_to_use = fragments[fragments[:, 1]>node_threshold][:, 0]
     elif node_threshold and segment_threshold:
         print('Warning: cannot use segment and node threshold concurrently,defaulting to segment threshold')
-        ids_to_use = value_counts[np.argsort(-value_counts[:,1])]
+        ids_to_use = fragments[np.argsort(-fragments[:, 1])]
     else:
-        ids_to_use = seg_ids 
+        ids_to_use = seg_ids
+             
+
+    skeleton_df = pd.DataFrame(columns = ['segment_id','xyz'])
+    skeleton_df.xyz = [i for i in coords]
+    cmap = cm.get_cmap('Blues', len(ids_to_use)) 
+    sk_colors = [colors.rgb2hex(cmap(i)) for i in range(cmap.N)]
     
-    if include_skeleton is True:
-        skeleton_pts = pts
+    
+    neuron_df = pd.DataFrame(columns = ['segment_id', 'xyz', 'color'])
+    neuron_df.segment_id = ids_to_use
+    
+
+    for i in range(len(ids_to_use)):
+        idx = seg_ids==ids_to_use[i]
+        neuron_df.loc[neuron_df.segment_id ==ids_to_use[i],'color'] = sk_colors[i]
+
+
+    neuron_df = neuron_df.append({'segment_id':primary_neuron[0], 'xyz':None, 'color':"#ff0000"}, ignore_index=True)
+    return neuron_df, skeleton_df
+
+
+
+def render_scene(neurons = None,
+                 img_source = None,
+                 seg_source = None,
+                 state_server=None,
+                 annotations = None,
+                 client=None,
+                 return_as = 'url'):
+                
+    ''' render a neuroglancer scene with an arbitrary number of annotation layers
+    args:
+    
+    neurons: list,DataFrame    Either a list of segment IDs, or a pandas DataFrame containing a segmentID column and a color column
+    img_source: str   Image path url, default is None which will look for ['Image'] entry in the ~/.cloudvolume/segmentations.json
+    seg_source: str   Segmentation path url, default is None which will look for ['FANC_production_segmentation'] entry in the ~/.cloudvolume/segmentations.json
+    state_server: str JSON state server path, default is None which will look for ['json_server'] entry in the ~/.cloudvolume/segmentations.json
+    annotations: list of dicts A list of dictionaries specifying annotation dataframes. Format is  annotations = [{'name':str,'type':'points','data': DataFrame}] where
+    DataFrame is a DataFrame formatted appropriately for the annotation type. Currently only points is implemented.
+    return_as: 'str' Either JSON state, or neuroglancer link after saving the JSON state to the specified JSON server. 
+    
+    returns:
+    
+    state/neuroglancer link
+    
+    '''
+    if client is None:
+        client,token = authentication_utils.get_client()
+
+
+    if neurons is None:
+        neurons = pd.DataFrame(columns=['segment_id','xyz','color'])
+    elif isinstance(neurons,list):
+        
+        cmap = cm.get_cmap('Set1', len(neurons)) 
+        neurons_df = pd.DataFrame(columns=['segment_id','xyz','color'])
+        neurons_df['segment_id'] = neurons
+        neurons_df['color'] = [colors.rgb2hex(cmap(i)) for i in range(cmap.N)]
+
+    
+
+    paths = authentication_utils.get_cv_path()
+
+    if img_source is None:
+        img_source = paths['Image']['url']
+    if seg_source is None:
+        seg_source = paths['FANC_production_segmentation']['url']
+    if state_server is None:
+        state_server = paths['json_server']['url']
+
+
+
+
+    # Set layer segmentation layer
+    img_layer = ImageLayerConfig(img_source, name='FANCv4')
+
+
+    seg_layer = SegmentationLayerConfig(name ='seg_Mar2021_proofreading',
+                                   source=seg_source,
+                                   selected_ids_column='segment_id',
+                                   color_column='color',
+                                   fixed_ids=None,
+                                   active=False)
+
+
+    standard_state = StateBuilder(layers=[img_layer, seg_layer], resolution=[4.3,4.3,45])
+
+
+
+    # Data Layer(s)
+
+    annotation_states = []
+    annotation_data = []
+    if annotations is not None:
+        for i in annotations:
+
+            if i['type'] is 'points':
+                anno_mapper = PointMapper(point_column='xyz')  
+   
+            anno_layer =  AnnotationLayerConfig(name=i['name'], mapping_rules=anno_mapper)
+
+            annotation_states.append(StateBuilder(layers=[anno_layer], resolution=[4.3,4.3,45]))
+            annotation_data.append(i['data'])
+
+
+
+
+
+    chained_sb = ChainedStateBuilder([standard_state]+annotation_states)
+    state = json.loads(chained_sb.render_state([neurons]+annotation_data, return_as='json'))
+
+    # Add brain regions
+    state['layers'].append( {"type": "segmentation",
+          "mesh": paths['volumes']['url'],
+          "objectAlpha": 0.1,
+          "hideSegmentZero": False,
+          "ignoreSegmentInteractions": True,
+          "segmentColors": {
+            "1": "#bfbfbf",
+            "2": "#d343d6"
+          },
+          "segments": [
+            "1",
+            "2"
+          ],
+          "skeletonRendering": {
+            "mode2d": "lines_and_points",
+            "mode3d": "lines"
+          },
+          "name": "volume outlines"
+        })
+
+    if return_as is 'url':
+        return paths['neuroglancer_base']['url'] + '?json_url={path}{state_id}'.format(path=paths['json_server']['url'],
+                                                                                       state_id=client.state.upload_state_json(state))
     else:
-        skeleton_pts = None
+        return state
     
-    return render_scene(ids_to_use,
-                        target_volume,
-                        img_source = img_source, 
-                        seg_source = seg_source, 
-                        state_server = state_server,
-                        annotation_layer = include_skeleton,
-                        annotation_points = skeleton_pts)
-
-def skel2seg(skeleton_id, project_id=13, copy_link=True,threshold=5, verbose=False):
-    """
-    Given a skeleton ID of a skeleton in the FANC community CATMAID project
-    (https://radagast.hms.harvard.edu/catmaidvnc/?pid=13), create a
-    neuroglancer state with segmentation objects loaded at the location of each
-    skeleton node.
-    """
-    import pymaid_addons as pa  # github.com/htem/pymaid_addons
-    pa.connect_to('hms_vnc')  # Connect to radagast.hms.harvard.edu/catmaidvnc
-    # You must provide an API key in pymaid_addons/connection_configs/hms_catmaidvnc.json
-    pa.set_source_project_id(13)  # FANC reconstrution community project
-
-    nodes_v3 = pa.pymaid.get_node_table(skeleton_id)[['x', 'y', 'z']].to_numpy()
-    nodes_v3 = nodes_v3 / [4.3, 4.3, 45]  # Convert nm to voxels
-    if verbose:
-        print('nodes_v3')
-        print(nodes_v3)
-    nodes_v4 = realignment.fanc3_to_4(nodes_v3, verbose=verbose)
-    if verbose:
-        print('nodes_v4')
-        print(nodes_v4)
-
-
-    from cloudvolume import CloudVolume as CV
-    production_seg = CV(
-        authentication_utils.get_cv_path('FANC_production_segmentation')['url'],
-        agglomerate=False
-    )
-
-    neuroglancer_link = render_fragments(nodes_v4, production_seg, threshold)
-    if copy_link:
-        try:
-            import pyperclip
-            pyperclip.copy(neuroglancer_link)
-        except:
-            print("Install pyperclip (pip install pyperclip) for the option to"
-                  " programmatically copy the output above to the clipboard")
-    return neuroglancer_link
