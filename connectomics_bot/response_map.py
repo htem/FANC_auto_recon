@@ -29,7 +29,7 @@ response_dict = {
         rsp.update_roots
     ],
     'skel2seg': [
-        rsp.skel2seg
+        rsp.getskel2seg
     ],
     'empty link':[
         rsp.empty_link
