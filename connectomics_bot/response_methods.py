@@ -17,22 +17,25 @@ from cloudvolume import CloudVolume
 
 # Primary response methods
 
+# Primary response methods
+synapse_tabe = 't1_rootIDs_v4.csv'
+
 def get_upstream_partners(root_id,threshold=1):
-    fname = Path.cwd() / 't1_synapse_roots_v4.csv'
+    fname = Path.cwd() / synapse_tabe
     direction = 'inputs'
     return connectivity_utils.batch_partners(fname,root_id,direction,threshold)
 
 
 
 def get_downstream_partners(root_id,threshold=1):
-    fname = Path.cwd() / 't1_synapse_roots_v4.csv'
+    fname = Path.cwd() / synapse_tabe
     direction = 'outputs'
     return connectivity_utils.batch_partners(fname,root_id,direction,threshold)
 
 
 
 def get_top_upstream_partners(root_id,cutoff=10,threshold=1):
-    fname = Path.cwd() / 't1_synapse_roots_v4.csv'
+    fname = Path.cwd() / synapse_tabe
     direction = 'inputs'
     partners = connectivity_utils.batch_partners(fname,root_id,direction,threshold=threshold)
     top = partners.pre_id.value_counts()[0:cutoff]
@@ -41,7 +44,7 @@ def get_top_upstream_partners(root_id,cutoff=10,threshold=1):
 
 
 def get_top_downstream_partners(root_id,cutoff=10,threshold=1):
-    fname = Path.cwd() / 't1_synapse_roots_v4.csv'
+    fname = Path.cwd() / synapse_tabe
     direction = 'outputs'
     partners = connectivity_utils.batch_partners(fname,root_id,direction,threshold=threshold)
     top = partners.post_id.value_counts()[0:cutoff]
