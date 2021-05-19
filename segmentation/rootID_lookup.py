@@ -184,9 +184,46 @@ def get_roots(sv_ids,cv):
         index_to_insert = np.where(sv_ids==0)[0][0]
         roots = np.insert(roots,index_to_insert,0)   
 
-    return roots    
+    return roots
 
-    
+
+
+
+
+## Methods for dealing with synapses
+
+def update_roots(source_file, cv, retry=True, max_tries=10): 
+    temp = str(random.randint(111111,999999)) + '.csv'
+    chunksize = 10000
+    header = True
+    for chunk in pd.read_csv(source_file, chunksize=chunksize):    
+        try:
+            chunk.loc[:,'pre_root'] = get_roots(chunk.pre_SV.values,cv)
+            chunk.loc[:,'post_root'] = get_roots(chunk.post_SV.values,cv)
+            chunk.to_csv(temp, mode='a',index=False,header=header)
+            
+        except:
+            if retry is True:
+                tries = 0
+                while tries < max_tries:
+                    try:
+                        chunk.pre_root = get_roots(chunk.pre_SV.values, cv)
+                        chunk.post_root = get_roots(chunk.post_SV.values, cv)
+                        chunk.to_csv(source_file, mode='a', index=False, header=False)
+                        tries = max_tries+1
+                    except:
+                        tries+=1
+                        print('Fail at:',chunksize,' Try:',tries)
+                    if tries == max_tries:
+                        return 'Incomplete',idx
+            else:      
+                return 'Incomplete',idx 
+        
+        header = False
+        
+    os.replace(temp,source_file)
+    return 'Complete',None 
+
 def batch_roots(cv,df,n=100000):
     '''Look up root IDs from a supervoxel ID synapse table.'''
     groups = int(np.ceil(len(df)/n))
@@ -222,32 +259,10 @@ def flip_pre_post_order(array):
     array[:, 3:6] = tmp
 
 
-def seg_from_pt(pts,vol,image_res=np.array([4.3,4.3,45]),max_workers=4):
-    ''' Get segment ID at a point. USE segIDs_from_pts INSTEAD!!
-    Args:
-        pts (list): list of 3-element np.arrays of MIP0 coordinates
-        vol_url (str): cloud volume url
-    Returns:
-        list, segment_ID at specified point '''
-    
-    vol.progress = False
-    seg_mip = vol.scale['resolution']
-    res = seg_mip / image_res
-
-    pts_scaled = [pt // res for pt in pts]
-    results = []
-    with futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
-        point_futures = [ex.submit(lambda pt,vol: vol[list(pt)][0][0][0][0], k,vol) for k in pts_scaled]
-        
-        for f in futures.as_completed(point_futures):
-            results=[f.result() for f in point_futures]
-       
-    return results
-
 def init_table(filename):
         fileEmpty =  os.path.exists(filename)
         if not fileEmpty:
-            df = pd.DataFrame(data = None, columns={'pre_id','post_id','pre_pt','post_pt','source'})
+            df = pd.DataFrame(data = None, columns={'pre_SV','post_SV','pre_pt','post_pt','source','pre_root','post_root'})
             df.to_csv(filename,index=False)
             print('table created')
         else:
@@ -281,6 +296,6 @@ def write_table(table_name,source_name,gs):
         df.post_pt = list(links_formatted[1::2])
         df.source = source_name.name
         # Remove 0 value SV ids
-        df = df[df.eval('df.pre_SV!=0 & df.post_SV!=0')]
-        
+        df =df[(df.pre_SV != 0) & (df.post_SV !=0)]
+
         df.to_csv(table_name, mode='a', header=False,index=False, encoding = 'utf-8')
