@@ -18,7 +18,7 @@ from cloudvolume import CloudVolume
 # Primary response methods
 
 # Primary response methods
-synapse_tabe = 't1_rootIDs_v4.csv'
+synapse_tabe = 't1_svIDs_v4.csv'
 
 def get_upstream_partners(root_id,threshold=1):
     fname = Path.cwd() / synapse_tabe
