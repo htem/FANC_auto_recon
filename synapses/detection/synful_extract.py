@@ -319,10 +319,9 @@ def process_task(msg):
     target_sites = find_targets(predicted_syns, vec_data, voxel_size=scaling_factor)
 
     pairs = []
-    for post, pre in zip(predicted_syns, target_sites):
-        pairs.append(np.concatenate((post+start_pos, pre+start_pos)))
+    for post, pre, score in zip(predicted_syns, target_sites, scores):
+        pairs.append(np.concatenate(((post+start_pos).astype(np.int32), (pre+start_pos).astype(np.int32), score)))
 
-    out = np.stack(pairs).astype(np.int32)
 
     filename = f"{bbox[0]}-{bbox[3]}_{bbox[1]}-{bbox[4]}_{bbox[2]}-{bbox[5]}"
     folder = "_".join(str(x) for x in voxel_size)
