@@ -176,6 +176,9 @@ def __from_labels_to_locs(labels, regions, voxel_size,
                 score = reg.max_intensity
             elif score_type == 'count':
                 score = reg['area']
+            elif score_type == 'all':
+                score = np.array([reg.mean_intensity, reg.max_intensity, reg.area])
+                score = np.concatenate((score, reg.weighted_moments_central.flatten())).astype(np.float32)
             else:
                 raise RuntimeError('score not defined')
             scores.append(score)
