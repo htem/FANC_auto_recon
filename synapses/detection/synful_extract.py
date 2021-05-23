@@ -120,7 +120,7 @@ def __from_probmap_to_labels(probmap, threshold):
     res = np.zeros_like(probmap, dtype=np.uint8)
     res[probmap > threshold] = 1
     res, num_labels = ndimage.label(res)
-    regions = measure.regionprops(res)
+    regions = measure.regionprops(res, probmap)
     return regions, res
 
 
@@ -168,14 +168,12 @@ def __from_labels_to_locs(labels, regions, voxel_size,
         loc_abs = np.array(loc_local) + np.array([z1, y1, x1])
         # Obtain score based on score_vol.
         if score_vol is not None:
-            score_vol_crop = score_vol[z1:z2, y1:y2, x1:x2]
-            score_crop = ma.masked_array(score_vol_crop, reg_mask)
             if score_type == 'sum':
-                score = score_crop.sum()
+                score = reg.mean_intensity * reg.area
             elif score_type == 'mean':
-                score = score_crop.mean()
+                score = reg.mean_intensity
             elif score_type == 'max':
-                score = score_crop.max()
+                score = reg.max_intensity
             elif score_type == 'count':
                 score = reg['area']
             else:
