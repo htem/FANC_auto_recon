@@ -217,7 +217,7 @@ def find_locations(probmap, parameters,
         pred_locs, scorelist = __from_labels_to_locs(pred_labels,
                                                      regions,
                                                      voxel_size,
-                                                     intensity_vol=edt.edt(pred_labels, anisotropy=voxel_size,
+                                                     intensity_vol=edt.edt(pred_labels, anisotropy=voxel_size),
                                                      score_vol=probmap,
                                                      score_type=parameters.score_type)
     pred_locs = [loc.astype(np.int64) for loc in pred_locs]
