@@ -327,7 +327,11 @@ def process_task(msg):
     folder = "_".join(str(x) for x in voxel_size)
     path = os.path.join(cv_out, folder)
     cf = CloudFiles(path)
-    cf.put(filename, out.tobytes())
+    if pairs:
+        out = np.stack(pairs)
+        cf.put(filename, out.tobytes())
+    else:
+        cf.put(filename, "")
 
 
 def submit_tasks():
