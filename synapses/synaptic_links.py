@@ -132,7 +132,10 @@ def load(fn, convention='xyz', units='voxels', voxel_size=None, verbose=False):
     else:
         if verbose: print('Mode 3: binary')
         # For opening binary files saved by ../detection/worker.py
-        links = np.fromfile(fn, dtype=np.int32).reshape(-1, 6)
+        # post coord(x,y,z), pre coord(x,y,z), mean, max, area, 4x4x4 moments
+        data = np.fromfile(fn, dtype=np.dtype("6f8,3f8,(4,4,4)f8"))
+        print(data[0])
+        links = np.stack([x[0].astype("int32") for x in data])
 
         if True:  # The Feb 7 predictions were saved in post-pre order
             flip_pre_post_order(links)
