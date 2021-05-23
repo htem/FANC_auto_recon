@@ -353,16 +353,16 @@ def submit_tasks():
         "voxel_size" : [8.6, 8.6, 45],
         "scaling_factor" : [8, 8, 40],
         "param": parameter_dic,
-        "cv_pos" : "gs://ranl_scratch_zetta_30/seg_test/synful/200520/743d23ede8b5f08c1b2979f7d2be846b",
-        "cv_vec" : "gs://ranl_scratch_zetta_30/seg_test/synful_vec/200523/b64dfdc1721676c424c73e8b901f692a",
+        "cv_pos" : "gs://zetta_lee_fly_vnc_001_alignment_temp/v4/fill_nearest_mip1/img/img_seethrough/synful_200520/c8005c1beb91671c6578071cfcd77051",
+        "cv_vec" : "gs://zetta_lee_fly_vnc_001_alignment_temp/v4/fill_nearest_mip1/img/img_seethrough/synful_vec_200523/9c49ec144a1f1be6e238ea2da578447e",
     }
 
     run_name = token_hex(16)
-    output_path = "gs://ranl_scratch_zetta_30/seg_test/{}".format(run_name)
+    output_path = "gs://zetta_lee_fly_vnc_001_alignment_temp/v4/fill_nearest_mip1/img/img_seethrough/synful_extraction/{}".format(run_name)
     slack_message("output path `{}`".format(output_path))
 
     #data_bbox = [2500, 43000, 1200, 34500, 60000, 4399]
-    data_bbox = [24000, 50000, 2200, 26000, 52000, 2600]
+    data_bbox = [0, 0, 10, 43008, 112890, 4400]
     chunk_size = [512, 512, 128]
     padding = [128,128,16]
 
