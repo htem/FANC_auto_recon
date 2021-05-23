@@ -344,7 +344,7 @@ def submit_tasks():
             "cc_threshold": 0.97,
             "loc_type": "edt",
             "score_thr": None,
-            "score_type": "sum",
+            "score_type": "all",
             "nms_radius": None
     }
 
@@ -391,7 +391,7 @@ if __name__ == "__main__":
             "cc_threshold": 0.97,
             "loc_type": "edt",
             "score_thr": None,
-            "score_type": "sum",
+            "score_type": "all",
             "nms_radius": None
     }
 
