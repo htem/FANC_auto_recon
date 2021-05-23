@@ -386,28 +386,5 @@ def submit_tasks():
 
 
 if __name__ == "__main__":
-    parameter_dic = {
-            "extract_type": "cc",
-            "cc_threshold": 0.97,
-            "loc_type": "edt",
-            "score_thr": None,
-            "score_type": "all",
-            "nms_radius": None
-    }
-
-
-    msg = {
-        "voxel_size" : [8.6, 8.6, 45],
-        "scaling_factor" : [8, 8, 40],
-        #"data_bbox" : [2500, 43000, 1200, 34500, 60000, 4399],
-        "data_bbox" : [24000, 50000, 2200, 26000, 52000, 2600],
-        #"bbox" : [14000, 52500, 2100, 14512, 53012, 2228],
-        "bbox" : [24000, 50000, 2200, 26000, 52000, 2600],
-        "padding" : [128,128,16],
-        "param": parameter_dic,
-        "cv_pos" : "gs://ranl_scratch_zetta_30/seg_test/synful/200520/743d23ede8b5f08c1b2979f7d2be846b",
-        "cv_vec" : "gs://ranl_scratch_zetta_30/seg_test/synful_vec/200523/b64dfdc1721676c424c73e8b901f692a",
-        "cv_out" : "gs://ranl_scratch_zetta_30/seg_test/synful_out_scratch",
-    }
-
-    process_task(json.dumps(msg))
+    tasks = submit_tasks()
+    process_task(tasks[0])
