@@ -15,20 +15,19 @@ from FANC_auto_recon.skeletonization import catmaid_utilities
 from FANC_auto_recon.transforms import realignment
 from cloudvolume import CloudVolume
 
-# Primary response methods
 
 # Primary response methods
-synapse_tabe = 't1_svIDs_v4.csv'
+synapse_table = 't1_svIDs_v4.csv'
 
 def get_upstream_partners(root_id,threshold=1):
-    fname = Path.cwd() / synapse_tabe
+    fname = Path.cwd() / synapse_table
     direction = 'inputs'
     return connectivity_utils.batch_partners(fname,root_id,direction,threshold)
 
 
 
 def get_downstream_partners(root_id,threshold=1):
-    fname = Path.cwd() / synapse_tabe
+    fname = Path.cwd() / synapse_table
     direction = 'outputs'
     return connectivity_utils.batch_partners(fname,root_id,direction,threshold)
 
@@ -111,7 +110,13 @@ def empty_link():
     return(proofreading_utils.render_scene(seg_ids = None,target_volume=target_volume))
 
 def update_roots():
-    print('Not implemented yet')
+    
+    cv = CloudVolume(authentication_utils.get_cv_path('FANC_production_segmentation')['url'],use_https=True,agglomerate=False)
+    output,fails = rootID_lookup.update_roots(synapse_table,cv)
+    if output == 'Complete':
+        return('Synapses updated')
+    else:
+        return('Update failed')
     
     
 
