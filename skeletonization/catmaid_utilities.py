@@ -1,7 +1,5 @@
 import numpy as np
 from pathlib import Path
-import meshparty
-import skeletor
 import pymaid
 import json
 
