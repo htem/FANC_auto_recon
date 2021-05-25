@@ -4,6 +4,14 @@ import json
 import re
 
 
+def get_synapses(synapse_table,seg_ids,direction='outputs',threshold=3):
+    syn_table = pd.DataFrame(columns=['post_id','pre_pt','post_pt','source','pre_id'])
+    for i in seg_ids:
+         syn_table = syn_table.append(connectivity_utils.batch_partners(synapse_table,i,direction=direction,threshold=threshold))
+            
+    return(syn_table)
+
+
 def get_adj(pre_ids,post_ids,symmetric = False):
     if symmetric is True:
         index = set(pre_ids).intersection(post_ids)
