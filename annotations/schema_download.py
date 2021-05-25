@@ -103,13 +103,13 @@ def generate_synapse_table(annotation_table,
 
     with open(Path.home() / '.cloudvolume' / 'segmentations.json') as f:
             cloud_paths = json.load(f)
-    if 'Dynamic' in segmentation_version:
+    if 'FANC_production_segmentation' in segmentation_version:
         cv = CloudVolume(cloud_paths[segmentation_version]['url'],agglomerate=True,use_https=True,progress=False)
     else:
-        cv = CloudVolume(cloud_paths[segmentation_version]['url'],progress=False)
+        cv = CloudVolume(cloud_paths[segmentation_version]['url'],progress=False,use_https=True)
         
-    pre_ids = rootID_lookup.seg_from_pt(annotation_table.pre_pt_position,cv)
-    post_ids = rootID_lookup.seg_from_pt(annotation_table.post_pt_position,cv)
+    pre_ids = rootID_lookup.segIDs_from_pts(cv,annotation_table.pre_pt_position)
+    post_ids = rootID_lookup.segIDs_from_pts(cv,annotation_table.post_pt_position)
     
     synapse_table.pre_root_id = pre_ids
     synapse_table.post_root_id = post_ids
