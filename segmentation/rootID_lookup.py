@@ -10,6 +10,7 @@ import os
 import requests
 import tqdm
 from concurrent import futures
+import random
 
 
 class GSPointLoader(object):
