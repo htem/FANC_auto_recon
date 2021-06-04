@@ -38,18 +38,18 @@ def setup_credentials(tokens,segmentations=None,overwrite=False):
         print('setup complete')
 
 
-def get_client():
+def get_client(server_address = "https://api.zetta.ai/wclee", datastack_name = 'vnc_v0'):
     ''' Establish an ngl client for interacting with the annotation framework. 
     Returns: 
         client, FrameworkClient object
         token, str, graphene server token'''
     
     token = get_token()    
-    datastack_name = 'vnc_v0' # from https://api.zetta.ai/wclee/info/
+    datastack_name = datastack_name
 
     client = FrameworkClient(
         datastack_name,
-        server_address = "https://api.zetta.ai/wclee",
+        server_address = server_address,
         auth_token = token
     )
     return(client,token)
@@ -93,5 +93,11 @@ def get_cv_path(version=None):
         return(paths)
     else:
         return(paths[version])
+    
+def get_cv(segmentation = 'FANC_production_segmentation',
+           use_https=True,
+           agglomerate=False):
+    
+    return CloudVolume(get_cv_path(segmentation)['url'],use_https=True,agglomerate=agglomerate)
 
     
