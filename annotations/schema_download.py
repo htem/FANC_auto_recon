@@ -68,7 +68,7 @@ def generate_soma_table(annotation_table,
     else:
         cv = CloudVolume(cloud_paths[segmentation_version]['url'],use_https=True,progress=False)
         
-    root_ids = rootID_lookup.segIDs_from_pts(cv,annotation_table.pt_position)
+    root_ids = rootID_lookup.segIDs_from_pts_service(annotation_table.pt_position)
     
     soma_table.name = annotation_table.tag
     soma_table.pt_position = annotation_table.pt_position
@@ -108,8 +108,8 @@ def generate_synapse_table(annotation_table,
     else:
         cv = CloudVolume(cloud_paths[segmentation_version]['url'],progress=False,use_https=True)
         
-    pre_ids = rootID_lookup.segIDs_from_pts(cv,annotation_table.pre_pt_position)
-    post_ids = rootID_lookup.segIDs_from_pts(cv,annotation_table.post_pt_position)
+    pre_ids = rootID_lookup.segIDs_from_pts_service(annotation_table.pre_pt_position)
+    post_ids = rootID_lookup.segIDs_from_pts_service(annotation_table.post_pt_position)
     
     synapse_table.pre_root_id = pre_ids
     synapse_table.post_root_id = post_ids
