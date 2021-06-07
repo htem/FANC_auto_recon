@@ -98,7 +98,7 @@ def getskel2seg(skid, project=13, segment_threshold = 10, node_threshold = None)
     
 
 
-    link = proofreading_utils.skel2seg(skid, project, 
+    link = proofreading_utils.skel2scene(skid, project, 
                                        segment_threshold=segment_threshold, 
                                        node_threshold=node_threshold,
                                        return_as = 'url') 
