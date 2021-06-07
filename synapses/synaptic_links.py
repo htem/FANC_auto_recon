@@ -2,8 +2,11 @@
 
 import json
 from secrets import token_hex
-
 import numpy as np
+import os
+import pandas as pd
+import random
+from ..segmentation import rootID_lookup
 
 
 def flip_xyz_zyx_convention(array, inplace=True):
@@ -61,7 +64,7 @@ def downscale(array, scale_factor, inplace=True):
         return array
 
 
-def load(fn, convention='xyz', units='voxels', voxel_size=None, verbose=False):
+def load(fn, convention='xyz', units='voxels', voxel_size=None, verbose=False, threshold = 12):
     """
     Given a filename of a file containing synaptic links, load the links and
     return them as an Nx6 numpy array representing the N links.  The first 3
@@ -80,6 +83,8 @@ def load(fn, convention='xyz', units='voxels', voxel_size=None, verbose=False):
     voxel_size: None (default) or 3-tuple (e.g. (4, 4, 40))
         Determines voxel size to use for conversions. If left as None, the code
         knows what default voxel size to use for different file formats.
+    
+    threshold: int, threshold to apply based on "sum"
     """
     assert convention in ['xyz', 'zyx']
     assert units in ['voxels', 'nm', 'nanometers']
@@ -134,8 +139,12 @@ def load(fn, convention='xyz', units='voxels', voxel_size=None, verbose=False):
         # For opening binary files saved by ../detection/worker.py
         # post coord(x,y,z), pre coord(x,y,z), mean, max, area, 4x4x4 moments
         data = np.fromfile(fn, dtype=np.dtype("6f8,3f8,(4,4,4)f8"))
-        print(data[0])
-        links = np.stack([x[0].astype("int32") for x in data])
+        
+        # Apply threshold based on "sum" and return links that pass.
+        try:
+            links = np.stack([x[0].astype("int32") for x in data if x[2][0][0][0] > threshold])
+        except:
+            return np.array([])
 
         if True:  # The Feb 7 predictions were saved in post-pre order
             flip_pre_post_order(links)
@@ -230,3 +239,114 @@ def to_ng_annotations(links, input_order='xyz', input_units=(1, 1, 1),
     except:
         print("Install pyperclip (pip install pyperclip) for the option to"
               " programmatically copy the output above to the clipboard")
+
+        
+        
+## Methods for dealing with synapses
+
+def update_roots(source_file, cv, retry=True, max_tries=10, chunksize = 100000):
+    ''' Update roots of a synapse table.
+    
+    args:
+    source_file: str, path to csv file containing synapses.
+    cv:         CloudVolume object
+    retry:      bool, If errors occur duriong lookup, retry failed chunk. Default = True
+    max_tries:  int, number of tries for a given chunk before failing
+    chunksize:  int, number of rows to read from csv file at once. Default is 10000
+    
+    returns:
+    first a temp csv file is generated, and if no failures occur, a replaced csv file with updated root IDs will be generated.'''
+    
+    temp = str(random.randint(111111,999999)) + '.csv'
+    header = True
+    idx = 0
+    for chunk in pd.read_csv(source_file, chunksize=chunksize):    
+        try:
+            chunk.loc[:,'pre_root'] = rootID_lookup.get_roots(chunk.pre_SV.values,cv)
+            chunk.loc[:,'post_root'] = rootID_lookup.get_roots(chunk.post_SV.values,cv)
+            chunk.to_csv(temp, mode='a',index=False,header=header)
+            
+        except Exception as e:
+            print(e)
+            if retry is True:
+                tries = 0
+                while tries < max_tries:
+                    try:
+                        chunk.pre_root = rootID_lookup.get_roots(chunk.pre_SV.values, cv)
+                        chunk.post_root = rootID_lookup.get_roots(chunk.post_SV.values, cv)
+                        chunk.to_csv(source_file, mode='a', index=False, header=False)
+                        tries = max_tries+1
+                    except Exception as e2:
+                        print(e2)
+                        tries+=1
+                        print('Fail at:',chunksize*idx,' Try:',tries)
+                    if tries == max_tries:
+                        return 'Incomplete',idx*chunksize
+            else:      
+                return 'Incomplete',idx 
+        idx+=1
+        
+        header = False
+        
+    os.replace(temp,source_file)
+    return 'Complete',None 
+
+
+def init_table(filename):
+        fileEmpty =  os.path.exists(filename)
+        if not fileEmpty:
+            df = pd.DataFrame(data = None, columns={'pre_SV','post_SV','pre_pt','post_pt','source','pre_root','post_root'})
+            df.to_csv(filename,index=False)
+            print('table created')
+        else:
+            print('table exists')
+
+
+def write_table(table_name,
+                source_name,
+                threshold=12,
+                include_source=True,
+                drop_duplicates=True):
+    
+    ''' Write a synapse csv file from synaptic links stored locally
+    args:
+    
+    table_name: str, path to table
+    source_name: str, path to folder containing synapse files
+    threshold: int, thresholding value to use when selecting synapses. Thresholding is based on "sum" value. This currently only works with link files that have the sum score as the 10th value in the array. 
+    include_source: bool, include the filename of the synaptic link. Can be useful for tracking issues, but increases file size substantially. 
+    drop_duplicates: bool, drop duplicate synapses between the same pair of supervoxels. 
+    '''
+    
+    if not isinstance(source_name,str):
+        source_name = str(source_name)
+    
+    links_formatted = load(source_name,threshold=threshold).reshape([-1,3])
+    
+    if links_formatted is not None:
+        sv_ids = rootID_lookup.segIDs_from_pts_service(links_formatted,return_roots=False)
+        if isinstance(sv_ids,list):
+            pre_ids = sv_ids[0::2]
+            post_ids = sv_ids[1::2]
+            cols = {'pre_SV','post_SV','pre_pt','post_pt','source','pre_root','post_root'}
+            df = pd.DataFrame(columns=cols)
+
+            df.pre_SV = pre_ids
+            df.post_SV = post_ids
+            df.pre_pt = list(links_formatted[0::2])
+            df.post_pt = list(links_formatted[1::2])
+            if include_source is True:
+                df.source = source_name
+            # Remove 0 value SV ids
+            df =df[(df.pre_SV != 0) & (df.post_SV !=0)]
+            
+            if drop_duplicates is True:    
+                df.drop_duplicates(subset=['pre_SV', 'post_SV'], inplace=True)
+                
+
+            df.to_csv(table_name, mode='a', header=False,index=False, encoding = 'utf-8',columns=cols)
+            return True
+        else:
+            return True
+            
+    return False
