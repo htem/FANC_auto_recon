@@ -2,13 +2,33 @@ import pandas as pd
 import numpy as np
 import json
 import re
+import sqlite3
 
+def get_synapses(seg_ids,
+                 synapse_table='synapses.db',
+                 direction='outputs',
+                 threshold=3,
+                 drop_duplicates=True):
+    
+    if isinstance(seg_ids,int):
+        seg_ids = [seg_ids]
+    
+    syn_table = pd.DataFrame(columns=['pre_SV','post_SV','pre_pt','post_pt','source','pre_root','post_root'])
 
-def get_synapses(synapse_table,seg_ids,direction='outputs',threshold=3):
-    syn_table = pd.DataFrame(columns=['post_id','pre_pt','post_pt','source','pre_id'])
     for i in seg_ids:
-         syn_table = syn_table.append(connectivity_utils.batch_partners(synapse_table,i,direction=direction,threshold=threshold))
-            
+        if '.db' in synapse_table:
+            syn_table = syn_table.append(get_partner_synapses_sql(i, database=synapse_table, direction=direction, threshold = threshold))
+        elif '.csv' in synapse_table:
+            syn_table = syn_table.append(batch_partners( i, synapse_table, direction=direction, threshold=threshold))
+        
+    cs = lambda x : [int(i) for i in re.findall('[0-9]+', x)]
+    syn_table.pre_pt = [cs(i) for i in syn_table.pre_pt]
+    syn_table.post_pt = [cs(i) for i in syn_table.post_pt] 
+    
+    #TODO: add a distance threshold here too. 
+    if drop_duplicates is True:
+        syn_table.drop_duplicates(subset=['pre_SV', 'post_SV'], inplace=True)
+    
     return(syn_table)
 
 
@@ -29,7 +49,10 @@ def get_adj(pre_ids,post_ids,symmetric = False):
     return(adj)
 
 
-def get_partner_synapses(root_id, df, direction='inputs', threshold=None):
+def get_partner_synapses_csv(root_id, 
+                             df, 
+                             direction='inputs', 
+                             threshold=None):
     if direction == 'inputs':
         to_find = 'post_root'
         to_threshold = 'pre_root'
@@ -45,22 +68,48 @@ def get_partner_synapses(root_id, df, direction='inputs', threshold=None):
         t_idx = counts >= threshold
         
         partners = partners[partners[to_threshold].isin(set(t_idx.index[t_idx==1]))]
-
     
-    return(partners)
+      
+     
+    return partners
 
 
-def batch_partners(fname,root_id, direction, threshold=None):
+def get_partner_synapses_sql(root_id, 
+                         database='synapses.db', 
+                         direction='inputs', 
+                         threshold=None):
+    
+    con = sqlite3.connect(database)
+    if direction == 'inputs':
+        to_find = 'post_root'
+        to_threshold = 'pre_root'
+        
+    elif direction == 'outputs':
+        to_find = 'pre_root'   
+        to_threshold = 'post_root'
+    
+    partners = pd.read_sql_query("SELECT * from synapses WHERE {} = {}".format(to_find,root_id),con)
+
+    con.close()   
+    if threshold is not None:
+        counts = partners[to_threshold].value_counts()
+        t_idx = counts >= threshold
+        
+        partners = partners[partners[to_threshold].isin(set(t_idx.index[t_idx==1]))]
+
+
+    return partners
+
+
+def batch_partners(root_id, fname, direction, threshold=None):
 
     result = pd.DataFrame(columns=['pre_SV','post_SV','pre_pt','post_pt','source','pre_root','post_root'])
 
-    for chunk in pd.read_csv(fname, chunksize=10000):
-        chunk_result = get_partner_synapses(root_id,chunk,direction=direction,threshold=threshold)
+    for chunk in pd.read_csv(fname, chunksize=1000000):
+        chunk_result = get_partner_synapses_csv(root_id,chunk,direction=direction,threshold=threshold)
         if len(chunk_result) > 0:
             result = result.append(chunk_result, ignore_index=True)
     
-    cs = lambda x : [int(i) for i in re.findall('[0-9]+', x)]
-    result.pre_pt = [cs(i) for i in result.pre_pt]
-    result.post_pt = [cs(i) for i in result.post_pt]   
-    return(result)
+
+    return result 
 
