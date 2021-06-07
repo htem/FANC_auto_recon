@@ -11,6 +11,7 @@ import requests
 import tqdm
 from concurrent import futures
 import random
+from . import authentication_utils
 
 
 class GSPointLoader(object):
@@ -141,27 +142,84 @@ class GSPointLoader(object):
         return points, data
     
 
-def segIDs_from_pts(cv,coords,n=100000,max_tries = 3):
+def segIDs_from_pts_service(pts, 
+                         service_url = 'https://services.itanna.io/app/transform-service/query/dataset/fanc_v4/s/{}/values_array_string_response/',
+                         scale = 2, 
+                         return_roots=True,
+                         cv = None):
+        
+        #Reshape from list entries if dataframe column is passed
+        if len(pts.shape) == 1:
+            pts = np.concatenate(pts).reshape(-1,3)
+            
+        service_url = service_url.format(scale)
+        pts = np.array(pts, dtype=np.uint32)
+        ndims = len(pts.shape)
+        if ndims == 1:
+            pts = pts.reshape([-1,3])
+        r = requests.post(service_url, json={
+            'x': list(pts[:, 0].astype(str)),
+            'y': list(pts[:, 1].astype(str)),
+            'z': list(pts[:, 2].astype(str))
+        })        
+        try:
+            r = r.json()['values'][0]
+            sv_ids = [int(i) for i in r]
+            
+            if return_roots is True:
+                if cv is None:
+                    cv = authentication_utils.get_cv()
+           
+                root_ids = get_roots(sv_ids,cv) 
+                return root_ids
+            else:
+                return sv_ids
+        except:
+            return None
+    
+    
+def segIDs_from_pts_cv(pts,
+                       cv,
+                       n=100000,
+                       max_tries = 3,return_roots=True):
+    ''' Query cloudvolume object for root or supervoxel IDs. This method is slower than segIDs_from_pts_service, and does not need to be used for FANC_v4.
+    args:
+    
+    cv:     cloudvolume object
+    coords: nx3 array, mip0 coordinates to query.
+    n:      int, number of coordinates to query in a single batch. Default is 100000, which seems to prevent server errors.
+    max_tries: int, number of attempts per batch. Default is 3. Usually if it fails 3 times, something is wrong and more attempts won't work. 
+    return_roots: bool, If true, will look up root ids from supervoxel ids. Otherwise, supervoxel ids will be returned. Default is True.
+    
+    returns:
+    
+    root or supervoxel ids for queried coordinates as int64
+    '''
     
     if cv.agglomerate is True:
         cv.agglomerate = False
     
+    #Reshape from list entries if dataframe column is passed
+    if isinstance(pts,pd.Series): 
+        pts = pts.reset_index(drop=True)
+        pts = np.concatenate(pts).reshape(-1,3)
+    
     sv_ids = []
     failed = []
-    bins = np.array_split(np.arange(0,len(coords)),np.ceil(len(coords)/10000))
+    bins = np.array_split(np.arange(0,len(pts)),np.ceil(len(pts)/10000))
     
     for i in bins: 
         pt_loader = GSPointLoader(cv)
-        pt_loader.add_points(coords[i])
+        pt_loader.add_points(pts[i])
         try:
-            chunk_ids = pt_loader.load_all()[1].reshape(len(coords[i]),)
+            chunk_ids = pt_loader.load_all()[1].reshape(len(pts[i]),)
             sv_ids.append(chunk_ids)
         except:
             print('Failed, retrying')
             fail_check = 1
             while fail_check < max_tries:
                 try:
-                    chunk_ids = pt_loader.load_all()[1].reshape(len(coords[i]),)
+                    chunk_ids = pt_loader.load_all()[1].reshape(len(pts[i]),)
                     sv_ids.append(chunk_ids)
                     fail_check = max_tries + 1
                 except:
@@ -171,14 +229,24 @@ def segIDs_from_pts(cv,coords,n=100000,max_tries = 3):
             if fail_check == max_tries:
                 failed.append(i)       
     
-    
     sv_id_full = np.concatenate(sv_ids)
-    root_ids = get_roots(sv_id_full,cv)  
-    
-    return root_ids
-    
+
+    if return_roots is True:
+        root_ids = get_roots(sv_id_full,cv) 
+        return root_ids
+    else:
+        return sv_id_full
 
 def get_roots(sv_ids,cv):
+    ''' A method for dealing with 0 value supervoxel IDs. This is no longer necessary as of cloud-volume version 3.13.0
+
+    args: 
+    sv_ids: list,array array of int64 supervoxel ids
+    cv: cloud volume object
+    
+    returns: 
+    root ids for each supervoxel id. 
+    '''
     roots = cv.get_roots(sv_ids)
     # Make sure there are no zeros. .get_roots drops only the first zero, so reinsert if >0 zeros exist.
     if len(np.where(sv_ids==0)[0])>0:
@@ -191,112 +259,3 @@ def get_roots(sv_ids,cv):
 
 
 
-## Methods for dealing with synapses
-
-def update_roots(source_file, cv, retry=True, max_tries=10): 
-    temp = str(random.randint(111111,999999)) + '.csv'
-    chunksize = 10000
-    header = True
-    for chunk in pd.read_csv(source_file, chunksize=chunksize):    
-        try:
-            chunk.loc[:,'pre_root'] = get_roots(chunk.pre_SV.values,cv)
-            chunk.loc[:,'post_root'] = get_roots(chunk.post_SV.values,cv)
-            chunk.to_csv(temp, mode='a',index=False,header=header)
-            
-        except:
-            if retry is True:
-                tries = 0
-                while tries < max_tries:
-                    try:
-                        chunk.pre_root = get_roots(chunk.pre_SV.values, cv)
-                        chunk.post_root = get_roots(chunk.post_SV.values, cv)
-                        chunk.to_csv(source_file, mode='a', index=False, header=False)
-                        tries = max_tries+1
-                    except:
-                        tries+=1
-                        print('Fail at:',chunksize,' Try:',tries)
-                    if tries == max_tries:
-                        return 'Incomplete',idx
-            else:      
-                return 'Incomplete',idx 
-        
-        header = False
-        
-    os.replace(temp,source_file)
-    return 'Complete',None 
-
-def batch_roots(cv,df,n=100000):
-    '''Look up root IDs from a supervoxel ID synapse table.'''
-    groups = int(np.ceil(len(df)/n))
-    full = []
-    df = df.join(pd.DataFrame(np.ones([len(df),2]),columns={'pre_roots','post_roots'},dtype='int64'))
-    for i in range(groups+1):
-        start = n*i
-        stop = n*(i+1)
-        pre = cv.get_roots(df.pre_id.values[start:stop])
-        post = cv.get_roots(df.post_id.values[start:stop])
-        try:
-            df.loc[start:stop-1,'pre_roots'] = pre
-            df.loc[start:stop-1,'post_roots'] = post
-        except:
-            print('Failed at:',start)
-            return(df)
-        print(start,stop)
-    return(df)
-
-def get_links(filename): 
-    return(np.fromfile(filename,dtype=np.int32).reshape(-1, 6))
-    
-def flip_xyz_zyx_convention(array):
-    assert array.shape[1] == 6
-    array[:, 0:3] = array[:, 2::-1]
-    array[:, 3:6] = array[:, 5:2:-1]
-
-
-def flip_pre_post_order(array):
-    assert array.shape[1] == 6
-    tmp = array[:, 0:3].copy()
-    array[:, 0:3] = array[:, 3:6]
-    array[:, 3:6] = tmp
-
-
-def init_table(filename):
-        fileEmpty =  os.path.exists(filename)
-        if not fileEmpty:
-            df = pd.DataFrame(data = None, columns={'pre_SV','post_SV','pre_pt','post_pt','source','pre_root','post_root'})
-            df.to_csv(filename,index=False)
-            print('table created')
-        else:
-            print('table exists')
-
-
-def format_links(links):
-    if len(links) > 0:
-        flip_pre_post_order(links)
-        links = links * (2, 2, 1, 2, 2, 1) + np.array([1,1,0,1,1,0])
-        links_formatted = links.reshape(len(links)*2,3)
-    else:
-        links_formatted = None
-    return(links_formatted)
-            
-def write_table(table_name,source_name,gs):
-    links= get_links(source_name)
-    links_formatted = format_links(links)
-    if links_formatted is not None:
-        gs.add_points(links_formatted)
-        root_ids = gs.load_all()[1]
-        root_ids = root_ids.reshape([len(root_ids)])
-        pre_ids = root_ids[0::2]
-        post_ids = root_ids[1::2]
-        cols = {'pre_SV','post_SV','pre_pt','post_pt','source','pre_root','post_root'}
-        df = pd.DataFrame(columns=cols)
-
-        df.pre_SV = pre_ids
-        df.post_SV = post_ids
-        df.pre_pt = list(links_formatted[0::2])
-        df.post_pt = list(links_formatted[1::2])
-        df.source = source_name.name
-        # Remove 0 value SV ids
-        df =df[(df.pre_SV != 0) & (df.post_SV !=0)]
-
-        df.to_csv(table_name, mode='a', header=False,index=False, encoding = 'utf-8')
