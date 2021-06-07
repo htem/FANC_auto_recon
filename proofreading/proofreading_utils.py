@@ -27,9 +27,10 @@ def skel2scene(skid, project=13, segment_threshold=10, node_threshold=None,retur
     n.downsample(inplace=True)
 
     target_volume = CloudVolume(authentication_utils.get_cv_path('FANC_production_segmentation')['url'], use_https=True, agglomerate=False)
-    seg_ids = skel2seg(n, target_volume, transform=True)
+    seg_ids,points = skel2seg(n, target_volume, transform=True)
+    
     neuron_df,skeleton_df = fragment_dataframes(seg_ids,
-                                     transformed,
+                                     points,
                                      segment_threshold=segment_threshold,
                                      node_threshold=node_threshold)
     annotations = [{'name':'skeleton coords',
@@ -41,9 +42,13 @@ def skel2seg(neuron,
              target_volume,
              transform=True):
     nodes = neuron.nodes[['x','y','z']].values/ np.array([4.3,4.3,45])
-
-    transformed = realignment.fanc3_to_4(nodes)
-    return rootID_lookup.segIDs_from_pts_service(transformed,)
+    
+    if transform is True:
+        points = realignment.fanc3_to_4(nodes)
+    else:
+        points = nodes
+    
+    return rootID_lookup.segIDs_from_pts_service(points),points
 
     
 def fragment_dataframes(seg_ids, coords, segment_threshold=20, node_threshold=None):
