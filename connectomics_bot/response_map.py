@@ -25,7 +25,7 @@ response_dict = {
     'find neuron': [
         rsp.find_neuron
     ],
-    '_update_roots': [
+    'update roots': [
         rsp.update_roots
     ],
     'skel2seg': [
