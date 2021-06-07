@@ -16,7 +16,7 @@ from matplotlib import cm,colors
 
 
 
-def skel2seg(skid, project=13, segment_threshold=10, node_threshold=None,return_as='url'):
+def skel2scene(skid, project=13, segment_threshold=10, node_threshold=None,return_as='url'):
     
     CI = catmaid_utilities.catmaid_login('FANC',project)
     try:
@@ -26,13 +26,8 @@ def skel2seg(skid, project=13, segment_threshold=10, node_threshold=None,return_
     
     n.downsample(inplace=True)
 
-    nodes = n.nodes[['x','y','z']].values/ np.array([4.3,4.3,45])
-
-    target_volume = CloudVolume(authentication_utils.get_cv_path('FANC_production_segmentation')['url'], use_https=True, agglomerate=False)
-    transformed = realignment.fanc3_to_4(nodes)
-
-    seg_ids = rootID_lookup.segIDs_from_pts(target_volume, transformed)
     
+    seg_ids = skel2seg(n, target_volume, transform=True)
     neuron_df,skeleton_df = fragment_dataframes(seg_ids,
                                      transformed,
                                      segment_threshold=segment_threshold,
@@ -42,7 +37,15 @@ def skel2seg(skid, project=13, segment_threshold=10, node_threshold=None,return_
                 'data': skeleton_df}]
     return render_scene(neurons=neuron_df, annotations=annotations, return_as=return_as)
  
-    
+def skel2seg(neuron,
+             target_volume=None,
+             transform=True):
+    nodes = neuron.nodes[['x','y','z']].values/ np.array([4.3,4.3,45])
+
+    target_volume = CloudVolume(authentication_utils.get_cv_path('FANC_production_segmentation')['url'], use_https=True, agglomerate=False)
+    transformed = realignment.fanc3_to_4(nodes)
+
+    return rootID_lookup.segIDs_from_pts_service(transformed,)
 
     
 def fragment_dataframes(seg_ids, coords, segment_threshold=20, node_threshold=None):
