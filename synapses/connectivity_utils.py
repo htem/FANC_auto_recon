@@ -9,7 +9,19 @@ def get_synapses(seg_ids,
                  direction='outputs',
                  threshold=3,
                  drop_duplicates=True):
+    '''Primary function for synapse table lookup. Will default to looking for a sql database, but can query either a .csv of a .db.
+    args:
+    seg_ids:          list, int root ids to query
+    synapse_table:    str, path to synapse table
+    direction:        str, inputs or outputs
+    threshold:        int, synapse threshold to use. default is 3
+    drop_duplicates:  bool, whether to drop links between the same supervoxel pair 
     
+    returns:
+    
+    a pd.DataFrame of synapse points, root IDs, 
+    '''
+        
     if isinstance(seg_ids,int):
         seg_ids = [seg_ids]
     
