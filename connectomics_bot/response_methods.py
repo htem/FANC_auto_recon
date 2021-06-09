@@ -18,38 +18,38 @@ from cloudvolume import CloudVolume
 # Primary response methods
 
 # Primary response methods
-synapse_tabe = 't1_rootIDs_v4.csv'
+synapse_table = '/home/bmark/data/synapses.db'
 
 def get_upstream_partners(root_id,threshold=1):
-    fname = Path.cwd() / synapse_tabe
+    fname =  synapse_table
     direction = 'inputs'
-    return connectivity_utils.get_synapses(root_id,fname,direction=direction,threshold=threshold)
+    return connectivity_utils.get_synapses(root_id,str(fname),direction=direction,threshold=threshold)
     #return connectivity_utils.batch_partners(fname,root_id,direction,threshold)
 
 
 
 def get_downstream_partners(root_id,threshold=1):
-    fname = Path.cwd() / synapse_tabe
+    fname = synapse_table
     direction = 'outputs'
-    return connectivity_utils.get_synapses(root_id,fname,direction=direction,threshold=threshold)
+    return connectivity_utils.get_synapses(root_id,str(fname),direction=direction,threshold=threshold)
     #return connectivity_utils.batch_partners(fname,root_id,direction,threshold)
 
 
 
 def get_top_upstream_partners(root_id,cutoff=10,threshold=1):
-    fname = Path.cwd() / synapse_tabe
+    fname = synapse_table
     direction = 'inputs'
-    partners = connectivity_utils.get_synapses(root_id,fname,direction=direction,threshold=threshold)
-    top = partners.pre_id.value_counts()[0:cutoff]
+    partners = connectivity_utils.get_synapses(root_id,str(fname),direction=direction,threshold=threshold)
+    top = partners.pre_root.value_counts()[0:cutoff]
     return top
 
 
 
 def get_top_downstream_partners(root_id,cutoff=10,threshold=1):
-    fname = Path.cwd() / synapse_tabe
+    fname = synapse_table
     direction = 'outputs'
-    partners = connectivity_utils.get_synapses(root_id,fname,direction=direction,threshold=threshold)
-    top = partners.post_id.value_counts()[0:cutoff]
+    partners = connectivity_utils.get_synapses(root_id,str(fname),direction=direction,threshold=threshold)
+    top = partners.post_root.value_counts()[0:cutoff]
     return top
 
 
