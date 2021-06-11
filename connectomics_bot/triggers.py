@@ -18,7 +18,7 @@ search_triggers = (
     (re.compile("get top [0-9]+ downstream partners"), "get top downstream partners"),
     (re.compile("get annotation tables by"), "get user tables"),
     (re.compile("find neuron"), "find neuron"),
-    (re.compile("update_roots"), "update roots"),
+    (re.compile("update roots"), "update roots"),
     (re.compile("skeleton [IiDd]+"),  "skel2seg"),
     (re.compile("[Gg]et empty"), "empty link")
     )
