@@ -78,7 +78,7 @@ def fragment_dataframes(seg_ids, coords, segment_threshold=20, node_threshold=No
 
     skeleton_df = pd.DataFrame(columns = ['segment_id','xyz'])
     skeleton_df.xyz = [i for i in coords]
-    cmap = cm.get_cmap('Blues', len(ids_to_use)) 
+    cmap = cm.get_cmap('Blues_r', len(ids_to_use)) 
     sk_colors = [colors.rgb2hex(cmap(i)) for i in range(cmap.N)]
     
     
