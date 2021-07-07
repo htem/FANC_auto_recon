@@ -5,6 +5,8 @@
 
 # virtual environment
 nuclei/
+!/nuclei_prediction 
+# just in case
 
 # old files
 
