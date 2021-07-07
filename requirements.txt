@@ -1,5 +1,6 @@
 numpy
 matplotlib
+ipykernel
 cloud-volume
 python-catmaid
 skeletor
