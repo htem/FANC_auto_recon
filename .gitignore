@@ -7,17 +7,6 @@
 nuclei
 
 # old folders
-annotations
-connectomics_bot
-example_notebooks
-images
-proofreading
-segmentation
-skeletonization
-syn_and_seg
-synapses
-transforms
-README.md
 
 # User-specific files
 *.suo
@@ -346,3 +335,4 @@ ASALocalRun/
 .mfractor/
 
 *.DS_Store
+.gitattributes
