@@ -25,6 +25,7 @@ make requirements.txt
 pip freeze > requirements.txt
 
 /Users/Sumiya
-E212
+
+secret should be created first cloud-volume wiki
 
 https://qiita.com/kotap15/items/4bee8cc0bca6a9487e4e
