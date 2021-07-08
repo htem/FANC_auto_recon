@@ -6,7 +6,8 @@
 # virtual environment
 nuclei/
 
-# old files
+# output for checking
+Output/
 
 # User-specific files
 *.suo
