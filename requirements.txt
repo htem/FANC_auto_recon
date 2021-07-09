@@ -8,3 +8,4 @@ meshparty
 navis
 nglui
 pyperclip
+annotationframeworkclient
