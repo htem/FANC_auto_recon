@@ -184,9 +184,9 @@ def segIDs_from_pts_cv(pts,
                        max_tries = 3,return_roots=True):
     ''' Query cloudvolume object for root or supervoxel IDs. This method is slower than segIDs_from_pts_service, and does not need to be used for FANC_v4.
     args:
-    
+
+    pts: nx3 array, mip0 coordinates to query.
     cv:     cloudvolume object
-    coords: nx3 array, mip0 coordinates to query.
     n:      int, number of coordinates to query in a single batch. Default is 100000, which seems to prevent server errors.
     max_tries: int, number of attempts per batch. Default is 3. Usually if it fails 3 times, something is wrong and more attempts won't work. 
     return_roots: bool, If true, will look up root ids from supervoxel ids. Otherwise, supervoxel ids will be returned. Default is True.
