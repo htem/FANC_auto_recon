@@ -29,3 +29,13 @@ pip freeze > requirements.txt
 secret should be created first cloud-volume wiki
 
 https://qiita.com/kotap15/items/4bee8cc0bca6a9487e4e
+
+use authentication_utils
+
+docker ps -a
+container id check
+
+mkdir -p ~/.cloudvolume/secrets/
+
+docker cp ~/.cloudvolume/secrets/cave-secret.json 3bc6ffc0d501:/home/vscode/.cloudvolume/secrets/
+docker cp ~/.cloudvolume/segmentations.json 3bc6ffc0d501:/home/vscode/.cloudvolume/
