@@ -9,3 +9,4 @@ navis
 nglui
 pyperclip
 annotationframeworkclient
+tifffile
