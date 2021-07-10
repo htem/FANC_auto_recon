@@ -5,6 +5,7 @@ import sys
 import os
 import pandas as pd
 import csv
+from tqdm import tqdm
 
 from cloudvolume import CloudVolume, view
 import cc3d
@@ -72,32 +73,33 @@ nuclei_cv = CloudVolume(
     auth.get_cv_path('nuclei_map')['url'],
     progress=False,
     cache=True, # cache to disk to avoid repeated downloads
-    use_https=True
+    use_https=True,
+    autocrop=True,
+    bounded=False
 )
 
-# for i in range(len(chunk_center)):
-i=35021
-nuclei = nuclei_cv.download_point(chunk_center[i], mip=[68.8,68.8,45.0], size=(128, 128, 256) ) # mip0 and 4 only
-mask_temp = nuclei[:,:,:]
-mask = np.where(mask_temp > 0.5, 1, 0)  
+for i in tqdm(range(len(chunk_center))):
+    nuclei = nuclei_cv.download_point(chunk_center[i], mip=[68.8,68.8,45.0], size=(128, 128, 256))
+    mask_temp = nuclei[:,:,:]
+    mask = np.where(mask_temp > 0.5, 1, 0)  
 
-# print(mask.shape) 
-# (128, 128, 256, 1)
-mask_s = np.squeeze(mask)
-cc_out, N = cc3d.connected_components(mask_s, return_N=True, connectivity=26) # free
+    # print(mask.shape) 
+    # (128, 128, 256, 1)
+    mask_s = np.squeeze(mask)
+    cc_out, N = cc3d.connected_components(mask_s, return_N=True, connectivity=26) # free
 
-list=[]
-for segid in range(1, N+1):
-    extracted_image = cc_out * (cc_out == segid)
-    bbox = mybbox(extracted_image)
-    list.append(bbox)
+    list=[]
+    for segid in range(1, N+1):
+        extracted_image = cc_out * (cc_out == segid)
+        bbox = mybbox(extracted_image)
+        list.append(bbox)
 
-list2=[]
-for segid in range(0, N):
-    X = list[segid][1] - list[segid][0]
-    Y = list[segid][3] - list[segid][2]
-    Z = list[segid][5] - list[segid][4]
-    if X >= x_thres and Y >= y_thres and Z >= z_thres:
+    list2=[]
+    for segid in range(0, N):
+    xwidth = list[segid][1] - list[segid][0]
+    ywidth = list[segid][3] - list[segid][2]
+    zwidth = list[segid][5] - list[segid][4]
+    if xwidth >= x_thres and ywidth >= y_thres and zwidth >= z_thres:
         center = ((list[segid][1] + list[segid][0])/2,
         (list[segid][3] + list[segid][2])/2,
         (list[segid][5] + list[segid][4])/2)
@@ -105,18 +107,26 @@ for segid in range(0, N):
     else:
         pass
 
-origin = nuclei.bounds.minpt # 3072,5248,1792
-cell_body_coordinates_mip4 = np.add(np.array(list2), origin)
-cell_body_coordinates = cell_body_coordinates_mip4
-cell_body_coordinates[:,0]  = (cell_body_coordinates_mip4[:,0] * 2**4)
-cell_body_coordinates[:,1]  = (cell_body_coordinates_mip4[:,1] * 2**4)
-cell_body_coordinates = cell_body_coordinates.astype('uint32')
+    if len(list2):
+        origin = nuclei.bounds.minpt # 3072,5248,1792
+        cell_body_coordinates_mip4 = np.add(np.array(list2), origin)
+        cell_body_coordinates = cell_body_coordinates_mip4
+        cell_body_coordinates[:,0]  = (cell_body_coordinates_mip4[:,0] * 2**4)
+        cell_body_coordinates[:,1]  = (cell_body_coordinates_mip4[:,1] * 2**4)
+        cell_body_coordinates = cell_body_coordinates.astype('uint32')
 
-cell_body_IDs = IDlook.segIDs_from_pts_cv(pts=cell_body_coordinates, cv=seg) #mip0
-nuclei_cv.cache.flush()
-cell_body_IDs_list = cell_body_IDs.tolist()
-output.append(cell_body_IDs_list)
+        cell_body_IDs = IDlook.segIDs_from_pts_cv(pts=cell_body_coordinates, cv=seg) #mip0
+        nuclei_cv.cache.flush()
+        cell_body_IDs_list = cell_body_IDs.tolist()
+        output.append(cell_body_IDs_list)
+    else:
+        pass
 
-sum(output,[])
-writer = csv.writer(list(set(output)), lineterminator="\n") # writerオブジェクトの作成 改行記号で行を区切る
-writer.writerows(output)
+sum = sum(output,[])
+output_s = set(sum)
+output_str = [str(n) for n in output_s]
+output_2D = np.array(output_str ).reshape(len(output_str ),1).tolist()
+
+with open('./output.csv', 'w') as result:
+    writer = csv.writer(result)
+    writer.writerows(output_2D)
