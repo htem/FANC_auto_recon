@@ -10,3 +10,5 @@ nglui
 pyperclip
 annotationframeworkclient
 tifffile
+pandas
+connected-components-3d
