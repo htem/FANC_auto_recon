@@ -96,16 +96,16 @@ for i in tqdm(range(len(chunk_center))):
 
     list2=[]
     for segid in range(0, N):
-    xwidth = list[segid][1] - list[segid][0]
-    ywidth = list[segid][3] - list[segid][2]
-    zwidth = list[segid][5] - list[segid][4]
-    if xwidth >= x_thres and ywidth >= y_thres and zwidth >= z_thres:
-        center = ((list[segid][1] + list[segid][0])/2,
-        (list[segid][3] + list[segid][2])/2,
-        (list[segid][5] + list[segid][4])/2)
-        list2.append(center)
-    else:
-        pass
+        xwidth = list[segid][1] - list[segid][0]
+        ywidth = list[segid][3] - list[segid][2]
+        zwidth = list[segid][5] - list[segid][4]
+        if xwidth >= x_thres and ywidth >= y_thres and zwidth >= z_thres:
+            center = ((list[segid][1] + list[segid][0])/2,
+            (list[segid][3] + list[segid][2])/2,
+            (list[segid][5] + list[segid][4])/2)
+            list2.append(center)
+        else:
+            pass
 
     if len(list2):
         origin = nuclei.bounds.minpt # 3072,5248,1792
@@ -121,6 +121,7 @@ for i in tqdm(range(len(chunk_center))):
         output.append(cell_body_IDs_list)
     else:
         pass
+    nuclei_cv.cache.flush()
 
 sum = sum(output,[])
 output_s = set(sum)
