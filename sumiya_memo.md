@@ -1,41 +1,56 @@
 # summer2021
-I forgot md syntax, so its very messy for now. I'll clean this file later
-## nuclei prediction
-textbook https://github.com/bjm5164/rotation_projects
-docker https://qiita.com/Canon11/items/e6f64597d82dbf88f75f
+I forgot md syntax, so its very messy for now. I'll clean this file later.
 
-Private repo https://infra-boubiroku.hatenablog.com/entry/2019/02/07/171938
-https://qiita.com/Yuki_Oshima/items/d3b52c553387685460b0
 
-gitignore https://qiita.com/anqooqie/items/110957797b3d5280c44f
-https://www.curict.com/item/fe/fe45741.html
+## Approach
+We are aimging to make a list of nucleus segIDs and their neuron segIDs. [repo for rotation students](https://github.com/bjm5164/rotation_projects)
 
-venv https://qiita.com/Gattaca/items/80a5d36673ba2b6ef7f0
+## Usage
+nuclei prediction
+docker 
 
+# 1. Docker 
+[Docker](https://qiita.com/Canon11/items/e6f64597d82dbf88f75f) Building Docker image usually takes one or two minutes.
+
+
+# 2. setup venv
+[venv](https://qiita.com/Gattaca/items/80a5d36673ba2b6ef7f0)
+
+'''sh
 python3 -V # check version
 python3 -m venv nuclei
 . nuclei/bin/activate
 (fanc) vscode ➜ ~ $ pip install -r requirements.txt
 (fanc) vscode ➜ ~ $ ipython kernel install --user --name=nuclei
+'''
 
+'''sh
+(fanc) vscode ➜ ~ $ deactivate
+'''
+
+3. auth
+
+[cloud-volume wiki]()
 
 save your API at ~/.cloudvolume/secrets/cave-secret.json
-
-make requirements.txt
-pip freeze > requirements.txt
 
 /Users/Sumiya
 
 secret should be created first cloud-volume wiki
 
-https://qiita.com/kotap15/items/4bee8cc0bca6a9487e4e
-
-use authentication_utils
-
-docker ps -a
-container id check
 
 mkdir -p ~/.cloudvolume/secrets/
 
+use authentication_utils
+
+'''sh
+docker ps -a # check your container id
 docker cp ~/.cloudvolume/secrets/cave-secret.json 3bc6ffc0d501:/home/vscode/.cloudvolume/secrets/
 docker cp ~/.cloudvolume/segmentations.json 3bc6ffc0d501:/home/vscode/.cloudvolume/
+'''
+
+4. Issues
+dataclasses
+
+Note: [gitignore](https://qiita.com/anqooqie/items/110957797b3d5280c44f
+https://www.curict.com/item/fe/fe45741.html)
