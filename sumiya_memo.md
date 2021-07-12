@@ -50,7 +50,7 @@ docker cp ~/.cloudvolume/segmentations.json 3bc6ffc0d501:/home/vscode/.cloudvolu
 '''
 
 4. Issues
-dataclasses
+pip uninstall dataclasses 
 
 Note: [gitignore](https://qiita.com/anqooqie/items/110957797b3d5280c44f
 https://www.curict.com/item/fe/fe45741.html)
