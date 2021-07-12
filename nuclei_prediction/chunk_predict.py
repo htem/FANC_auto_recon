@@ -116,7 +116,6 @@ for i in tqdm(range(len(chunk_center))):
         cell_body_coordinates = cell_body_coordinates.astype('uint32')
 
         cell_body_IDs = IDlook.segIDs_from_pts_cv(pts=cell_body_coordinates, cv=seg) #mip0
-        nuclei_cv.cache.flush()
         cell_body_IDs_list = cell_body_IDs.tolist()
         output.append(cell_body_IDs_list)
     else:
