@@ -54,3 +54,7 @@ pip uninstall dataclasses
 
 Note: [gitignore](https://qiita.com/anqooqie/items/110957797b3d5280c44f
 https://www.curict.com/item/fe/fe45741.html)
+
+
+https://stackoverflow.com/questions/32578224/cloning-a-branch-remote-branch-branch-99-not-found-in-upstream-origin
+rsync
