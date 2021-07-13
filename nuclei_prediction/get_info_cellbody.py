@@ -82,7 +82,7 @@ def mybbox(img):
 
 # for loop
 for i in tqdm(range(len(chunk_center))):
-    nuclei = nuclei_cv.download_point(chunk_center[23219], mip=[68.8,68.8,45.0], size=(128, 128, 256) ) # mip0 and 4 only
+    nuclei = nuclei_cv.download_point(chunk_center[i], mip=[68.8,68.8,45.0], size=(128, 128, 256) ) # mip0 and 4 only
     mask_temp = nuclei[:,:,:]
     mask = np.where(mask_temp > 0.5, 1, 0)  
     mask_s = np.squeeze(mask)
@@ -91,9 +91,9 @@ for i in tqdm(range(len(chunk_center))):
 
     list=[]
     for segid in range(1, N+1):
-    extracted_image = cc_out * (cc_out == segid)
-    bbox = mybbox(extracted_image)
-    list.append(bbox)
+        extracted_image = cc_out * (cc_out == segid)
+        bbox = mybbox(extracted_image)
+        list.append(bbox)
 
     list2=[]
     for segid in range(0, N):
