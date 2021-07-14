@@ -68,7 +68,6 @@ else:
 
 chunk_center = np.array(np.meshgrid(centerX, centerY, centerZ), dtype='int64').T.reshape(-1,3)
 len(chunk_center)
-output=[]
 
 x_thres = 33-10 # 50/(4.3*2^4/45) = 50/1.53
 y_thres = 33-10
@@ -90,6 +89,7 @@ def mybbox(img):
 
 # for loop
 for i in tqdm(range(start, len(chunk_center))):
+    output=[]
     nuclei = nuclei_cv.download_point(chunk_center[i], mip=[68.8,68.8,45.0], size=(128, 128, 256) ) # mip0 and 4 only
     mask_temp = nuclei[:,:,:]
     mask = np.where(mask_temp > 0.5, 1, 0)  
