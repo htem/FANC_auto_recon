@@ -233,7 +233,7 @@ def segIDs_from_pts_cv(pts,
     sv_id_full = np.concatenate(sv_ids)
 
     if return_roots is True:
-        root_ids = get_roots(sv_id_full,cv) 
+        root_ids = cv.get_roots(sv_id_full) 
         return root_ids
     else:
         return sv_id_full
