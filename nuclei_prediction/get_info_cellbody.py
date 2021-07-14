@@ -6,6 +6,7 @@ import os
 import pandas as pd
 import csv
 from tqdm import tqdm
+import argparse
 
 from cloudvolume import CloudVolume, view
 import cc3d
@@ -17,6 +18,13 @@ sys.path.append(os.path.abspath("../segmentation"))
 
 import rootID_lookup as IDlook
 import authentication_utils as auth
+
+parser = argparse.ArgumentParser(description='get segIDs of cell bodies and save into csv files') 
+parser.add_argument('-s', '--start', help='specify starting chunk. default is 0', default=0, type=int)
+args = parser.parse_args()
+
+start=args.start
+
 # cv setting
 cv = CloudVolume(auth.get_cv_path('Image')['url'], use_https=True, agglomerate=False)
 
@@ -81,7 +89,7 @@ def mybbox(img):
     return xmin, xmax, ymin, ymax, zmin, zmax
 
 # for loop
-for i in tqdm(range(len(chunk_center))):
+for i in tqdm(range(start, len(chunk_center))):
     nuclei = nuclei_cv.download_point(chunk_center[i], mip=[68.8,68.8,45.0], size=(128, 128, 256) ) # mip0 and 4 only
     mask_temp = nuclei[:,:,:]
     mask = np.where(mask_temp > 0.5, 1, 0)  
@@ -125,13 +133,15 @@ for i in tqdm(range(len(chunk_center))):
         temp = cord_pd
         temp['segIDs'] = cell_body_IDs
         output.append(temp)
+
+        output_appended = pd.concat(output)
+        output_appended
+        output_s = output_appended.drop_duplicates(keep='first', subset='segIDs')
+        output_s
+        name = str(i)
+        output_s.to_csv('../Output/cellbody_cord_id_%s.csv' % name, index=False)
     else:
         pass
 
     nuclei_cv.cache.flush()
 
-output_appended = pd.concat(output)
-output_appended
-output_s = output_appended.drop_duplicates(keep='first', subset='segIDs')
-output_s
-output_s.to_csv('../Output/cellbody_cord_id.csv', index=False)
