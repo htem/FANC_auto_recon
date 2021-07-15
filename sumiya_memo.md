@@ -60,3 +60,7 @@ https://stackoverflow.com/questions/32578224/cloning-a-branch-remote-branch-bran
 rsync
 
 mkdir Output for pandas
+
+
+pip install igneous-pipeline
+pip install task-queue #numpy first
