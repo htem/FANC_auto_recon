@@ -33,7 +33,7 @@ cv = CloudVolume(auth.get_cv_path('Image')['url'], use_https=True, agglomerate=F
 nuclei_cv = CloudVolume(
     auth.get_cv_path('nuclei_map')['url'],
     progress=False,
-    cache=True, # cache to disk to avoid repeated downloads
+    cache=False, # cache to disk to avoid repeated downloads
     use_https=True,
     autocrop=True,
     bounded=False
@@ -161,7 +161,7 @@ def task_get_info_cellbody(i):
     output_s
     name = str(i)
     output_s.to_csv(outputpath + '/' + 'cellbody_cord_id_%s.csv' % name, index=False)
-    nuclei_cv.cache.flush()
+    # nuclei_cv.cache.flush()
 
 
 
