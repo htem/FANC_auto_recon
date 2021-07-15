@@ -28,10 +28,10 @@ choose=args.choose
 lease=args.lease
 
 np.random.seed(123)
-# queuepath = '/n/groups/htem/users/skuroda/nuclei_tasks'
+# queuepath = '/n/groups/htem/users/skuroda/nuclei_tasks2'
 queuepath = '../Output/nuclei_tasks'
-# queuepath = '/n/groups/htem/users/skuroda/nuclei_output2'
-outputpath = '../Output/'
+# outputpath = '/n/groups/htem/users/skuroda/nuclei_output2'
+outputpath = '../Output'
 size_xy = 160 # 160/(2**2)??
 # 128x128x160 is small
 # read csv
@@ -139,7 +139,7 @@ def task_cellbody2neuron(i):
   output_df = pd.DataFrame(columns=["x", "y", "z", "segIDs", "Parent1", "Parent2", "Parent3"])
   output_df.loc[0] = output
   name = str(i)
-  output_df.to_csv(outputpath + 'cellbody_and_neuron_%s.csv' % name, index=False)
+  output_df.to_csv(outputpath + '/' + 'cellbody_and_neuron_%s.csv' % name, index=False)
 
 
 # task queue
