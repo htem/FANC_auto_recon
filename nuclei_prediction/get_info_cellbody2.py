@@ -161,7 +161,6 @@ def task_get_info_cellbody(i):
     output_s
     name = str(i)
     output_s.to_csv(outputpath + '/' + 'cellbody_cord_id_%s.csv' % name, index=False)
-    # nuclei_cv.cache.flush()
 
 
 
