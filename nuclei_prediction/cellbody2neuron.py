@@ -79,7 +79,7 @@ def task_cellbody2neuron(i):
   cord_mip2 = cord_mip2.astype('int64')
   id = df.iloc[i,3] #segid
 
-  if segid == 0:
+  if id == 0:
     A = np.append(cord_mip0.values, id).astype('int64')
     B = np.zeros(3, dtype = 'int64')
     output = np.append(A, B) #xyz, id, 0,0,0
@@ -122,10 +122,11 @@ def task_cellbody2neuron(i):
       # save
       uniqueID, count = np.unique(parent_IDs, return_counts=True)
       unsorted_max_indices = np.argpartition(-count, 4)[:4]
-      topIDs = uniqueID[unsorted_max_indices] # gives me top4 IDs
+      topIDs = uniqueID[unsorted_max_indices] # gives me top5 IDs
       topIDs2 = topIDs[~(topIDs == id)] # I hope this keeps order
+      topIDs3 = topIDs2[~(topIDs2 == 0)] # no zero
       A = np.append(cord_mip0.values, id).astype('int64')
-      B = topIDs2.astype('int64')[0:3]
+      B = topIDs3.astype('int64')[0:3]
       output = np.append(A, B) #top3
       
     else:
@@ -133,7 +134,7 @@ def task_cellbody2neuron(i):
       B = np.zeros(3, dtype = 'int64')
       output = np.append(A, B) #xyz, id, 0,0,0
       
-    seg_nuc.cache.flush()
+    seg.cache.flush()
 
   output_df = pd.DataFrame(columns=["x", "y", "z", "segIDs", "Parent1", "Parent2", "Parent3"])
   output_df.loc[0] = output
@@ -148,7 +149,7 @@ def task_cellbody2neuron(i):
 def create_task_queue():
     tq = TaskQueue('fq://' + queuepath)
     tq.insert(( partial(task_cellbody2neuron, i) for i in range(len(df)) )) # NEW SCHOOL?
-    tq.execute()
+    # tq.execute()
     print('Done adding {} tasks to queue at {}'.format(len(df), queuepath))
 
 
@@ -168,3 +169,4 @@ def run_tasks_from_queue():
 #execute
 create_task_queue()
 run_tasks_from_queue()
+# finish?
