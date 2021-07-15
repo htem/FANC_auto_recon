@@ -1,7 +1,6 @@
-#!/usr/bin/env python3.6
-
 from PIL import Image
 import matplotlib.pyplot as plt
+import numpy as np
 import sys
 import os
 import pandas as pd

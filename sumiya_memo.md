@@ -64,3 +64,7 @@ mkdir Output for pandas
 
 pip install igneous-pipeline
 pip install task-queue #numpy first
+
+/home/skuroda/.local/bin/pip
+
+/home/skuroda/.local/bin/pip install task-queue
