@@ -148,7 +148,9 @@ def task_get_info_cellbody(i):
     else:
         foo = np.zeros(3, dtype = 'int64')
         bar = np.zeros(1, dtype = 'int64')
-        cord_pd = pd.DataFrame(foo, columns=["x", "y", "z"])
+
+        cord_pd = pd.DataFrame(columns=["x", "y", "z"])
+        cord_pd.loc[0] = foo
         temp = cord_pd
         temp['segIDs'] = bar
         output.append(temp)
