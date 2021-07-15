@@ -40,10 +40,8 @@ df = pd.read_csv('../Output/info_cellbody.csv', header=0)
 # cv setting
 seg = CloudVolume(auth.get_cv_path('FANC_production_segmentation')['url'], use_https=True, agglomerate=False, cache=True, progress=False)
 
-create_task_queue()
-run_tasks_from_queue()
-
 # functions listed below
+
 
 def vol_shift(input): # Although np.roll is fast, this is very slow since this overuse RAM
     # x plane
@@ -67,7 +65,10 @@ def vol_shift(input): # Although np.roll is fast, this is very slow since this o
 
     return result
 
+
 # global variable is pt, segid, sizexy, choose
+
+
 
 @queueable
 def task_cellbody2neuron(i):
@@ -139,14 +140,18 @@ def task_cellbody2neuron(i):
   name = str(i)
   output_df.to_csv(outputpath + 'cellbody_and_neuron_%s.csv' % name, index=False)
 
+
 # task queue
 # global variable is lease
  
+
 def create_task_queue():
     tq = TaskQueue('fq://' + queuepath)
     tq.insert(( partial(task_cellbody2neuron, i) for i in range(len(df)) )) # NEW SCHOOL?
     tq.execute()
     print('Done adding {} tasks to queue at {}'.format(len(df), queuepath))
+
+
 
 
 def run_tasks_from_queue():
@@ -158,3 +163,8 @@ def run_tasks_from_queue():
         tally=True # makes tq.completed work, logs 1 byte per completed task
     )
     print('Done')
+
+
+#execute
+create_task_queue()
+run_tasks_from_queue()
