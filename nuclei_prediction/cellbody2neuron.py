@@ -10,6 +10,8 @@ from cloudvolume import CloudVolume, view, Bbox
 import fill_voids
 from taskqueue import TaskQueue, queueable
 from functools import partial
+import gevent.monkey
+from concurrent.futures import ProcessPoolExecutor
 
 # libraries 2
 sys.path.append(os.path.abspath("../segmentation"))
@@ -26,6 +28,8 @@ args = parser.parse_args()
 choose=args.choose
 lease=args.lease
 parallel_cpu=args.parallel
+
+gevent.monkey.patch_all(thread=False)
 
 np.random.seed(123)
 queuepath = '/n/groups/htem/users/skuroda/nuclei_tasks2'
@@ -146,7 +150,7 @@ def task_cellbody2neuron(i):
  
 
 def create_task_queue():
-    tq = TaskQueue('fq://' + queuepath)
+    tq = TaskQueue('fq://' + queuepath, , green=True)
     tq.insert(( partial(task_cellbody2neuron, i) for i in range(len(df)) ), parallel=parallel_cpu) # NEW SCHOOL?
     # tq.execute()
     print('Done adding {} tasks to queue at {}'.format(len(df), queuepath))
@@ -168,4 +172,6 @@ def run_tasks_from_queue():
 
 #execute
 create_task_queue()
-run_tasks_from_queue()
+
+with ProcessPoolExecutor(max_workers=12) as execute:
+  execute.run_tasks_from_queue()
