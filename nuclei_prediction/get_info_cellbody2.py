@@ -164,7 +164,7 @@ def task_get_info_cellbody(i):
 
 
 
-tq = LocalTaskQueue(parallel=16)
+tq = LocalTaskQueue(parallel=12)
 tq.insert(( partial(task_get_info_cellbody, i) for i in range(start, len(chunk_center)) )) # NEW SCHOOL?
 tq.execute(progress=True)
 
