@@ -28,10 +28,10 @@ lease=args.lease
 parallel_cpu=args.parallel
 
 np.random.seed(123)
-# queuepath = '/n/groups/htem/users/skuroda/nuclei_tasks2'
-queuepath = '../Output/nuclei_tasks'
-# outputpath = '/n/groups/htem/users/skuroda/nuclei_output2'
-outputpath = '../Output'
+queuepath = '/n/groups/htem/users/skuroda/nuclei_tasks2'
+# queuepath = '../Output/nuclei_tasks'
+outputpath = '/n/groups/htem/users/skuroda/nuclei_output2'
+# outputpath = '../Output'
 size_xy = 160 # 160/(2**2)??
 # 128x128x160 is small
 # read csv
