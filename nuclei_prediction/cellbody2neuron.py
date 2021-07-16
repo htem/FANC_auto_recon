@@ -1,5 +1,3 @@
-# sbatch??
-
 # libraries 1
 import numpy as np
 import sys
@@ -22,10 +20,12 @@ import authentication_utils as auth
 parser = argparse.ArgumentParser(description='get segIDs of parent neurons from csv files') 
 parser.add_argument('-c', '--choose', help='specify the numer of pixels randomly chosen to get segID of parent neuron. default is all surroundinx pixels', default=0, type=int)
 parser.add_argument('-l', '--lease', help='lease_seconds for TaskQueue.poll. specify in seconds. default is 600sec', default=600, type=int)
+parser.add_argument('-p', '--parallel', help='number of cpu cores for parallel processing. default is 12', default=12, type=int)
 args = parser.parse_args()
 
 choose=args.choose
 lease=args.lease
+parallel_cpu=args.parallel
 
 np.random.seed(123)
 # queuepath = '/n/groups/htem/users/skuroda/nuclei_tasks2'
@@ -35,7 +35,7 @@ outputpath = '../Output'
 size_xy = 160 # 160/(2**2)??
 # 128x128x160 is small
 # read csv
-df = pd.read_csv('../Output/info_cellbody.csv', header=0)
+df = pd.read_csv('~/info_cellbody.csv', header=0)
 
 # cv setting
 seg = CloudVolume(auth.get_cv_path('FANC_production_segmentation')['url'], use_https=True, agglomerate=False, cache=True, progress=False)
@@ -67,7 +67,6 @@ def vol_shift(input): # Although np.roll is fast, this is very slow since this o
 
 
 # global variable is pt, segid, sizexy, choose
-
 
 
 @queueable
@@ -117,7 +116,7 @@ def task_cellbody2neuron(i):
         location_random = parent_coordinates[index]
 
       # Lets get IDs using cell_body_coordinates
-      parent_IDs = IDlook.segIDs_from_pts_cv(pts=location_random, cv=seg) #mip0
+      parent_IDs = IDlook.segIDs_from_pts_cv(pts=location_random, cv=seg, progress=False) #mip0
 
       # save
       uniqueID, count = np.unique(parent_IDs, return_counts=True)
@@ -148,7 +147,7 @@ def task_cellbody2neuron(i):
 
 def create_task_queue():
     tq = TaskQueue('fq://' + queuepath)
-    tq.insert(( partial(task_cellbody2neuron, i) for i in range(len(df)) )) # NEW SCHOOL?
+    tq.insert(( partial(task_cellbody2neuron, i) for i in range(len(df)) ), parallel=parallel_cpu) # NEW SCHOOL?
     # tq.execute()
     print('Done adding {} tasks to queue at {}'.format(len(df), queuepath))
 
@@ -161,7 +160,8 @@ def run_tasks_from_queue():
     tq.poll(
         verbose=True, # prints progress
         lease_seconds=int(lease),
-        tally=True # makes tq.completed work, logs 1 byte per completed task
+        tally=True, # makes tq.completed work, logs 1 byte per completed task
+        stop_fn='executed'
     )
     print('Done')
 
@@ -169,4 +169,3 @@ def run_tasks_from_queue():
 #execute
 create_task_queue()
 run_tasks_from_queue()
-# finish?

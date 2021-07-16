@@ -22,10 +22,12 @@ import authentication_utils as auth
 parser = argparse.ArgumentParser(description='get segIDs of cell bodies and save into csv files') 
 parser.add_argument('-s', '--start', help='specify starting chunk. default is 0', default=0, type=int)
 parser.add_argument('-l', '--lease', help='lease_seconds for TaskQueue.poll. specify in seconds. default is 1800sec', default=1800, type=int)
+parser.add_argument('-p', '--parallel', help='number of cpu cores for parallel processing. default is 12', default=12, type=int)
 args = parser.parse_args()
 
 start=args.start
 lease=args.lease
+parallel_cpu=args.parallel
 
 # cv setting
 cv = CloudVolume(auth.get_cv_path('Image')['url'], use_https=True, agglomerate=False)
@@ -136,7 +138,7 @@ def task_get_info_cellbody(i):
         cell_body_coordinates = cell_body_coordinates.astype('int64')
 
         # Lets get IDs using cell_body_coordinates
-        cell_body_IDs = IDlook.segIDs_from_pts_cv(pts=cell_body_coordinates, cv=seg) #mip0
+        cell_body_IDs = IDlook.segIDs_from_pts_cv(pts=cell_body_coordinates, cv=seg, progress=False) #mip0
 
         # save
         # type(cell_body_coordinates.shape)
@@ -164,9 +166,10 @@ def task_get_info_cellbody(i):
 
 
 
-tq = LocalTaskQueue(parallel=12)
+tq = LocalTaskQueue(parallel=parallel_cpu)
 tq.insert(( partial(task_get_info_cellbody, i) for i in range(start, len(chunk_center)) )) # NEW SCHOOL?
 tq.execute(progress=True)
+tq.purge()
 
 print('Done')
 

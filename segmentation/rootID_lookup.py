@@ -182,7 +182,9 @@ def segIDs_from_pts_service(pts,
 def segIDs_from_pts_cv(pts,
                        cv,
                        n=100000,
-                       max_tries = 3,return_roots=True):
+                       max_tries = 3,
+                       return_roots=True,
+                       progress=True):
     ''' Query cloudvolume object for root or supervoxel IDs. This method is slower than segIDs_from_pts_service, and does not need to be used for FANC_v4.
     args:
 
@@ -213,14 +215,14 @@ def segIDs_from_pts_cv(pts,
         pt_loader = GSPointLoader(cv)
         pt_loader.add_points(pts[i])
         try:
-            chunk_ids = pt_loader.load_all()[1].reshape(len(pts[i]),)
+            chunk_ids = pt_loader.load_all(progress=progress)[1].reshape(len(pts[i]),)
             sv_ids.append(chunk_ids)
         except:
             print('Failed, retrying')
             fail_check = 1
             while fail_check < max_tries:
                 try:
-                    chunk_ids = pt_loader.load_all()[1].reshape(len(pts[i]),)
+                    chunk_ids = pt_loader.load_all(progress=progress)[1].reshape(len(pts[i]),)
                     sv_ids.append(chunk_ids)
                     fail_check = max_tries + 1
                 except:
