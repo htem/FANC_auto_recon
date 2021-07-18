@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import gevent.monkey
 gevent.monkey.patch_all(thread=False)
 # monkey first 
