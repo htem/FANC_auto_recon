@@ -184,8 +184,9 @@ tq = LocalTaskQueue(parallel=parallel_cpu)
 if file_input is None:
     tq.insert(( partial(task_get_info_cellbody, i) for i in range(start, len(chunk_center)) )) # NEW SCHOOL?
 else:
-    txtdf = pd.read_table(file_input)
-    tq.insert( partial(task_get_info_cellbody, i) for i in txtdf[i] )
+    with open(file_input) as fd:      
+      txtdf = np.loadtxt(fd, dtype='int64')
+      tq.insert( partial(task_get_info_cellbody, i) for i in txtdf )
 
 tq.execute(progress=True)
 
