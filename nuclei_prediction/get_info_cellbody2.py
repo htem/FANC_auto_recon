@@ -19,15 +19,24 @@ sys.path.append(os.path.abspath("../segmentation"))
 import rootID_lookup as IDlook
 import authentication_utils as auth
 
+def validate_file(f):
+    if not os.path.exists(f):
+        # Argparse uses the ArgumentTypeError to give a rejection message like:
+        # error: argument input: x does not exist
+        raise argparse.ArgumentTypeError("{0} does not exist".format(f))
+    return f
+
 parser = argparse.ArgumentParser(description='get segIDs of cell bodies and save into csv files') 
 parser.add_argument('-s', '--start', help='specify starting chunk. default is 0', default=0, type=int)
 parser.add_argument('-l', '--lease', help='lease_seconds for TaskQueue.poll. specify in seconds. default is 1800sec', default=1800, type=int)
 parser.add_argument('-p', '--parallel', help='number of cpu cores for parallel processing. default is 12', default=12, type=int)
+parser.add_argument('-i', '--input', help='input the list of chunk numbers need recalculated again', type=validate_file)
 args = parser.parse_args()
 
 start=args.start
 lease=args.lease
 parallel_cpu=args.parallel
+file_input=args.input
 
 # cv setting
 cv = CloudVolume(auth.get_cv_path('Image')['url'], use_https=True, agglomerate=False)
@@ -102,76 +111,86 @@ def mybbox(img):
 
 @queueable
 def task_get_info_cellbody(i):
-    output=[]
-    nuclei = nuclei_cv.download_point(chunk_center[i], mip=[68.8,68.8,45.0], size=(128, 128, 256) ) # mip0 and 4 only
-    mask_temp = nuclei[:,:,:]
-    mask = np.where(mask_temp > 0.5, 1, 0)  
-    mask_s = np.squeeze(mask)
+    try:
+        output=[]
+        nuclei = nuclei_cv.download_point(chunk_center[i], mip=[68.8,68.8,45.0], size=(128, 128, 256) ) # mip0 and 4 only
+        mask_temp = nuclei[:,:,:]
+        mask = np.where(mask_temp > 0.5, 1, 0)
+        mask_s = np.squeeze(mask)
 
-    cc_out, N = cc3d.connected_components(mask_s, return_N=True, connectivity=connectivity) # free
+        cc_out, N = cc3d.connected_components(mask_s, return_N=True, connectivity=connectivity) # free
 
-    list=[]
-    for segid in range(1, N+1):
-        extracted_image = cc_out * (cc_out == segid)
-        bbox = mybbox(extracted_image)
-        list.append(bbox)
+        mylist=[]
+        for segid in range(1, N+1):
+            extracted_image = cc_out * (cc_out == segid)
+            bbox = mybbox(extracted_image)
+            mylist.append(bbox)
 
-    list2=[]
-    for segid in range(0, N):
-        xwidth = list[segid][1] - list[segid][0]
-        ywidth = list[segid][3] - list[segid][2]
-        zwidth = list[segid][5] - list[segid][4]
-        if xwidth >= x_thres and ywidth >= y_thres and zwidth >= z_thres:
-            center = ((list[segid][1] + list[segid][0])/2,
-            (list[segid][3] + list[segid][2])/2,
-            (list[segid][5] + list[segid][4])/2)
-            list2.append(center)
+        list2=[]
+        for segid in range(0, N):
+            xwidth = mylist[segid][1] - mylist[segid][0]
+            ywidth = mylist[segid][3] - mylist[segid][2]
+            zwidth = mylist[segid][5] - mylist[segid][4]
+            if xwidth >= x_thres and ywidth >= y_thres and zwidth >= z_thres:
+                center = ((mylist[segid][1] + mylist[segid][0])/2,
+                (mylist[segid][3] + mylist[segid][2])/2,
+                (mylist[segid][5] + mylist[segid][4])/2)
+                list2.append(center)
+            else:
+                pass
+
+        if len(list2): # segIDs_from_pts_cv makes error is there is none in list2
+            origin = nuclei.bounds.minpt # 3072,5248,1792
+            cell_body_coordinates_mip4 = np.add(np.array(list2), origin)
+            cell_body_coordinates = cell_body_coordinates_mip4
+            cell_body_coordinates[:,0]  = (cell_body_coordinates_mip4[:,0] * 2**4)
+            cell_body_coordinates[:,1]  = (cell_body_coordinates_mip4[:,1] * 2**4)
+            cell_body_coordinates = cell_body_coordinates.astype('int64')
+
+            # Lets get IDs using cell_body_coordinates
+            cell_body_IDs = IDlook.segIDs_from_pts_cv(pts=cell_body_coordinates, cv=seg, progress=False) #mip0
+
+            # save
+            # type(cell_body_coordinates.shape)
+            cord_pd = pd.DataFrame(cell_body_coordinates, columns=["x", "y", "z"])
+            temp = cord_pd
+            temp['segIDs'] = cell_body_IDs
+            output.append(temp)
+
         else:
-            pass
+            foo = np.zeros(3, dtype = 'int64')
+            bar = np.zeros(1, dtype = 'int64')
 
-    if len(list2): # segIDs_from_pts_cv makes error is there is none in list2
-        origin = nuclei.bounds.minpt # 3072,5248,1792
-        cell_body_coordinates_mip4 = np.add(np.array(list2), origin)
-        cell_body_coordinates = cell_body_coordinates_mip4
-        cell_body_coordinates[:,0]  = (cell_body_coordinates_mip4[:,0] * 2**4)
-        cell_body_coordinates[:,1]  = (cell_body_coordinates_mip4[:,1] * 2**4)
-        cell_body_coordinates = cell_body_coordinates.astype('int64')
+            cord_pd = pd.DataFrame(columns=["x", "y", "z"])
+            cord_pd.loc[0] = foo
+            temp = cord_pd
+            temp['segIDs'] = bar
+            output.append(temp)
 
-        # Lets get IDs using cell_body_coordinates
-        cell_body_IDs = IDlook.segIDs_from_pts_cv(pts=cell_body_coordinates, cv=seg, progress=False) #mip0
-
-        # save
-        # type(cell_body_coordinates.shape)
-        cord_pd = pd.DataFrame(cell_body_coordinates, columns=["x", "y", "z"])
-        temp = cord_pd
-        temp['segIDs'] = cell_body_IDs
-        output.append(temp)
-
-    else:
-        foo = np.zeros(3, dtype = 'int64')
-        bar = np.zeros(1, dtype = 'int64')
-
-        cord_pd = pd.DataFrame(columns=["x", "y", "z"])
-        cord_pd.loc[0] = foo
-        temp = cord_pd
-        temp['segIDs'] = bar
-        output.append(temp)
-
-    output_appended = pd.concat(output)
-    output_appended
-    output_s = output_appended.drop_duplicates(keep='first', subset='segIDs')
-    output_s
-    name = str(i)
-    output_s.to_csv(outputpath + '/' + 'cellbody_cord_id_%s.csv' % name, index=False)
-
+        output_appended = pd.concat(output)
+        output_appended
+        output_s = output_appended.drop_duplicates(keep='first', subset='segIDs')
+        output_s
+        name = str(i)
+        output_s.to_csv(outputpath + '/' + 'cellbody_cord_id_%s.csv' % name, index=False)
+    except Exception as e:
+        name=str(i)
+        with open(outputpath + '/' + '{}.log'.format(name), 'w') as logfile:
+            print(e, file=logfile)
 
 
 tq = LocalTaskQueue(parallel=parallel_cpu)
-tq.insert(( partial(task_get_info_cellbody, i) for i in range(start, len(chunk_center)) )) # NEW SCHOOL?
+
+if file_input is None:
+    tq.insert(( partial(task_get_info_cellbody, i) for i in range(start, len(chunk_center)) )) # NEW SCHOOL?
+else:
+    txtdf = pd.read_table(file_input)
+    tq.insert( partial(task_get_info_cellbody, i) for i in txtdf[i] )
+
 tq.execute(progress=True)
-tq.purge()
 
 print('Done')
+
 
 #def create_task_queue():
 #    tq = TaskQueue('fq://' + queuepath)  LocalTaskQueue('fq://' + queuepath, parallel=) # 
