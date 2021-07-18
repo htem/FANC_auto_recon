@@ -161,7 +161,7 @@ def task_cellbody2neuron(i):
   except Exception as e:
     name=str(i)
     with open(outputpath + '/' + '{}.log'.format(name), 'w') as logfile:
-      print(e, file=logfile)
+        print(e, file=logfile)
 
 
 
