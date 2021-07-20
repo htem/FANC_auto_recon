@@ -85,7 +85,7 @@ def vol_shift(input): # Although np.roll is fast, this is very slow since this o
 def task_nuc2body(i):
   try:
     cord_mip0 = df.iloc[i,0:3] #xyz coordinates
-    cord_mip2 = cord_mip0.values # change coordination from mip0 to mip2
+    cord_mip2 = cord_mip0.values.copy() # change coordination from mip0 to mip2
     cord_mip2[0]  = (cord_mip0.values[0] /(2**2))
     cord_mip2[1]  = (cord_mip0.values[1] /(2**2))
     cord_mip2 = cord_mip2.astype('int64')
@@ -169,12 +169,13 @@ def create_task_queue():
     tq = TaskQueue('fq://' + queuepath)
     if file_input is None:
       tq.insert(( partial(task_nuc2body, i) for i in range(len(df)) ), parallel=parallel_cpu) # NEW SCHOOL?
+      print('Done adding {} tasks to queue at {}'.format(len(df), queuepath))
     else:
       with open(file_input) as fd:      
         txtdf = np.loadtxt(fd, dtype='int64')
         tq.insert(( partial(task_nuc2body, i) for i in txtdf ), parallel=parallel_cpu)
-
-    print('Done adding {} tasks to queue at {}'.format(len(df), queuepath))
+        print('Done adding {} tasks to queue at {}'.format(len(txtdf), queuepath))
+        
     tq.rezero()
 
 
