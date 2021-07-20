@@ -1,6 +1,3 @@
-import gevent.monkey
-gevent.monkey.patch_all(thread=False)
-# monkey first 
 import numpy as np
 import sys
 import os
@@ -41,9 +38,9 @@ parallel_cpu=args.parallel
 file_input=args.input
 
 np.random.seed(123)
-queuepath = '/n/groups/htem/users/skuroda/nuclei_tasks2'
+queuepath = '/n/groups/htem/users/skuroda/nuclei_tasks3'
 # queuepath = '../Output/nuclei_tasks'
-outputpath = '/n/groups/htem/users/skuroda/nuclei_output2'
+outputpath = '/n/groups/htem/users/skuroda/nuclei_output3'
 # outputpath = '../Output'
 size_xy = 160 # 160/(2**2)??
 # 128x128x160 is small
@@ -85,7 +82,7 @@ def vol_shift(input): # Although np.roll is fast, this is very slow since this o
 
 
 @queueable
-def task_cellbody2neuron(i):
+def task_nuc2body(i):
   try:
     cord_mip0 = df.iloc[i,0:3] #xyz coordinates
     cord_mip2 = cord_mip0.values # change coordination from mip0 to mip2
@@ -136,10 +133,11 @@ def task_cellbody2neuron(i):
 
         # save
         uniqueID, count = np.unique(parent_IDs, return_counts=True)
-        unsorted_max_indices = np.argpartition(-count, 5)[:5]
+        unsorted_max_indices = np.argpartition(-count, len(count))[:len(count)]
         topIDs = uniqueID[unsorted_max_indices] # gives me top5 IDs
         topIDs2 = topIDs[~(topIDs == id)] # I hope this keeps order, remove if same as nuclei id
         topIDs3 = topIDs2[~(topIDs2 == 0)] # no zero
+        topIDs3 = np.append(topIDs3, np.zeros(3, dtype = 'int64'))
         A = np.append(cord_mip0.values, id).astype('int64')
         B = topIDs3.astype('int64')[0:3]
         output = np.append(A, B) #top3
@@ -152,7 +150,7 @@ def task_cellbody2neuron(i):
       output_df = pd.DataFrame(columns=["x", "y", "z", "segIDs", "Parent1", "Parent2", "Parent3"])
       output_df.loc[0] = output
       name = str(i)
-      output_df.to_csv(outputpath + '/' + 'cellbody_and_neuron_{}.csv'.format(name), index=False)
+      output_df.to_csv(outputpath + '/' + 'cellbody_{}.csv'.format(name), index=False)
 
     seg.cache.flush()
 
@@ -168,13 +166,13 @@ def task_cellbody2neuron(i):
 
 
 def create_task_queue():
-    tq = TaskQueue('fq://' + queuepath, green=True)
+    tq = TaskQueue('fq://' + queuepath)
     if file_input is None:
-      tq.insert(( partial(task_cellbody2neuron, i) for i in range(len(df)) ), parallel=parallel_cpu) # NEW SCHOOL?
+      tq.insert(( partial(task_nuc2body, i) for i in range(len(df)) ), parallel=parallel_cpu) # NEW SCHOOL?
     else:
       with open(file_input) as fd:      
         txtdf = np.loadtxt(fd, dtype='int64')
-        tq.insert(( partial(task_cellbody2neuron, i) for i in txtdf ), parallel=parallel_cpu)
+        tq.insert(( partial(task_nuc2body, i) for i in txtdf ), parallel=parallel_cpu)
 
     print('Done adding {} tasks to queue at {}'.format(len(df), queuepath))
     tq.rezero()
