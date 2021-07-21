@@ -10,7 +10,7 @@ import argparse
 
 from cloudvolume import CloudVolume, view, Bbox
 import cc3d
-from tifffile.tifffile import imwrite
+from tifffile.tifffile import imagej_metadata, imwrite
 from taskqueue import TaskQueue, queueable, LocalTaskQueue
 from functools import partial
 sys.path.append(os.path.abspath("../segmentation"))
@@ -106,8 +106,8 @@ chunk_center = np.array(np.meshgrid(centerX, centerY, centerZ), dtype='int64').T
 len(chunk_center)
 
 
-def mip4_to_mip0(x,y,z):
-    origin = nuclei.bounds.minpt # 3072,5248,1792
+def mip4_to_mip0(x,y,z, img):
+    origin = img.bounds.minpt # 3072,5248,1792
     xyz_mip4 = np.add(np.array([x,y,z]), origin)
     xyz_mip0 = np.array([(xyz_mip4[0] * 2**4),(xyz_mip4[1] * 2**4), xyz_mip4[2]])
     xyz_mip0 = xyz_mip0.astype('int64')
@@ -116,8 +116,8 @@ def mip4_to_mip0(x,y,z):
 
 
 
-def mip4_to_mip0_array(array):
-    X, Y, Z = mip4_to_mip0(array[0], array[1], array[2])
+def mip4_to_mip0_array(array, img):
+    X, Y, Z = mip4_to_mip0(array[0], array[1], array[2], img)
     result = np.array([X, Y, Z])
     return result
 
@@ -131,10 +131,6 @@ def task_get_nuc(i):
         if xyz_input is not None:
             xyzdf = pd.read_csv(xyz_input, header=0)
             xyz_mip0 = xyzdf.iloc[i,0:3] #xyz coordinates
-            xyz_mip4 = xyz_mip0.values.copy() # change coordination from mip0 to mip2
-            xyz_mip4[0]  = (xyz_mip0.values[0] /(2**4))
-            xyz_mip4[1]  = (xyz_mip0.values[1] /(2**4))
-            xyz_mip4 = xyz_mip4.astype('int64')
             nuclei = nuclei_cv.download_point(xyz_mip0, mip=[68.8,68.8,45.0], size=(128, 128, 256) )
         else:
             nuclei = nuclei_cv.download_point(chunk_center[i], mip=[68.8,68.8,45.0], size=(128, 128, 256) ) # mip0 and 4 only
@@ -158,7 +154,7 @@ def task_get_nuc(i):
 
         if len(mylist):
             for segid in range(len(arr)):
-                center = mip4_to_mip0_array(arr[segid,:])
+                center = mip4_to_mip0_array(arr[segid,:], nuclei)
                 vinside_mip4 = np.argwhere(cc_out == int(arr[segid,3]))
                 vinside = np.apply_along_axis(mip4_to_mip0_array, 1, vinside_mip4)
 
