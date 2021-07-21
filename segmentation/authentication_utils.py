@@ -7,7 +7,7 @@ import json
 from annotationframeworkclient import FrameworkClient
 
 
-def setup_credentials(tokens,segmentations=None,overwrite=False):
+def setup_credentials(tokens=None,segmentations=None,overwrite=False):
     ''' Setup the api keys and segmentation links in ~/cloudvolume. 
     Args:
         token: str, auth token for chunk graph. 
@@ -18,13 +18,13 @@ def setup_credentials(tokens,segmentations=None,overwrite=False):
     BASE = Path.home() / '.cloudvolume'
 
 
-    if Path.exists(BASE / 'secrets'):
+    if Path.exists(BASE / 'secrets') and tokens is not None:
         if Path.exists(BASE / 'secrets' / 'chunkedgraph-secret.json') and overwrite is False:
             print('credentials exist')
         else:
             with open(BASE / 'secrets'/'chunkedgraph-secret.json',mode='w') as f:
                 json.dump(tokens,f)
-        print('credentials created')
+            print('credentials created')
 
     else: 
         Path.mkdir(BASE / 'secrets', parents=True)
@@ -35,7 +35,30 @@ def setup_credentials(tokens,segmentations=None,overwrite=False):
     if not Path.exists(BASE / 'segmentations.json'):
         with open(BASE / 'segmentations.json',mode='w') as f:
             json.dump(segmentations,f)
+    elif segmentations is not None and overwrite is True:
+        
+        add_path(BASE / 'segmentations.json',segmentations)
+        
         print('setup complete')
+
+
+def add_path(path_name,path):
+    ''' Add a path to ./cloudvolume/segmentations.json
+    
+    args:
+        path:   dict, dict of path info in form {'path_name':{'url': 'graphene://https://segmentation_path','resolution':[4.3,4.3,45]}}
+        '''
+    segmentation_file = Path.home() / '.cloudvolume/segmentations.json'
+    if Path.exists(segmentation_file):
+        with open(segmentation_file, 'r+') as f:
+            segmentations = json.load(f)
+        
+        segmentations[path_name] = path
+        json.dump(segmentations,segmentation_file)
+    else:
+        return '.cloudvolume/segmentations.json does not exist. Set up credentials first.'
+    
+    return 'Segmentation list updated'
 
 
 def get_client(server_address = "https://api.zetta.ai/wclee", datastack_name = 'vnc_v0'):
