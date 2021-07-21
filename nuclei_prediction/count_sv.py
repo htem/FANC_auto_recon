@@ -26,8 +26,8 @@ parallel_cpu=args.parallel
 
 df = pd.read_csv('~/info_cellbody_20210721.csv', header=0)
 segcv = CloudVolume(auth.get_cv_path('FANC_production_segmentation')['url'], use_https=True, agglomerate=False, cache=True, autocrop=True, bounded=False)
-count=[]
-error=[]
+
+outputpath = '/n/groups/htem/users/skuroda/ncount'
 
 
 @queueable
@@ -35,18 +35,12 @@ def task_get_sv(i):
     try:
         sv = segcv.get_leaves(root_id=df.iloc[i,3], mip=2, bbox=segcv.mip_volume_size(0))
         svl = len(sv)
-        count.append([i,svl])
-    except: #  Exception as e
-        error.append(i)
-        count.append([i,0])
-        # name=str(i)
-        # with open(outputpath + '/' + '{}.log'.format(name), 'w') as logfile:
-        #     print(e, file=logfile)
+        arr = np.append(i, svl)
+        np.savetxt(outputpath + '/' + 'ncount_{}.csv'.format(str(i)), arr, delimiter=',', fmt='%d')
+    except Exception as e:
+        with open(outputpath + '/' + '{}.log'.format(str(i)), 'w') as logfile:
+            print(e, file=logfile)
 
-    arr = np.array(count, dtype='int')
-    arr_e = np.array(error, dtype='int')
-    np.savetxt('/home/skuroda/nuclei_count.csv', arr, delimiter=',', fmt='%d')
-    np.savetxt('/home/skuroda/nuclei_error.csv', arr_e, delimiter=',', fmt='%d')
 
 
 def run_local():
