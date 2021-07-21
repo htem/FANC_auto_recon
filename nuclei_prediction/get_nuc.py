@@ -8,7 +8,7 @@ import csv
 from tqdm import tqdm
 import argparse
 
-from cloudvolume import CloudVolume, view
+from cloudvolume import CloudVolume, view, Bbox
 import cc3d
 from tifffile.tifffile import imwrite
 from taskqueue import TaskQueue, queueable, LocalTaskQueue
@@ -32,6 +32,7 @@ parser.add_argument('-l', '--lease', help='lease_seconds for TaskQueue.poll. spe
 parser.add_argument('-p', '--parallel', help='number of cpu cores for parallel processing. default is 12', default=12, type=int)
 parser.add_argument('-i', '--input', help='input the list of chunk numbers need recalculated again', type=validate_file)
 parser.add_argument('-x', '--xyz', help='You have the list of nuclei ID you want to try again? Use this one', type=validate_file)
+parser.add_argument('-c', '--choose', help='specify the numer of pixels randomly chosen to get segID of nuclei. default is all pixels inside each nucleus', default=0, type=int)
 args = parser.parse_args()
 
 start=args.start
@@ -39,6 +40,7 @@ lease=args.lease
 parallel_cpu=args.parallel
 file_input=args.input
 xyz_input=args.xyz
+choose=args.choose
 
 if (file_input is not None) & (xyz_input is not None):
     print("Error: Choose either --input or --xyz")
@@ -63,6 +65,15 @@ nuclei_cv = CloudVolume(
     bounded=False
 )
 
+np.random.seed(123)
+
+x_thres = 33-10 # 50/(4.3*2^4/45) = 50/1.53
+y_thres = 33-10
+z_thres = 50-10
+
+connectivity = 26
+
+# calculate chunks
 [X,Y,Z]=cv.mip_volume_size(0)
 
 step_xy = 128*2**4 # width of each chunk = x or y space between each chunk center in mip0
@@ -94,24 +105,21 @@ else:
 chunk_center = np.array(np.meshgrid(centerX, centerY, centerZ), dtype='int64').T.reshape(-1,3)
 len(chunk_center)
 
-x_thres = 33-10 # 50/(4.3*2^4/45) = 50/1.53
-y_thres = 33-10
-z_thres = 50-10
 
-connectivity = 26
+def mip4_to_mip0(x,y,z):
+    origin = nuclei.bounds.minpt # 3072,5248,1792
+    xyz_mip4 = np.add(np.array([x,y,z]), origin)
+    xyz_mip0 = np.array([(xyz_mip4[0] * 2**4),(xyz_mip4[1] * 2**4), xyz_mip4[2]])
+    xyz_mip0 = xyz_mip0.astype('int64')
+
+    return xyz_mip0[0], xyz_mip0[1], xyz_mip0[2]
 
 
-def mybbox(img):
 
-    x = np.any(img, axis=(1, 2))
-    y = np.any(img, axis=(0, 2))
-    z = np.any(img, axis=(0, 1))
-
-    xmin, xmax = np.where(x)[0][[0, -1]]
-    ymin, ymax = np.where(y)[0][[0, -1]]
-    zmin, zmax = np.where(z)[0][[0, -1]]
-
-    return xmin, xmax, ymin, ymax, zmin, zmax
+def mip4_to_mip0_array(array):
+    X, Y, Z = mip4_to_mip0(array[0], array[1], array[2])
+    result = np.array([X, Y, Z])
+    return result
 
 
 
@@ -138,41 +146,46 @@ def task_get_nuc(i):
         cc_out, N = cc3d.connected_components(mask_s, return_N=True, connectivity=connectivity) # free
 
         mylist=[]
-        for segid in range(1, N+1):
-            extracted_image = cc_out * (cc_out == segid)
-            bbox = mybbox(extracted_image)
-            mylist.append(bbox)
-
-        list2=[]
-        for segid in range(0, N):
-            xwidth = mylist[segid][1] - mylist[segid][0]
-            ywidth = mylist[segid][3] - mylist[segid][2]
-            zwidth = mylist[segid][5] - mylist[segid][4]
-            if xwidth >= x_thres and ywidth >= y_thres and zwidth >= z_thres:
-                center = ((mylist[segid][1] + mylist[segid][0])/2,
-                (mylist[segid][3] + mylist[segid][2])/2,
-                (mylist[segid][5] + mylist[segid][4])/2)
-                list2.append(center)
+        for j in range(1, N+1):
+            point_cloud = np.argwhere(cc_out == j)
+            bbx = Bbox.from_points(point_cloud)
+            if (bbx.size3()[0] >= x_thres) & (bbx.size3()[1] >= y_thres) & (bbx.size3()[2] >= z_thres):
+                mylist.append(np.append(bbx.center(), j))
             else:
                 pass
+        
+        arr = np.array(mylist)
 
-        if len(list2): # segIDs_from_pts_cv makes error is there is none in list2
-            origin = nuclei.bounds.minpt # 3072,5248,1792
-            cell_body_coordinates_mip4 = np.add(np.array(list2), origin)
-            cell_body_coordinates = cell_body_coordinates_mip4
-            cell_body_coordinates[:,0]  = (cell_body_coordinates_mip4[:,0] * 2**4)
-            cell_body_coordinates[:,1]  = (cell_body_coordinates_mip4[:,1] * 2**4)
-            cell_body_coordinates = cell_body_coordinates.astype('int64')
+        if len(mylist):
+            for segid in range(len(arr)):
+                center = mip4_to_mip0_array(arr[segid,:])
+                vinside_mip4 = np.argwhere(cc_out == int(arr[segid,3]))
+                vinside = np.apply_along_axis(mip4_to_mip0_array, 1, vinside_mip4)
 
-            # Lets get IDs using cell_body_coordinates
-            cell_body_IDs = IDlook.segIDs_from_pts_cv(pts=cell_body_coordinates, cv=seg, progress=False) #mip0
+                #random selection?
+                if choose == 0:
+                    location_random = vinside
+                else:
+                    index = np.random.choice(vinside.shape[0], size=choose, replace=False)
+                    location_random = vinside[index]
 
-            # save
-            # type(cell_body_coordinates.shape)
-            cord_pd = pd.DataFrame(cell_body_coordinates, columns=["x", "y", "z"])
-            temp = cord_pd
-            temp['segIDs'] = cell_body_IDs
-            output.append(temp)
+                # Lets get IDs using cell_body_coordinates
+                cell_body_IDs = IDlook.segIDs_from_pts_cv(pts=location_random, cv=seg, progress=False) #mip0
+
+                uniqueID, count = np.unique(cell_body_IDs, return_counts=True)
+                unsorted_max_indices = np.argpartition(-count, len(count))[:len(count)]
+                topIDs = uniqueID[unsorted_max_indices] 
+                topIDs2 = topIDs[~(topIDs == 0)] # no zero
+                topIDs2 = np.append(topIDs2, np.zeros(1, dtype = 'int64'))
+                nucID = topIDs2.astype('int64')[0]
+
+                # save
+                # type(cell_body_coordinates.shape)
+                cord_pd = pd.DataFrame(columns=["x", "y", "z"])
+                cord_pd.loc[0] = center
+                temp = cord_pd
+                temp['segIDs'] = nucID
+                output.append(temp)
 
         else:
             foo = np.zeros(3, dtype = 'int64')
@@ -190,9 +203,9 @@ def task_get_nuc(i):
         output_s
         name = str(i)
         if xyz_input is not None:
-            output_s.to_csv(outputpath + '/' + 'new_nuc_%s.csv' % name, index=False)
+            output_s.to_csv(outputpath + '/' + 'new_nuc_{}.csv'.format(name), index=False)
         else:
-            output_s.to_csv(outputpath + '/' + 'cellbody_cord_id_%s.csv' % name, index=False)
+            output_s.to_csv(outputpath + '/' + 'cellbody_cord_id_{}.csv'.format(name), index=False)
     except Exception as e:
         name=str(i)
         with open(outputpath + '/' + '{}.log'.format(name), 'w') as logfile:
