@@ -156,7 +156,7 @@ def task_get_nuc(i):
             for segid in range(len(arr)):
                 center = mip4_to_mip0_array(arr[segid,:], nuclei)
                 vinside_mip4 = np.argwhere(cc_out == int(arr[segid,3]))
-                vinside = np.apply_along_axis(mip4_to_mip0_array, 1, vinside_mip4)
+                vinside = np.apply_along_axis(mip4_to_mip0_array, 1, vinside_mip4, nuclei)
 
                 #random selection?
                 if choose == 0:
