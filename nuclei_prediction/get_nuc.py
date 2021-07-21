@@ -135,7 +135,7 @@ def task_get_nuc(i):
             xyz_mip4[0]  = (xyz_mip0.values[0] /(2**4))
             xyz_mip4[1]  = (xyz_mip0.values[1] /(2**4))
             xyz_mip4 = xyz_mip4.astype('int64')
-            nuclei = nuclei_cv.download_point(xyz_mip4, mip=[68.8,68.8,45.0], size=(128, 128, 256) )
+            nuclei = nuclei_cv.download_point(xyz_mip0, mip=[68.8,68.8,45.0], size=(128, 128, 256) )
         else:
             nuclei = nuclei_cv.download_point(chunk_center[i], mip=[68.8,68.8,45.0], size=(128, 128, 256) ) # mip0 and 4 only
 
@@ -173,10 +173,10 @@ def task_get_nuc(i):
                 cell_body_IDs = IDlook.segIDs_from_pts_cv(pts=location_random, cv=seg, progress=False) #mip0
 
                 uniqueID, count = np.unique(cell_body_IDs, return_counts=True)
-                unsorted_max_indices = np.argpartition(-count, len(count))[:len(count)]
+                unsorted_max_indices = np.argsort(-count)
                 topIDs = uniqueID[unsorted_max_indices] 
                 topIDs2 = topIDs[~(topIDs == 0)] # no zero
-                topIDs2 = np.append(topIDs2, np.zeros(1, dtype = 'int64'))
+                topIDs2 = np.append(topIDs2, np.zeros(1, dtype = 'uint64'))
                 nucID = topIDs2.astype('int64')[0]
 
                 # save
@@ -214,12 +214,15 @@ def task_get_nuc(i):
 
 def run_local():
     tq = LocalTaskQueue(parallel=parallel_cpu)
-    if file_input is None:
-        tq.insert(( partial(task_get_nuc, i) for i in range(start, len(chunk_center)) )) # NEW SCHOOL?
-    else:
+    if file_input is not None:
         with open(file_input) as fd:      
             txtdf = np.loadtxt(fd, dtype='int64')
             tq.insert( partial(task_get_nuc, i) for i in txtdf )
+    elif xyz_input is not None:
+        xyzdf = pd.read_csv(xyz_input, header=0)
+        tq.insert(( partial(task_get_nuc, i) for i in range(len(xyzdf)) ), parallel=parallel_cpu)
+    else:
+        tq.insert(( partial(task_get_nuc, i) for i in range(start, len(chunk_center)) )) # NEW SCHOOL?
 
     tq.execute(progress=True)
     print('Done')
@@ -234,7 +237,7 @@ def create_task_queue():
             print('Done adding {} tasks to queue at {}'.format(len(txtdf), queuepath))
     elif xyz_input is not None:
         xyzdf = pd.read_csv(xyz_input, header=0)
-        tq.insert(( partial(task_get_nuc, i) for i in len(xyzdf) ), parallel=parallel_cpu)
+        tq.insert(( partial(task_get_nuc, i) for i in range(len(xyzdf)) ), parallel=parallel_cpu)
         print('Done adding {} tasks to queue at {}'.format(len(xyzdf), queuepath))
     else:
         tq.insert(( partial(task_get_nuc, i) for i in range(len(chunk_center)) ), parallel=parallel_cpu) # NEW SCHOOL?

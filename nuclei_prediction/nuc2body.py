@@ -98,6 +98,7 @@ def task_nuc2body(i):
     else:
       seg_nuc = seg.download_point(pt=cord_mip2, segids=id, size=[size_xy, size_xy, 160], coord_resolution=[17.2, 17.2, 45.0])
       # lowest resolution of seg is [17.2, 17.2, 45.0]
+      # pt should be mip0??
       vol_temp = seg_nuc[:,:,:]
       vol_temp[vol_temp>0] = 1 # change segID assigned to each cell body into 1
       vol = np.squeeze(vol_temp)
@@ -133,11 +134,11 @@ def task_nuc2body(i):
 
         # save
         uniqueID, count = np.unique(parent_IDs, return_counts=True)
-        unsorted_max_indices = np.argpartition(-count, len(count))[:len(count)]
+        unsorted_max_indices = np.argsort(-count)
         topIDs = uniqueID[unsorted_max_indices] # gives me top5 IDs
         topIDs2 = topIDs[~(topIDs == id)] # I hope this keeps order, remove if same as nuclei id
         topIDs3 = topIDs2[~(topIDs2 == 0)] # no zero
-        topIDs3 = np.append(topIDs3, np.zeros(3, dtype = 'int64'))
+        topIDs3 = np.append(topIDs3, np.zeros(3, dtype = 'uint64'))
         A = np.append(cord_mip0.values, id).astype('int64')
         B = topIDs3.astype('int64')[0:3]
         output = np.append(A, B) #top3
