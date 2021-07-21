@@ -21,7 +21,7 @@ parser.add_argument('-i', '--index', help='provide index to read', type=validate
 parser.add_argument('-p', '--parallel', help='number of cpu cores for parallel processing. default is 12', default=12, type=int)
 args = parser.parse_args()
 
-input=args.index
+myinput=args.index
 parallel_cpu=args.parallel
 
 df = pd.read_csv('~/info_cellbody_20210721.csv', header=0)
@@ -35,9 +35,10 @@ def task_get_sv(i):
     try:
         sv = segcv.get_leaves(root_id=df.iloc[i,3], mip=2, bbox=segcv.mip_volume_size(0))
         svl = len(sv)
-        count.append(svl)
+        count.append([i,svl])
     except: #  Exception as e
         error.append(i)
+        count.append([i,0])
         # name=str(i)
         # with open(outputpath + '/' + '{}.log'.format(name), 'w') as logfile:
         #     print(e, file=logfile)
@@ -50,10 +51,10 @@ def task_get_sv(i):
 
 def run_local():
     tq = LocalTaskQueue(parallel=parallel_cpu)
-    if input is not None:
-        with open(input) as fd:      
-            txtdf = np.loadtxt(fd, dtype='int64')
-            tq.insert( partial(task_get_sv, i) for i in txtdf )
+    if myinput is not None:
+        with open(myinput) as fd:      
+            txtdf = np.loadtxt(fd, delimiter=',', dtype='int64')
+            tq.insert( partial(task_get_sv, txtdf[i]) for i in range(len(txtdf)) )
     else:
         tq.insert(( partial(task_get_sv, i) for i in range(len(df))))
 
