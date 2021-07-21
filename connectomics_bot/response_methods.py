@@ -17,7 +17,7 @@ from cloudvolume import CloudVolume
 
 
 # Primary response methods
-synapse_table = '/home/bmark/data/synapses.db'
+synapse_table = Path.home() / 'synapse_tables' / 'synapses.db'
 
 
 def get_upstream_partners(root_id,threshold=1):
