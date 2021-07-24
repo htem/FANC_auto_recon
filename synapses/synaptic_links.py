@@ -242,13 +242,57 @@ def to_ng_annotations(links, input_order='xyz', input_units=(1, 1, 1),
 
         
         
-## Methods for dealing with synapses
+## Methods for updating synapses
 
-def update_roots(source_file, cv, retry=True, max_tries=10, chunksize = 100000):
+def update_synapse_tables(csv_path=None, db_path=None, cv=None):
+    
+    if cv is None:
+        cv = authentication_utils.get_cv()
+    
+    if csv_path is not None:
+        update_synapse_csv(csv_path,cv)
+    
+    if db_path is not None and csv_path is not None:
+        update_synapse_db(db_path,csv_path)
+
+def update_synapse_db(synapse_db_fname,synapse_csv_fname):
+    
+    if isinstance(synapse_db,str):
+        synapse_db = Path(synapse_db)
+    elif isinstance(synapse_db, Path):
+        synapse_db = synapse_db  
+    else:
+        raise Exception('Wrong path format. Use string or pathlib.Path')
+        
+    temp_file = synapse_db.parent / '{}.db'.format(random.randint(111111,999999)) 
+    
+    con = sqlite3.connect(temp_file)
+    cur = con.cursor()
+
+    # Create table
+    cur.execute('''CREATE TABLE synapses
+                   (source text, post_pt text, pre_SV INTEGER, post_SV INTEGER, pre_pt text, pre_root INTEGER, post_root INTEGER)''')
+
+    # Insert a row of data
+
+    with open(synapse_csv_fname, 'r') as fin: # `with` statement available in 2.5+
+        # csv.DictReader uses first line in file for column headings by default
+        dr = csv.DictReader(fin) # comma is default delimiter
+        to_db = [(i['source'], i['post_pt'], i['pre_SV'], i['post_SV'], i['pre_pt'], i['pre_root'], i['post_root']) for i in dr]
+
+    cur.executemany("INSERT INTO synapses (source, post_pt, pre_SV, post_SV, pre_pt, pre_root, post_root) VALUES (?, ?, ?, ?, ?, ?, ?);", to_db)
+    con.commit()
+    con.close()
+    
+    os.replace(temp_file,synapse_db_fname)
+
+
+    
+def update_synapse_csv(synapse_csv_fname, cv, retry=True, max_tries=10, chunksize = 100000):
     ''' Update roots of a synapse table.
     
     args:
-    source_file: str, path to csv file containing synapses.
+    synapse_csv_fname: str, path to csv file containing synapses.
     cv:         CloudVolume object
     retry:      bool, If errors occur duriong lookup, retry failed chunk. Default = True
     max_tries:  int, number of tries for a given chunk before failing
@@ -260,7 +304,7 @@ def update_roots(source_file, cv, retry=True, max_tries=10, chunksize = 100000):
     temp = str(random.randint(111111,999999)) + '.csv'
     header = True
     idx = 0
-    for chunk in pd.read_csv(source_file, chunksize=chunksize):    
+    for chunk in pd.read_csv(synapse_csv_fname, chunksize=chunksize):    
         try:
             chunk.loc[:,'pre_root'] = rootID_lookup.get_roots(chunk.pre_SV.values,cv)
             chunk.loc[:,'post_root'] = rootID_lookup.get_roots(chunk.post_SV.values,cv)
@@ -288,7 +332,7 @@ def update_roots(source_file, cv, retry=True, max_tries=10, chunksize = 100000):
         
         header = False
         
-    os.replace(temp,source_file)
+    os.replace(temp,synapse_csv_fname)
     return 'Complete',None 
 
 
