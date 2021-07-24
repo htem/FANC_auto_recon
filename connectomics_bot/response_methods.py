@@ -17,7 +17,8 @@ from cloudvolume import CloudVolume
 
 
 # Primary response methods
-synapse_table = Path.home() / 'synapse_tables' / 'synapses.db'
+synapse_table = Path.home() / 'fanc_bot_data' / 'synapse_tables' / 'full_vnc_synapses.db'
+
 
 
 def get_upstream_partners(root_id,threshold=1):
