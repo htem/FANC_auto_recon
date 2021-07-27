@@ -47,62 +47,63 @@ if (file_input is not None) & (xyz_input is not None):
 else:
     pass
 
-# path
-queuepath = '/n/groups/htem/users/skuroda/nuclei_tasks4'
+#path
+queuepath = '/n/groups/htem/users/skuroda/nuclei_tasks'
 # queuepath = '../Output/nuclei_tasks'
-outputpath = '/n/groups/htem/users/skuroda/nuclei_output4'
+outputpath = '/n/groups/htem/users/skuroda/nuclei_output'
 # outputpath = '../Output'
 
-# variables
-np.random.seed(123)
-block_x = 256 # block size in mip4 (72x72x45)
-block_y = 256
-block_z = 256
-skip_y = block_y*288 # 73728, this will ignore y < skip_y
-thres_s = 0.5 # signal threshold, > thrreshold to generate nuclei_seg_cv=0.2
-thres_x = 33-10 # size threshold for xyz in mip4 (68.8x68.8x45)
-thres_y = 33-10 # 50/(4.3*2^4/45) = 50/1.53??
-thres_z = 50-10 
-connectivity = 26 # number of nearby voxels to look at for calculating connective components
-
-# could-volume url setting
-cv = CloudVolume(auth.get_cv_path('Image')['url'], use_https=True, agglomerate=False) # mip0
-seg = CloudVolume(auth.get_cv_path('FANC_production_segmentation')['url'], use_https=True, agglomerate=False, cache=False) # mip2
-nuclei_cv = CloudVolume( # mip4
-    auth.get_cv_path('nuclei_map_Jul2021')['url'],
+# cv setting
+cv = CloudVolume(auth.get_cv_path('Image')['url'], use_https=True, agglomerate=False)
+seg = CloudVolume(auth.get_cv_path('FANC_production_segmentation')['url'], use_https=True, agglomerate=False, cache=True)
+nuclei_cv = CloudVolume(
+    auth.get_cv_path('nuclei_map')['url'],
     progress=False,
-    cache=False, # to aviod conflicts with LocalTaskQueue
+    cache=False, # cache to disk to avoid repeated downloads
     use_https=True,
-    autocrop=True, # crop exceeded volumes of request
+    autocrop=True,
     bounded=False
 )
-nuclei_seg_cv = CloudVolume( # mip4
-    auth.get_cv_path('nuclei_seg_Jul2021')['url'],
-    cache=False,
-    use_https=True # this is precomputed so no need to specify agglomerate=False
-)
 
-# calculate blocks in mip0
-# cv.mip_volume_size(0)
-# Vec(83968,223232,4390, dtype=int64) in mip0 (4.3x4.3x45)
+np.random.seed(123)
 
-# first centers
-start_x = block_x*2**(4-1) + cv.bounds.minpt[0] # (block width)/2 + offset
-start_y = block_y*2**(4-1) + cv.bounds.minpt[1]
-start_z = block_z*2**(-1) + cv.bounds.minpt[2] 
+x_thres = 33-10 # 50/(4.3*2^4/45) = 50/1.53
+y_thres = 33-10
+z_thres = 50-10
 
-# array of block centers
-centerX = np.arange(start_x, cv.bounds.maxpt[0], block_x)
-centerY = np.arange(start_y + skip_y, cv.bounds.maxpt[1], block_y)
-centerZ = np.arange(start_z, cv.bounds.maxpt[2], block_z)
+connectivity = 26
 
-# cover the final block but keep the size of each block same
-centerX = np.arange(start_x, cv.bounds.maxpt[0], block_x*2**4)
-centerY = np.arange(start_y + skip_y, cv.bounds.maxpt[1], block_y*2**4)
-centerZ = np.arange(start_z, cv.bounds.maxpt[2], block_z)
+# calculate chunks
+[X,Y,Z]=cv.mip_volume_size(0)
 
-block_centers = np.array(np.meshgrid(centerX, centerY, centerZ), dtype='int64').T.reshape(-1,3)
-len(block_centers)
+step_xy = 128*2**4 # width of each chunk = x or y space between each chunk center in mip0
+step_z = 256 # depth of each chunk = z space between each chunk center in mip0
+
+start_x = 128*2**(4-1) # first chunk center
+start_y = 128*2**(4-1) + 73728 # step_xy*36=73728
+start_z = 256*2**(-1) +10  # 10 is offset
+
+centerX = np.arange(start_x, X, step_xy)
+centerY = np.arange(start_y, Y, step_xy)
+centerZ = np.arange(start_z, Z, step_z)
+
+if (X - centerX[-1]) < start_x:
+    np.put(centerX, -1, X-start_x)
+else:
+    centerX = np.append(centerX, X-start_x)
+
+if (Y - centerY[-1]) < start_y:
+    np.put(centerY, -1, Y-start_y)
+else:
+    centerY = np.append(centerY, Y-start_y)
+
+if (Z - centerZ[-1]) < start_z:
+    np.put(centerZ, -1, Z-start_z)
+else:
+    centerZ = np.append(centerZ, Z-start_z)
+
+chunk_center = np.array(np.meshgrid(centerX, centerY, centerZ), dtype='int64').T.reshape(-1,3)
+len(chunk_center)
 
 
 def mip4_to_mip0(x,y,z, img):
@@ -114,97 +115,17 @@ def mip4_to_mip0(x,y,z, img):
     return xyz_mip0[0], xyz_mip0[1], xyz_mip0[2]
 
 
+
 def mip4_to_mip0_array(array, img):
     X, Y, Z = mip4_to_mip0(array[0], array[1], array[2], img)
     result = np.array([X, Y, Z])
     return result
 
 
-@queueable
-def task_get_nuc_bbox(i): # use i = 7817 for test, close to [7953 118101 2584]
-    try:
-        output=[]
-        if xyz_input is not None:
-            xyzdf = pd.read_csv(xyz_input, header=0)
-            xyz_mip0 = xyzdf.iloc[i,0:3] #xyz coordinates
-            nuclei = nuclei_cv.download_point(xyz_mip0, mip=[68.8,68.8,45.0], size=(block_x, block_y, block_z) )
-        else:
-            nuclei = nuclei_cv.download_point(block_centers[i], mip=[68.8,68.8,45.0], size=(block_x, block_y, block_z) ) # mip0 and 4 only
-
-        mask_temp = nuclei[:,:,:]
-        mask = np.where(mask_temp > thres_s, 1, 0)
-        masked = np.squeeze(mask)
-
-        cc_out, N = cc3d.connected_components(masked, return_N=True, connectivity=connectivity)
-
-        mylist=[]
-        for j in range(1, N+1):
-            point_cloud = np.argwhere(cc_out == j)
-            bbx = Bbox.from_points(point_cloud)
-            mylist.append(np.append([j], [bbx.center(), bbx.minpt, bbx.maxpt]))
-
-        arr = np.array(mylist) # [center id, center location, bbox min, bbox max] all in mip4
-
-        if len(arr):
-            for obj in range(len(arr)):
-                center = mip4_to_mip0_array(arr[obj,:], nuclei)
-                vinside_mip4 = np.argwhere(cc_out == int(arr[obj,3]))
-                vinside = np.apply_along_axis(mip4_to_mip0_array, 1, vinside_mip4, nuclei)
-
-                #random selection?
-                if choose == 0:
-                    location_random = vinside
-                else:
-                    index = np.random.choice(vinside.shape[0], size=choose, replace=False)
-                    location_random = vinside[index]
-
-                # Lets get IDs using cell_body_coordinates
-                cell_body_IDs = IDlook.segIDs_from_pts_cv(pts=location_random, cv=seg, progress=False) #mip0
-
-                uniqueID, count = np.unique(cell_body_IDs, return_counts=True)
-                unsorted_max_indices = np.argsort(-count)
-                topIDs = uniqueID[unsorted_max_indices] 
-                topIDs2 = topIDs[~(topIDs == 0)] # no zero
-                topIDs2 = np.append(topIDs2, np.zeros(1, dtype = 'uint64'))
-                nucID = topIDs2.astype('int64')[0]
-
-                # save
-                # type(cell_body_coordinates.shape)
-                cord_pd = pd.DataFrame(columns=["x", "y", "z"])
-                cord_pd.loc[0] = center
-                temp = cord_pd
-                temp['segIDs'] = nucID
-                output.append(temp)
-
-        else:
-            foo = np.zeros(5, dtype = 'int64')
-
-            foo = np.zeros(3, dtype = 'int64')
-            bar = np.zeros(1, dtype = 'int64')
-
-            cord_pd = pd.DataFrame(columns=["x", "y", "z"])
-            cord_pd.loc[0] = foo
-            temp = cord_pd
-            temp['segIDs'] = bar
-            output.append(temp)
-
-        output_appended = pd.concat(output)
-        output_appended
-        output_s = output_appended.drop_duplicates(keep='first', subset='segIDs')
-        output_s
-        name = str(i)
-        if xyz_input is not None:
-            output_s.to_csv(outputpath + '/' + 'new_nuc_{}.csv'.format(name), index=False)
-        else:
-            output_s.to_csv(outputpath + '/' + 'cellbody_cord_id_{}.csv'.format(name), index=False)
-    except Exception as e:
-        name=str(i)
-        with open(outputpath + '/' + '{}.log'.format(name), 'w') as logfile:
-            print(e, file=logfile)
 
 
 @queueable
-def task_get_nuc_id(i):
+def task_get_nuc(i):
     try:
         output=[]
         if xyz_input is not None:
@@ -212,7 +133,7 @@ def task_get_nuc_id(i):
             xyz_mip0 = xyzdf.iloc[i,0:3] #xyz coordinates
             nuclei = nuclei_cv.download_point(xyz_mip0, mip=[68.8,68.8,45.0], size=(128, 128, 256) )
         else:
-            nuclei = nuclei_cv.download_point(block_centers[i], mip=[68.8,68.8,45.0], size=(128, 128, 256) ) # mip0 and 4 only
+            nuclei = nuclei_cv.download_point(chunk_center[i], mip=[68.8,68.8,45.0], size=(128, 128, 256) ) # mip0 and 4 only
 
         mask_temp = nuclei[:,:,:]
         mask = np.where(mask_temp > 0.5, 1, 0)
@@ -287,17 +208,17 @@ def task_get_nuc_id(i):
             print(e, file=logfile)
 
 
-def run_local(): # recommended
+def run_local():
     tq = LocalTaskQueue(parallel=parallel_cpu)
     if file_input is not None:
         with open(file_input) as fd:      
             txtdf = np.loadtxt(fd, dtype='int64')
-            tq.insert( partial(task_get_nuc_id, i) for i in txtdf )
+            tq.insert( partial(task_get_nuc, i) for i in txtdf )
     elif xyz_input is not None:
         xyzdf = pd.read_csv(xyz_input, header=0)
-        tq.insert(( partial(task_get_nuc_id, i) for i in range(len(xyzdf)) ), parallel=parallel_cpu)
+        tq.insert(( partial(task_get_nuc, i) for i in range(len(xyzdf)) ), parallel=parallel_cpu)
     else:
-        tq.insert(( partial(task_get_nuc_id, i) for i in range(start, len(block_centers)) )) # NEW SCHOOL?
+        tq.insert(( partial(task_get_nuc, i) for i in range(start, len(chunk_center)) )) # NEW SCHOOL?
 
     tq.execute(progress=True)
     print('Done')
@@ -308,15 +229,15 @@ def create_task_queue():
     if file_input is not None:
         with open(file_input) as fd:      
             txtdf = np.loadtxt(fd, dtype='int64')
-            tq.insert(( partial(task_get_nuc_id, i) for i in txtdf ), parallel=parallel_cpu)
+            tq.insert(( partial(task_get_nuc, i) for i in txtdf ), parallel=parallel_cpu)
             print('Done adding {} tasks to queue at {}'.format(len(txtdf), queuepath))
     elif xyz_input is not None:
         xyzdf = pd.read_csv(xyz_input, header=0)
-        tq.insert(( partial(task_get_nuc_id, i) for i in range(len(xyzdf)) ), parallel=parallel_cpu)
+        tq.insert(( partial(task_get_nuc, i) for i in range(len(xyzdf)) ), parallel=parallel_cpu)
         print('Done adding {} tasks to queue at {}'.format(len(xyzdf), queuepath))
     else:
-        tq.insert(( partial(task_get_nuc_id, i) for i in range(len(block_centers)) ), parallel=parallel_cpu) # NEW SCHOOL?
-        print('Done adding {} tasks to queue at {}'.format(len(block_centers), queuepath))
+        tq.insert(( partial(task_get_nuc, i) for i in range(len(chunk_center)) ), parallel=parallel_cpu) # NEW SCHOOL?
+        print('Done adding {} tasks to queue at {}'.format(len(chunk_center), queuepath))
         
     tq.rezero()
 

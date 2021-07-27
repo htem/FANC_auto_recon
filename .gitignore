@@ -6,8 +6,11 @@
 # virtual environment
 nuclei/
 
-# output for checking
+# output
 Output/
+
+# personal json file
+segmentations.json
 
 # User-specific files
 *.suo
