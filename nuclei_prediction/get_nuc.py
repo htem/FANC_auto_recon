@@ -143,22 +143,23 @@ def task_get_nuc_bbox(i): # use i = 7817 for test, close to [7953 118101 2584]
             bbx = Bbox.from_points(point_cloud)
             mylist.append(np.append([j], [bbx.center(), bbx.minpt, bbx.maxpt]))
 
-        arr = np.array(mylist) # [center id, center location, bbox min, bbox max] all in mip4
+        arr = np.array(mylist) # [cc id, center location, bbox min, bbox max] all in mip4
+        arr2 = arr.copy()
 
         if len(arr):
             for obj in range(len(arr)):
-                center = mip4_to_mip0_array(arr[obj,:], nuclei)
-                vinside_mip4 = np.argwhere(cc_out == int(arr[obj,3]))
+                center = mip4_to_mip0_array(arr[obj,1:4], nuclei)
+                vinside_mip4 = np.argwhere(cc_out == int(arr[obj,0]))
                 vinside = np.apply_along_axis(mip4_to_mip0_array, 1, vinside_mip4, nuclei)
 
-                #random selection?
+                # random selection
                 if choose == 0:
                     location_random = vinside
                 else:
                     index = np.random.choice(vinside.shape[0], size=choose, replace=False)
                     location_random = vinside[index]
 
-                # Lets get IDs using cell_body_coordinates
+                # retrieve segIDs
                 cell_body_IDs = IDlook.segIDs_from_pts_cv(pts=location_random, cv=seg, progress=False) #mip0
 
                 uniqueID, count = np.unique(cell_body_IDs, return_counts=True)
