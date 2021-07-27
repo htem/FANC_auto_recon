@@ -199,8 +199,11 @@ def segIDs_from_pts_cv(pts,
     root or supervoxel ids for queried coordinates as int64
     '''
     
-    if cv.agglomerate is True:
-        cv.agglomerate = False
+    try:
+        if hasattr(cv, 'agglomerate'):
+            cv.agglomerate = False
+    except AttributeError:
+        pass
     
     #Reshape from list entries if dataframe column is passed
     if isinstance(pts,pd.Series): 
