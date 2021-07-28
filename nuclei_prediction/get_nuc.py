@@ -94,21 +94,21 @@ start_y = block_y*2**(4-1) + cv.bounds.minpt[1]
 start_z = block_z*2**(-1) + cv.bounds.minpt[2] 
 
 # array of block centers
-centerX = np.arange(start_x, cv.bounds.maxpt[0], block_x)
-centerY = np.arange(start_y + skip_y, cv.bounds.maxpt[1], block_y)
-centerZ = np.arange(start_z, cv.bounds.maxpt[2], block_z)
-
-# cover the final block but keep the size of each block same
 centerX = np.arange(start_x, cv.bounds.maxpt[0], block_x*2**4)
 centerY = np.arange(start_y + skip_y, cv.bounds.maxpt[1], block_y*2**4)
 centerZ = np.arange(start_z, cv.bounds.maxpt[2], block_z)
+
+# cover the final block but keep the size of each block same
+centerX = np.append(centerX, cv.bounds.maxpt[0]-start_x)
+centerY = np.append(centerY, cv.bounds.maxpt[1]-start_y)
+centerZ = np.append(centerZ, cv.bounds.maxpt[2]-start_z)
 
 block_centers = np.array(np.meshgrid(centerX, centerY, centerZ), dtype='int64').T.reshape(-1,3)
 len(block_centers)
 
 
 def mip4_to_mip0(x,y,z, img):
-    origin = img.bounds.minpt # 3072,5248,1792
+    origin = img.bounds.minpt
     xyz_mip4 = np.add(np.array([x,y,z]), origin)
     xyz_mip0 = np.array([(xyz_mip4[0] * 2**4),(xyz_mip4[1] * 2**4), xyz_mip4[2]])
     xyz_mip0 = xyz_mip0.astype('int64')
@@ -146,6 +146,10 @@ def merge_bbox(array, xminpt=4, xmaxpt=7, row_saved=0):
 
     return out
 
+# def merge_within_block(i):
+# def merge_between_block(i):
+
+
 
 @queueable
 def task_get_nuc_info(i): # use i = 7817 for test, close to [7953 118101 2584]
@@ -182,7 +186,6 @@ def task_get_nuc_info(i): # use i = 7817 for test, close to [7953 118101 2584]
                     lrandom = vinside[index]
                 else:
                     lrandom = vinside
-                    
 
                 lrandom_mip0 = np.apply_along_axis(mip4_to_mip0_array, 1, lrandom, nuclei)
                 lrandom_mip4 = lrandom + nuclei.bounds.minpt
