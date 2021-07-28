@@ -174,9 +174,9 @@ def task_get_nuc_info(i): # use i = 7817 for test, close to [7953 118101 2584]
             mylist.append(np.append([j], [bbx.center(), bbx.minpt, bbx.maxpt]))
 
         arr = np.array(mylist) # [cc id, center location, bbox min, bbox max] all in mip4
-        arr2 = np.hstack((arr.copy().astype('int64'), np.zeros((arr.shape[0],2), dtype='int64'))) # array to store output
 
         if len(arr):
+            arr2 = np.hstack((arr.copy().astype('int64'), np.zeros((arr.shape[0],2), dtype='int64'))) # array to store output
             for obj in range(len(arr)):
                 center_mip0 = mip4_to_mip0_array(arr[obj,1:4], nuclei)
                 vinside = np.argwhere(cc_out == int(arr[obj,0]))
