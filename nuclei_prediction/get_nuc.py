@@ -199,14 +199,16 @@ def task_get_nuc_info(i): # use i = 7817 for test, close to [7953 118101 2584]
                     nucIDs_list.append(np.squeeze(nucID_temp))
                 nucID = find_most_frequent_ID(np.array(nucIDs_list, dtype='int64'))
 
-                arr2[obj,1:4] = center_mip0
-                arr2[obj,10] = nuc_segID
-                arr2[obj,11] = nucID
+                arr2[obj,1:4] = center_mip0 # change xyz from mip4 to mip0
+                arr2[obj,10] = nuc_segID # insert
+                arr2[obj,11] = nucID # insert
+                arr2[obj,0] = i # no longer need ccid
 
         else:
             arr2 = np.zeros(12, dtype = 'int64')
+            arr2[0] = i
 
-        arr2[:,0] = i # [block id, center location in mip0, bbox min, bbox max, nuc_segid, nucid] in int64
+        # arr2 has [block id, center location in mip0, bbox min, bbox max, nuc_segid, nucid] in int64
         x = arr2.astype(np.int64)
         if xyz_input is not None:
             x.tofile(outputpath + '/' + 'new_block_{}.bin'.format(str(i)))
