@@ -345,7 +345,7 @@ def run_local(cmd, count_data=False): # recommended
         else:
             tq.insert(( partial(func, i, clist=clist) for i in range(start, len(block_centers)) ))
         if count_data == True:
-            tq.insert(partial(save_count_data, clist, func, func.split('_', 1)))
+            tq.insert(partial(save_count_data, clist, func, cmd.split('_', 1)[1]))
     elif func == task_merge_across_bbox:
         nuc_data_out = [] # store output
         skipped = [] # store skipped IDs
@@ -367,12 +367,13 @@ def run_local(cmd, count_data=False): # recommended
             tq.insert( partial(func, n, nuc_data_out, skipped, r) for n in nucID_duplicated_across)
             tq.insert(partial(save_skipped, skipped, 'skipped'))
             if count_data == True:
-                tq.insert(partial(save_count_data, c_across, func, func.split('_', 1))) # save count_data
+                tq.insert(partial(save_count_data, c_across, func, cmd.split('_', 1)[1])) # save count_data
         tq.insert(partial(array_to_csv, (np.array(nuc_data_out)), row_nochange, merged_product, xyz_input))
     else: # task_apply_size_threshold
         previous_df = pd.read_csv(outputpath + '/' + '{}.csv'.format(merged_product), header=0)
         # tq inset
         # save
+        # duplicate de error
 
     tq.execute(progress=True)
     print('Done')
