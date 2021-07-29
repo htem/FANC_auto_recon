@@ -32,7 +32,7 @@ parser.add_argument('-s', '--start', help='specify starting chunk. default is 0'
 parser.add_argument('-l', '--lease', help='lease_seconds for TaskQueue.poll. specify in seconds. default is 1800sec', default=1800, type=int)
 parser.add_argument('-p', '--parallel', help='number of cpu cores for parallel processing. default is 12', default=12, type=int)
 parser.add_argument('-i', '--input', help='input the list of chunk numbers need recalculated again', type=validate_file)
-parser.add_argument('-x', '--xyz', help='You have the list of nuclei ID you want to try again? Use this one', type=validate_file)
+parser.add_argument('-x', '--xyz', help='You have the list of nuclei info you want to try again? Use this one', type=validate_file)
 parser.add_argument('-c', '--choose', help='specify the numer of pixels randomly chosen to get segID of nuclei. default is all pixels inside each nucleus', type=int)
 args = parser.parse_args()
 
@@ -152,7 +152,7 @@ def task_get_nuc_info(i): # use i = 7817 for test, close to [7953 118101 2584]
     try:
         if xyz_input is not None:
             xyzdf = pd.read_csv(xyz_input, header=0)
-            xyz_mip0 = xyzdf.iloc[i,0:3] #xyz coordinates
+            xyz_mip0 = xyzdf.iloc[i,1:4] #xyz coordinates
             nuclei = nuclei_cv.download_point(xyz_mip0, mip=[68.8,68.8,45.0], size=(block_x, block_y, block_z) )
         else:
             nuclei = nuclei_cv.download_point(block_centers[i], mip=[68.8,68.8,45.0], size=(block_x, block_y, block_z) ) # download_point uses mip0 for pt
@@ -245,17 +245,138 @@ def task_merge_within_bbox(i, clist):
         else:
             y_out.tofile(outputpath + '/' + 'block2_{}.bin'.format(str(i)))
     except Exception as e:
-        with open(outputpath + '/' + '2_{}.log'.format(str(i)), 'w') as logfile:
+        with open(outputpath + '/' + 'within_{}.log'.format(str(i)), 'w') as logfile:
             print(e, file=logfile)
 
 
 @queueable
-def save_count_data(list_input, cmd):
+def save_count_data(list_input, func):
+    array_input = np.array(list_input, dtype='int64').flatten()
+    sorted = np.sort(array_input)[::-1]
+    if func == task_merge_within_bbox:
+        sorted = sorted[0:len(array_input) - 1 - len(block_centers)] # every block stil has np.zeros(12) in task_merge_within_bbox
+    np.savetxt(outputpath + '/' + 'count_{}.txt'.format(func.split('_', 1)), sorted)
+
+
+@queueable
+def task_merge_across_bbox(input):
+    try:
+        y = np.fromfile(outputpath + '/' + 'block_{}.bin'.format(str(i)), dtype=np.int64) # y has [block id, center location in mip0, bbox min, bbox max, nuc_segid, nucid] in int64
+        if y.ndim == 1: # only one row
+            c = 1
+            y2 = y
+        else: # more than two rows
+            u, c = np.unique(y[:,11], return_counts=True)
+            nucID_duplicated = u[c > 1]
+            if len(nucID_duplicated):
+                merged=[]
+                for dup in range(len(nucID_duplicated)):
+                    foo = y[(y[:,11] == nucID_duplicated[dup])]
+                    bar = merge_bbox(foo)
+                    merged.append(bar)
+
+                y2 = np.vstack((np.array(merged), y[(y[:,11] == u[c == 1])]))
+            else:
+                y2 = y
+
+        # y2 still has [block id, center location in mip0, bbox min, bbox max, nuc_segid, nucid] in int64
+        y_out = y2.astype(np.int64)
+        clist.append(c)
+        if xyz_input is not None:
+            y_out.tofile(outputpath + '/' + 'new_block2_{}.bin'.format(str(i)))
+        else:
+            y_out.tofile(outputpath + '/' + 'block2_{}.bin'.format(str(i)))
+    except Exception as e:
+        with open(outputpath + '/' + 'across_{}.log'.format(str(i)), 'w') as logfile:
+            print(e, file=logfile)
+    try:
+        if xyz_input is not None:
+            xyzdf = pd.read_csv(xyz_input, header=0)
+            xyz_mip0 = xyzdf.iloc[i,0:3] #xyz coordinates
+            nuclei = nuclei_cv.download_point(xyz_mip0, mip=[68.8,68.8,45.0], size=(block_x, block_y, block_z) )
+        else:
+            nuclei = nuclei_cv.download_point(block_centers[i], mip=[68.8,68.8,45.0], size=(block_x, block_y, block_z) ) # download_point uses mip0 for pt
+
+        mask_temp = nuclei[:,:,:]
+        mask = np.where(mask_temp > thres_s, 1, 0)
+        masked = np.squeeze(mask)
+
+        cc_out, N = cc3d.connected_components(masked, return_N=True, connectivity=connectivity)
+
+        mylist=[]
+        for j in range(1, N+1):
+            point_cloud = np.argwhere(cc_out == j)
+            bbx = Bbox.from_points(point_cloud)
+            mylist.append(np.append([j], [bbx.center(), bbx.minpt, bbx.maxpt]))
+
+        mylist.append(np.zeros(10)) # convert 1D to 2D
+        arr = np.array(mylist) # [cc id, center location, bbox min, bbox max] all in mip4
+
+        if arr.ndim == 2:
+            arr2 = np.hstack((arr.copy().astype('int64'), np.zeros((arr.shape[0],2), dtype='int64'))) # array to store output
+            for obj in range(N):
+                center_mip0 = mip4_to_mip0_array(arr[obj,1:4], nuclei)
+                vinside = np.argwhere(cc_out == int(arr[obj,0]))
+
+                if choose is not None: # random selection
+                    index = np.random.choice(vinside.shape[0], size=min(len(vinside), choose), replace=False)
+                    lrandom = vinside[index]
+                else:
+                    lrandom = vinside
+
+                lrandom_mip0 = np.apply_along_axis(mip4_to_mip0_array, 1, lrandom, nuclei)
+                lrandom_mip4 = lrandom + nuclei.bounds.minpt
+
+                segIDs = IDlook.segIDs_from_pts_cv(pts=lrandom_mip0, cv=seg, progress=False) # segIDs_from_pts_cv uses mip0 for pt
+                nuc_segID = find_most_frequent_ID(segIDs)
+
+                nucIDs_list = []
+                for k in range(len(lrandom_mip4)):
+                    nucID_temp = nuclei_seg_cv.download_point(lrandom_mip4[k], mip=[68.8,68.8,45.0], size=(1, 1, 1) ) # download_point uses mip4 for pt
+                    nucIDs_list.append(np.squeeze(nucID_temp))
+                nucID = find_most_frequent_ID(np.array(nucIDs_list, dtype='int64'))
+
+                arr2[obj,1:4] = center_mip0 # change xyz from mip4 to mip0
+                arr2[obj,10] = nuc_segID # insert
+                arr2[obj,11] = nucID # insert
+                arr2[obj,0] = i # no longer need ccid
+
+        else:
+            arr2 = np.zeros(12, dtype = 'int64')
+            arr2[0] = i
+
+        # arr2 has [block id, center location in mip0, bbox min, bbox max, nuc_segid, nucid] in int64
+        x = arr2.astype(np.int64)
+        if xyz_input is not None:
+            x.tofile(outputpath + '/' + 'new_block_{}.bin'.format(str(i)))
+        else:
+            x.tofile(outputpath + '/' + 'block_{}.bin'.format(str(i)))
+    except Exception as e:
+        with open(outputpath + '/' + '{}.log'.format(str(i)), 'w') as logfile:
+            print(e, file=logfile)
+
+
+@queueable
+def array_to_csv(array_withchange, array_nochange, name, xyz_input): # name
+    if xyz_input is not None:
+        previous_df = pd.read_csv(outputpath + '/' + '{}.csv'.format(str(name), header=0))
+        new_df = pd.DatFrame(array_withchange)
+        df = pd.concat([previous_df, new_df])
+    else:
+        stacked  = np.vstack(array_withchange, array_nochange)
+        df = pd.DatFrame(stacked)
+    df.to_csv(outputpath + '/' + '{}.csv'.format(str(name)), index=False)
+
+
+@queueable
+def task_apply_size_threshold(array, func):
     array_input = np.array(list_input, dtype='int64').flatten()
     sorted = np.sort(array_input)[::-1]
     if cmd == task_merge_within_bbox:
         sorted = sorted[0:len(array_input) - 1 - len(block_centers)] # every block stil has np.zeros(12)
     np.savetxt(outputpath + '/' + 'count_{}.txt'.format(cmd.split('_', 1)), sorted)
+        a  = np.vstack((np.array(nuc_data_out), r[(r[:,11] == u_across[c_across == 1])]))
+        # save csv as one single file
 
 
 def run_local(cmd, count_data=False): # recommended
@@ -272,11 +393,11 @@ def run_local(cmd, count_data=False): # recommended
                 tq.insert( partial(func, i) for i in txtdf )
         elif xyz_input is not None:
             xyzdf = pd.read_csv(xyz_input, header=0)
-            tq.insert(( partial(func, i) for i in range(len(xyzdf)) ), parallel=parallel_cpu)
+            tq.insert(( partial(func, i) for i in range(len(xyzdf)) ))
         else:
             tq.insert(( partial(func, i) for i in range(start, len(block_centers)) )) # NEW SCHOOL
     elif func == task_merge_within_bbox:
-        clist=[]
+        clist=[] # save count_data
         if file_input is not None:
             with open(file_input) as fd:      
                 txtdf = np.loadtxt(fd, dtype='int64')
@@ -284,12 +405,27 @@ def run_local(cmd, count_data=False): # recommended
         else:
             tq.insert(( partial(func, i, clist=clist) for i in range(start, len(block_centers)) ))
         if count_data == True:
-            tq.insert(partial(save_count_data, clist, func)) # save count_data
+            tq.insert(partial(save_count_data, clist, func))
     elif func == task_merge_across_bbox:
-        pass
-        # nuc_data = []
-        # z = np.fromfile(outputpath + '/' + 'block2_{}.bin'.format(str(i)), dtype=np.int64) # y has [block id, center location in mip0, bbox min, bbox max, nuc_segid, nucid] in int64
-        # reomve all zero rows
+        if xyz_input is not None:
+            xyzdf = pd.read_csv(xyz_input, header=0)
+            row_nochange = np.zeros(12,dtype='int64')
+            tq.insert(( partial(func, n) for n in range(len(xyzdf)) ))
+        else:
+            nuc_data = [] # store input
+            nuc_data_out = [] # store output
+            for ii in range(len(block_centers)):
+                z = np.fromfile(outputpath + '/' + 'block2_{}.bin'.format(str(ii)), dtype=np.int64) # z has [block id, center location in mip0, bbox min, bbox max, nuc_segid, nucid] in int64
+                nuc_data.append(z)
+            r = np.array(z)
+            r2 = r[~np.all(r == 0, axis=1)] # reomve all zero rows
+            u_across, c_across = np.unique(r2[:,11], return_counts=True)
+            nucID_duplicated_across = u_across[c_across > 1]
+            row_nochange = r[(r[:,11] == u_across[c_across == 1])]
+            tq.insert( partial(func, n, nuc_data_out) for n in nucID_duplicated_across)
+            if count_data == True:
+                tq.insert(partial(save_count_data, c_across, func)) # save count_data
+        tq.insert(partial(array_to_csv, (np.array(nuc_data_out)), row_nochange, 'merged', xyz_input))
     else: # task_apply_size_threshold
         pass
 
