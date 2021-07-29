@@ -224,22 +224,23 @@ def task_get_nuc_info(i): # use i = 7817 for test, close to [7953 118101 2584]
 def task_merge_within_bbox(i, clist):
     try:
         y = np.fromfile(outputpath + '/' + 'block_{}.bin'.format(str(i)), dtype=np.int64) # y has [block id, center location in mip0, bbox min, bbox max, nuc_segid, nucid] in int64
-        if y.ndim == 1: # only one row
+        y1 = y.reshape(int(len(y)/12),12)
+        if y1.ndim == 1: # only one row
             c = 1
-            y2 = y
+            y2 = y1
         else: # more than two rows
-            u, c = np.unique(y[:,11], return_counts=True)
+            u, c = np.unique(y1[:,11], return_counts=True)
             nucID_duplicated = u[c > 1]
             if len(nucID_duplicated):
                 merged=[]
                 for dup in range(len(nucID_duplicated)):
-                    foo = y[(y[:,11] == nucID_duplicated[dup])]
+                    foo = y1[(y1[:,11] == nucID_duplicated[dup])]
                     bar = merge_bbox(foo)
                     merged.append(bar)
 
-                y2 = np.vstack((np.array(merged), y[(y[:,11] == u[c == 1])]))
+                y2 = np.vstack((np.array(merged), y1[(y1[:,11] == u[c == 1])]))
             else:
-                y2 = y
+                y2 = y1
 
         # y2 still has [block id, center location in mip0, bbox min, bbox max, nuc_segid, nucid] in int64
         y_out = y2.astype(np.int64)
@@ -358,8 +359,8 @@ def run_local(cmd, count_data=False): # recommended
             nuc_data = [] # store input
             for ii in range(len(block_centers)):
                 z = np.fromfile(outputpath + '/' + 'block2_{}.bin'.format(str(ii)), dtype=np.int64) # z has [block id, center location in mip0, bbox min, bbox max, nuc_segid, nucid] in int64
-                nuc_data.append(z)
-            r = np.array(z)
+                nuc_data.append(z.reshape(int(len(z)/12),12))
+            r = np.array(nuc_data, dtype='int64')
             r2 = r[~np.all(r == 0, axis=1)] # reomve all zero rows
             u_across, c_across = np.unique(r2[:,11], return_counts=True)
             nucID_duplicated_across = u_across[c_across > 1]
