@@ -238,7 +238,7 @@ def task_merge_within_bbox(i, clist):
                     bar = merge_bbox(foo)
                     merged.append(bar)
 
-                y2 = np.vstack((np.array(merged), y1[(y1[:,11] == u[c == 1])]))
+                y2 = np.vstack((np.array(merged), y1[np.isin(y1[:,11], u[c == 1])]))
             else:
                 y2 = y1
 
@@ -317,7 +317,8 @@ def save_skipped(list_input, name):
 #     if cmd == task_merge_within_bbox:
 #         sorted = sorted[0:len(array_input) - 1 - len(block_centers)] # every block stil has np.zeros(12)
 #     np.savetxt(outputpath + '/' + 'count_{}.txt'.format(cmd.split('_', 1)), sorted)
-#     a  = np.vstack((np.array(nuc_data_out), r[(r[:,11] == u_across[c_across == 1])])) # save csv as one single file
+#     a  = np.vstack((np.array(nuc_data_out), rnochange])) # save csv as one single file
+#     duplicate segID exist
 
 
 def run_local(cmd, count_data=False): # recommended
@@ -364,7 +365,7 @@ def run_local(cmd, count_data=False): # recommended
             r2 = r[~np.all(r == 0, axis=1)] # reomve all zero rows
             u_across, c_across = np.unique(r2[:,11], return_counts=True)
             nucID_duplicated_across = u_across[c_across > 1]
-            row_nochange = r[(r[:,11] == u_across[c_across == 1])]
+            row_nochange = r[np.isin(r[:,11], u_across[c_across == 1])]
             tq.insert( partial(func, n, nuc_data_out, skipped, r) for n in nucID_duplicated_across)
             tq.insert(partial(save_skipped, skipped, 'skipped'))
             if count_data == True:
