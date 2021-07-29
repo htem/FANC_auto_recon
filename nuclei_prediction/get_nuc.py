@@ -85,7 +85,9 @@ nuclei_seg_cv = CloudVolume( # mip4
     auth.get_cv_path('nuclei_seg_Jul2021')['url'],
     cache=False,
     progress=False,
-    use_https=True # this is precomputed so no need to specify agglomerate=False
+    use_https=True, # this is precomputed so no need to specify agglomerate=False
+    autocrop=True, # crop exceeded volumes of request
+    bounded=False
 )
 
 # calculate blocks in mip0
@@ -287,7 +289,7 @@ def task_merge_across_bbox(i, output, skipped, data):
         output.append(dup_info_0_new)
       
     except Exception as e:
-        skipped.merge(dup_info_0)
+        skipped.append(dup_info_0)
         with open(outputpath + '/' + 'across_{}.log'.format(str(i)), 'w') as logfile:
             print(e, file=logfile)
 
