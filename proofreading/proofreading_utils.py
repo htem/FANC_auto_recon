@@ -4,6 +4,7 @@ from ..segmentation import authentication_utils,rootID_lookup
 from ..transforms import realignment
 from ..segmentation import authentication_utils,rootID_lookup
 from ..skeletonization import catmaid_utilities
+from ..synapses import connectivity_utils
 from nglui import statebuilder,annotation,easyviewer,parser
 from nglui.statebuilder import *
 from cloudvolume import CloudVolume
@@ -12,7 +13,7 @@ import pandas as pd
 import pymaid
 import json
 from matplotlib import cm,colors
-
+from meshparty import trimesh_vtk, trimesh_io, mesh_filters, meshwork
 
 
 
@@ -111,7 +112,7 @@ def render_scene(neurons = None,
     img_source: str   Image path url, default is None which will look for ['Image'] entry in the ~/.cloudvolume/segmentations.json
     seg_source: str   Segmentation path url, default is None which will look for ['FANC_production_segmentation'] entry in the ~/.cloudvolume/segmentations.json
     state_server: str JSON state server path, default is None which will look for ['json_server'] entry in the ~/.cloudvolume/segmentations.json
-    annotations: list of dicts A list of dictionaries specifying annotation dataframes. Format is  annotations = [{'name':str,'type':'points','data': DataFrame}] where
+    annotations: A list of dictionaries specifying annotation dataframes. Format is  annotations = [{'name':str,'type':'points','data': DataFrame}] where
     DataFrame is a DataFrame formatted appropriately for the annotation type. Currently only points is implemented.
     return_as: 'str' Either JSON state, or neuroglancer link after saving the JSON state to the specified JSON server. 
     
@@ -212,3 +213,106 @@ def render_scene(neurons = None,
     else:
         return state
     
+
+    
+def plot_neurons(segment_ids, cv=None,
+               cmap = 'Blues', opacity = 1,
+               plot_type= 'mesh',
+               plot_synapses=False,
+               soma=None,
+               synapse_type='all',
+               synapse_threshold=3,
+               synapse_table_path = None,
+               camera=None,
+               save=False,
+               save_path=None):
+
+    colormap = cm.get_cmap(cmap,len(segment_ids))
+    
+    if isinstance(segment_ids, int):
+        segment_ids = [segment_ids]
+        
+    if cv is None:
+        cv = authentication_utils.get_cv()
+
+
+    if isinstance(camera,int):
+        client, _ = authentication_utils.get_client()
+        state = client.state.get_state_json(camera)
+        camera = trimesh_vtk.camera_from_ngl_state(state)
+
+    neuron_actors = []
+    annotation_actors = []
+    for j in enumerate(segment_ids):
+        #Get mesh
+        mesh = cv.mesh.get(j[1],use_byte_offsets=True)[j[1]]
+        mp_mesh = trimesh_io.Mesh(mesh.vertices,mesh.faces)
+
+        neuron = meshwork.Meshwork(mp_mesh, seg_id=j[1],voxel_resolution=[4.3,4.3,45])
+
+        if soma is not None:
+            if isinstance(soma, pd.DataFrame):
+                neuron.add_annotations('soma_pt', soma_df.query('pt_root_id == @seg_id').copy(), point_column='pt_position', anchored=False)
+            elif isinstance(soma, np.array) or isinstance(soma, list):
+                neuron.add_annotations('soma_pt', soma, point_array=True)
+
+        # get synapses
+        if plot_synapses is True:
+            if synapse_type is 'inputs':
+                input_table = connectivity_utils.get_synapses(j[1], 
+                                                              synapse_table = synapse_table_path, 
+                                                              direction = 'inputs', 
+                                                              threshold = synapse_threshold)
+
+                neuron.add_annotations('syn_in', input_table, point_column='post_pt')
+
+
+            elif synapse_type is 'outputs':
+                input_table = None
+                output_table = connectivity_utils.get_synapses(j[1], 
+                                                          synapse_table = synapse_table_path, 
+                                                          direction = 'outputs', 
+                                                          threshold = synapse_threshold)
+            elif synapse_type is 'all': 
+                input_table = connectivity_utils.get_synapses(j[1], 
+                                                            synapse_table = synapse_table_path, 
+                                                            direction = 'inputs', 
+                                                            threshold = synapse_threshold)
+
+                output_table = connectivity_utils.get_synapses(j[1], 
+                                                          synapse_table = synapse_table_path, 
+                                                          direction = 'outputs', 
+                                                          threshold = synapse_threshold)
+
+                neuron.add_annotations('syn_in', input_table, point_column='post_pt')
+                neuron.add_annotations('syn_out', output_table, point_column='pre_pt')
+
+
+            else:
+                raise Exception('incorrect synapse type, use: "inputs", "outputs", or "all"')
+
+
+        #Plot
+
+        if 'mesh' in plot_type:
+            neuron_actors.append(trimesh_vtk.mesh_actor(neuron.mesh, color=colormap(j[0])[0:3], opacity=opacity))
+        elif 'skeleton' in plot_type and soma is not None: 
+            neuron.skeletonize_mesh(soma_pt=neuron.anno.soma_pt.points[0],invalidation_distance=5000)
+            neuron_actors.append(trimesh_vtk.skeleton_actor(neuron.skeleton, line_width=3, color=color))
+        elif 'skeleton' in plot_type and soma is None: 
+            raise Exception('need a soma point to skeletonize')
+        else:
+            raise Exception('incorrect plot type, use "mesh" or "skeleton"')
+
+
+            
+        for i in neuron.anno.table_names:
+            if 'syn_in' in i:
+                annotation_actors.append(trimesh_vtk.point_cloud_actor(neuron.anno.syn_in.points, size=200, color=(0.0, 0.9, 0.9)))
+            elif 'syn_out' in i:
+                annotation_actors.append(trimesh_vtk.point_cloud_actor(neuron.anno.syn_out.points, size=200, color=(1.0, 0.0, 0.0)))
+            else:
+                annotation_actors.append(trimesh_vtk.point_cloud_actor(neuron.anno[i].points, size=200, color=(0.0, 0.0, 0.0)))
+
+
+    trimesh_vtk.render_actors(neuron_actors + annotation_actors, camera = camera, do_save=save, filename=save_path)
