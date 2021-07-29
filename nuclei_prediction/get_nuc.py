@@ -51,8 +51,8 @@ else:
 # path
 queuepath = '/n/groups/htem/users/skuroda/nuclei_tasks4'
 # queuepath = '../Output/nuclei_tasks'
-outputpath = '/n/groups/htem/users/skuroda/nuclei_output4'
-# outputpath = '../Output'
+# outputpath = '/n/groups/htem/users/skuroda/nuclei_output4'
+outputpath = '../Output'
 
 # variables
 np.random.seed(123)
@@ -169,11 +169,12 @@ def task_get_nuc_info(i): # use i = 7817 for test, close to [7953 118101 2584]
             bbx = Bbox.from_points(point_cloud)
             mylist.append(np.append([j], [bbx.center(), bbx.minpt, bbx.maxpt]))
 
+        mylist.append(np.zeros(10)) # convert 1D to 2D
         arr = np.array(mylist) # [cc id, center location, bbox min, bbox max] all in mip4
 
-        if len(arr):
+        if arr.ndim == 2:
             arr2 = np.hstack((arr.copy().astype('int64'), np.zeros((arr.shape[0],2), dtype='int64'))) # array to store output
-            for obj in range(len(arr)):
+            for obj in range(N):
                 center_mip0 = mip4_to_mip0_array(arr[obj,1:4], nuclei)
                 vinside = np.argwhere(cc_out == int(arr[obj,0]))
 
@@ -219,18 +220,22 @@ def task_get_nuc_info(i): # use i = 7817 for test, close to [7953 118101 2584]
 def task_merge_within_bbox(i, clist):
     try:
         y = np.fromfile(outputpath + '/' + 'block_{}.bin'.format(str(i)), dtype=np.int64) # y has [block id, center location in mip0, bbox min, bbox max, nuc_segid, nucid] in int64
-        u, c = np.unique(y[:,11], return_counts=True)
-        nucID_duplicated = u[c > 1]
-        if len(nucID_duplicated):
-            merged=[]
-            for dup in range(len(nucID_duplicated)):
-                foo = y[(y[:,11] == nucID_duplicated[dup])]
-                bar = merge_bbox(foo)
-                merged.append(bar)
-
-            y2 = np.vstack((np.array(merged), y[(y[:,11] == u[c == 1])]))
-        else:
+        if y.ndim == 1: # only one row
+            c = 1
             y2 = y
+        else: # more than two rows
+            u, c = np.unique(y[:,11], return_counts=True)
+            nucID_duplicated = u[c > 1]
+            if len(nucID_duplicated):
+                merged=[]
+                for dup in range(len(nucID_duplicated)):
+                    foo = y[(y[:,11] == nucID_duplicated[dup])]
+                    bar = merge_bbox(foo)
+                    merged.append(bar)
+
+                y2 = np.vstack((np.array(merged), y[(y[:,11] == u[c == 1])]))
+            else:
+                y2 = y
 
         # y2 still has [block id, center location in mip0, bbox min, bbox max, nuc_segid, nucid] in int64
         y_out = y2.astype(np.int64)
@@ -247,14 +252,17 @@ def task_merge_within_bbox(i, clist):
 @queueable
 def save_count_data(list_input, cmd):
     array_input = np.array(list_input, dtype='int64').flatten()
-    np.savetxt(outputpath + '/' + 'count_{}.txt'.format(cmd.split('_', 1)), array_input)
+    sorted = np.sort(array_input)[::-1]
+    if cmd == task_merge_within_bbox:
+        sorted = sorted[0:len(array_input) - 1 - len(block_centers)] # every block stil has np.zeros(12)
+    np.savetxt(outputpath + '/' + 'count_{}.txt'.format(cmd.split('_', 1)), sorted)
 
 
 def run_local(cmd, count_data=False): # recommended
     try:
-        func = cmd
+        func = globals()[cmd]
     except Exception:
-        print('cmd only accepts task_get_nuc_info, task_merge_within_bbox, task_merge_across_bbox, task_apply_size_threshold')
+        print("cmd only accepts 'task_get_nuc_info', 'task_merge_within_bbox', 'task_merge_across_bbox', 'task_apply_size_threshold'")
 
     tq = LocalTaskQueue(parallel=parallel_cpu)
     if func == task_get_nuc_info:
@@ -279,6 +287,9 @@ def run_local(cmd, count_data=False): # recommended
             tq.insert(partial(save_count_data, clist, func)) # save count_data
     elif func == task_merge_across_bbox:
         pass
+        # nuc_data = []
+        # z = np.fromfile(outputpath + '/' + 'block2_{}.bin'.format(str(i)), dtype=np.int64) # y has [block id, center location in mip0, bbox min, bbox max, nuc_segid, nucid] in int64
+        # reomve all zero rows
     else: # task_apply_size_threshold
         pass
 
