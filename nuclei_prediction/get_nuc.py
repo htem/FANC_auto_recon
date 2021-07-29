@@ -361,7 +361,7 @@ def run_local(cmd, count_data=False): # recommended
             for ii in range(len(block_centers)):
                 z = np.fromfile(outputpath + '/' + 'block2_{}.bin'.format(str(ii)), dtype=np.int64) # z has [block id, center location in mip0, bbox min, bbox max, nuc_segid, nucid] in int64
                 nuc_data.append(z.reshape(int(len(z)/12),12))
-            r = np.array(nuc_data, dtype='int64')
+            r = np.concatenate(nuc_data)
             r2 = r[~np.all(r == 0, axis=1)] # reomve all zero rows
             u_across, c_across = np.unique(r2[:,11], return_counts=True)
             nucID_duplicated_across = u_across[c_across > 1]
