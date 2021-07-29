@@ -271,7 +271,7 @@ def task_merge_across_bbox(i, output, skipped, data):
             dup_info = data[data[:,11] == i]
             dup_info_0 = dup_info[0,:]
 
-        loc_mip4 = np.array([(dup_info_0[1]/2**4),(dup_info_0[2]/2**4), dup_info_0[3]], dtpe='int64')
+        loc_mip4 = np.array([(dup_info_0[1]/2**4),(dup_info_0[2]/2**4), dup_info_0[3]], dtype='int64')
         nuclei = nuclei_seg_cv.download_point(loc_mip4, mip=[68.8,68.8,45.0], size=(block_x*2, block_y*2, block_z*2) ) # download_point uses mip4 for pt, and use first row
 
         nuclei_temp = nuclei[:,:,:]
@@ -298,7 +298,7 @@ def array_to_csv(array_withchange, array_nochange, name, xyz_input): # name
         new_df = pd.DatFrame(array_withchange)
         df = pd.concat([previous_df, new_df])
     else:
-        stacked  = np.vstack(array_withchange, array_nochange)
+        stacked  = np.vstack([array_withchange, array_nochange])
         df = pd.DatFrame(stacked)
     df.to_csv(outputpath + '/' + '{}.csv'.format(str(name)), index=False)
 
@@ -309,14 +309,14 @@ def save_skipped(list_input, name):
     np.savetxt(outputpath + '/' + '{}.txt'.format(name), array_input)
 
 
-@queueable
-def task_apply_size_threshold(array, func):
-    array_input = np.array(list_input, dtype='int64').flatten()
-    sorted = np.sort(array_input)[::-1]
-    if cmd == task_merge_within_bbox:
-        sorted = sorted[0:len(array_input) - 1 - len(block_centers)] # every block stil has np.zeros(12)
-    np.savetxt(outputpath + '/' + 'count_{}.txt'.format(cmd.split('_', 1)), sorted)
-    a  = np.vstack((np.array(nuc_data_out), r[(r[:,11] == u_across[c_across == 1])])) # save csv as one single file
+# @queueable
+# def task_apply_size_threshold(array, func):
+#     array_input = np.array(list_input, dtype='int64').flatten()
+#     sorted = np.sort(array_input)[::-1]
+#     if cmd == task_merge_within_bbox:
+#         sorted = sorted[0:len(array_input) - 1 - len(block_centers)] # every block stil has np.zeros(12)
+#     np.savetxt(outputpath + '/' + 'count_{}.txt'.format(cmd.split('_', 1)), sorted)
+#     a  = np.vstack((np.array(nuc_data_out), r[(r[:,11] == u_across[c_across == 1])])) # save csv as one single file
 
 
 def run_local(cmd, count_data=False): # recommended
