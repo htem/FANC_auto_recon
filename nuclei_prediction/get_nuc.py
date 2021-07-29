@@ -51,8 +51,8 @@ else:
 # path
 queuepath = '/n/groups/htem/users/skuroda/nuclei_tasks4'
 # queuepath = '../Output/nuclei_tasks'
-# outputpath = '/n/groups/htem/users/skuroda/nuclei_output4'
-outputpath = '../Output'
+outputpath = '/n/groups/htem/users/skuroda/nuclei_output4'
+# outputpath = '../Output'
 
 # variables
 np.random.seed(123)
