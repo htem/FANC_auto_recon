@@ -146,10 +146,6 @@ def merge_bbox(array, xminpt=4, xmaxpt=7, row_saved=0):
 
     return out
 
-# def merge_within_block(i):
-# def merge_between_block(i):
-
-
 
 @queueable
 def task_get_nuc_info(i): # use i = 7817 for test, close to [7953 118101 2584]
@@ -159,7 +155,7 @@ def task_get_nuc_info(i): # use i = 7817 for test, close to [7953 118101 2584]
             xyz_mip0 = xyzdf.iloc[i,0:3] #xyz coordinates
             nuclei = nuclei_cv.download_point(xyz_mip0, mip=[68.8,68.8,45.0], size=(block_x, block_y, block_z) )
         else:
-            nuclei = nuclei_cv.download_point(block_centers[i], mip=[68.8,68.8,45.0], size=(block_x, block_y, block_z) ) # use mip0 for pt
+            nuclei = nuclei_cv.download_point(block_centers[i], mip=[68.8,68.8,45.0], size=(block_x, block_y, block_z) ) # download_point uses mip0 for pt
 
         mask_temp = nuclei[:,:,:]
         mask = np.where(mask_temp > thres_s, 1, 0)
@@ -190,12 +186,12 @@ def task_get_nuc_info(i): # use i = 7817 for test, close to [7953 118101 2584]
                 lrandom_mip0 = np.apply_along_axis(mip4_to_mip0_array, 1, lrandom, nuclei)
                 lrandom_mip4 = lrandom + nuclei.bounds.minpt
 
-                segIDs = IDlook.segIDs_from_pts_cv(pts=lrandom_mip0, cv=seg, progress=False) # use mip0 for pt
+                segIDs = IDlook.segIDs_from_pts_cv(pts=lrandom_mip0, cv=seg, progress=False) # segIDs_from_pts_cv uses mip0 for pt
                 nuc_segID = find_most_frequent_ID(segIDs)
 
                 nucIDs_list = []
                 for k in range(len(lrandom_mip4)):
-                    nucID_temp = nuclei_seg_cv.download_point(lrandom_mip4[k], mip=[68.8,68.8,45.0], size=(1, 1, 1) ) # use mip4 for pt
+                    nucID_temp = nuclei_seg_cv.download_point(lrandom_mip4[k], mip=[68.8,68.8,45.0], size=(1, 1, 1) ) # download_point uses mip4 for pt
                     nucIDs_list.append(np.squeeze(nucID_temp))
                 nucID = find_most_frequent_ID(np.array(nucIDs_list, dtype='int64'))
 
@@ -220,114 +216,71 @@ def task_get_nuc_info(i): # use i = 7817 for test, close to [7953 118101 2584]
 
 
 @queueable
-def task_get_segid(i):
+def task_merge_within_bbox(i, clist):
     try:
-        output=[]
+        y = np.fromfile(outputpath + '/' + 'block_{}.bin'.format(str(i)), dtype=np.int64) # y has [block id, center location in mip0, bbox min, bbox max, nuc_segid, nucid] in int64
+        u, c = np.unique(y[:,11], return_counts=True)
+        nucID_duplicated = u[c > 1]
+        if len(nucID_duplicated):
+            merged=[]
+            for dup in range(len(nucID_duplicated)):
+                foo = y[(y[:,11] == nucID_duplicated[dup])]
+                bar = merge_bbox(foo)
+                merged.append(bar)
+
+            y2 = np.vstack((np.array(merged), y[(y[:,11] == u[c == 1])]))
+        else:
+            y2 = y
+
+        # y2 still has [block id, center location in mip0, bbox min, bbox max, nuc_segid, nucid] in int64
+        y_out = y2.astype(np.int64)
+        clist.append(c)
         if xyz_input is not None:
-            xyzdf = pd.read_csv(xyz_input, header=0)
-            xyz_mip0 = xyzdf.iloc[i,0:3] #xyz coordinates
-            nuclei = nuclei_cv.download_point(xyz_mip0, mip=[68.8,68.8,45.0], size=(128, 128, 256) )
+            y_out.tofile(outputpath + '/' + 'new_block2_{}.bin'.format(str(i)))
         else:
-            nuclei = nuclei_cv.download_point(block_centers[i], mip=[68.8,68.8,45.0], size=(128, 128, 256) ) # mip0 and 4 only
-
-        mask_temp = nuclei[:,:,:]
-        mask = np.where(mask_temp > 0.5, 1, 0)
-        mask_s = np.squeeze(mask)
-
-        cc_out, N = cc3d.connected_components(mask_s, return_N=True, connectivity=connectivity) # free
-
-        mylist=[]
-        for j in range(1, N+1):
-            point_cloud = np.argwhere(cc_out == j)
-            bbx = Bbox.from_points(point_cloud)
-            if (bbx.size3()[0] >= x_thres) & (bbx.size3()[1] >= y_thres) & (bbx.size3()[2] >= z_thres):
-                mylist.append(np.append(bbx.center(), j))
-            else:
-                pass
-        
-        arr = np.array(mylist)
-
-        if len(mylist):
-            for segid in range(len(arr)):
-                center = mip4_to_mip0_array(arr[segid,:], nuclei)
-                vinside_mip4 = np.argwhere(cc_out == int(arr[segid,3]))
-                vinside = np.apply_along_axis(mip4_to_mip0_array, 1, vinside_mip4, nuclei)
-
-                #random selection?
-                if choose == 0:
-                    location_random = vinside
-                else:
-                    index = np.random.choice(vinside.shape[0], size=min(len(vinside.shape[0]), choose), replace=False)
-                    location_random = vinside[index]
-
-                # Lets get IDs using cell_body_coordinates
-                cell_body_IDs = IDlook.segIDs_from_pts_cv(pts=location_random, cv=seg, progress=False) #mip0
-
-                uniqueID, count = np.unique(cell_body_IDs, return_counts=True)
-                unsorted_max_indices = np.argsort(-count)
-                topIDs = uniqueID[unsorted_max_indices] 
-                topIDs2 = topIDs[~(topIDs == 0)] # no zero
-                topIDs2 = np.append(topIDs2, np.zeros(1, dtype = 'uint64'))
-                nucID = topIDs2.astype('int64')[0]
-
-                # save
-                # type(cell_body_coordinates.shape)
-                cord_pd = pd.DataFrame(columns=["x", "y", "z"])
-                cord_pd.loc[0] = center
-                temp = cord_pd
-                temp['segIDs'] = nucID
-                output.append(temp)
-
-        else:
-            foo = np.zeros(3, dtype = 'int64')
-            bar = np.zeros(1, dtype = 'int64')
-
-            cord_pd = pd.DataFrame(columns=["x", "y", "z"])
-            cord_pd.loc[0] = foo
-            temp = cord_pd
-            temp['segIDs'] = bar
-            output.append(temp)
-
-        output_appended = pd.concat(output)
-        output_appended
-        output_s = output_appended.drop_duplicates(keep='first', subset='segIDs')
-        output_s
-        name = str(i)
-        if xyz_input is not None:
-            output_s.to_csv(outputpath + '/' + 'new_nuc_{}.csv'.format(name), index=False)
-        else:
-            output_s.to_csv(outputpath + '/' + 'cellbody_cord_id_{}.csv'.format(name), index=False)
+            y_out.tofile(outputpath + '/' + 'block2_{}.bin'.format(str(i)))
     except Exception as e:
-        name=str(i)
-        with open(outputpath + '/' + '{}.log'.format(name), 'w') as logfile:
+        with open(outputpath + '/' + '2_{}.log'.format(str(i)), 'w') as logfile:
             print(e, file=logfile)
 
-# merge duplicted nucleus within block
-# u, c = np.unique(arr2[:,11], return_counts=True)
-# nucID_duplicated = u[c > 1]
-# if len(nucID_duplicated):
-# merged=[]
-# for dup in range(len(nucID_duplicated)):
-# foo = arr2[(arr2[:,11] == nucID_duplicated[dup])]
- # bar = merge_bbox(foo)
-# merged.append(bar)
 
-# arr3 = np.vstack((np.array(merged), arr2[(arr2[:,11] == u[c == 1])]))
-# else:
-# arr3 = arr2
+@queueable
+def save_count_data(list_input, cmd):
+    array_input = np.array(list_input, dtype='int64').flatten()
+    np.savetxt(outputpath + '/' + 'count_{}.txt'.format(cmd.split('_', 1)), array_input)
 
 
-def run_local(): # recommended
+def run_local(cmd, count_data=False): # recommended
+    try:
+        func = cmd
+    except Exception:
+        print('cmd only accepts task_get_nuc_info, task_merge_within_bbox, task_merge_across_bbox, task_apply_size_threshold')
+
     tq = LocalTaskQueue(parallel=parallel_cpu)
-    if file_input is not None:
-        with open(file_input) as fd:      
-            txtdf = np.loadtxt(fd, dtype='int64')
-            tq.insert( partial(task_get_nuc_info, i) for i in txtdf )
-    elif xyz_input is not None:
-        xyzdf = pd.read_csv(xyz_input, header=0)
-        tq.insert(( partial(task_get_nuc_info, i) for i in range(len(xyzdf)) ), parallel=parallel_cpu)
-    else:
-        tq.insert(( partial(task_get_nuc_info, i) for i in range(start, len(block_centers)) )) # NEW SCHOOL
+    if func == task_get_nuc_info:
+        if file_input is not None:
+            with open(file_input) as fd:      
+                txtdf = np.loadtxt(fd, dtype='int64')
+                tq.insert( partial(func, i) for i in txtdf )
+        elif xyz_input is not None:
+            xyzdf = pd.read_csv(xyz_input, header=0)
+            tq.insert(( partial(func, i) for i in range(len(xyzdf)) ), parallel=parallel_cpu)
+        else:
+            tq.insert(( partial(func, i) for i in range(start, len(block_centers)) )) # NEW SCHOOL
+    elif func == task_merge_within_bbox:
+        clist=[]
+        if file_input is not None:
+            with open(file_input) as fd:      
+                txtdf = np.loadtxt(fd, dtype='int64')
+                tq.insert( partial(func, i, clist=clist) for i in txtdf )
+        else:
+            tq.insert(( partial(func, i, clist=clist) for i in range(start, len(block_centers)) ))
+        if count_data == True:
+            tq.insert(partial(save_count_data, clist, func)) # save count_data
+    elif func == task_merge_across_bbox:
+        pass
+    else: # task_apply_size_threshold
+        pass
 
     tq.execute(progress=True)
     print('Done')
