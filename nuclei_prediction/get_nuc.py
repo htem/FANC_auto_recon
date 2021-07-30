@@ -325,7 +325,9 @@ def save_merged(mergeddir, array_nochange, name):
 
 @queueable
 def task_apply_size_threshold(df):
-    df_o = df.loc[(df['size_x_mip4'] > thres_x) & (df['size_y_mip4'] > thres_y) & (df['size_z_mip4'] > thres_z)] 
+    df_1 = df.loc[(df['size_x_mip4'] > thres_x) & (df['size_y_mip4'] > thres_y) & (df['size_z_mip4'] > thres_z)] 
+    df_1['vol'] = df['size_x_mip4'] * df['size_y_mip4'] * df['size_z_mip4'] # add vol column
+    df_o = df_1[np.argsort(df_1[:, -1])] # sort based on vol column
     df_o.to_csv(outputpath + '/' + '{}.csv'.format(final_product), index=False)
 
 
