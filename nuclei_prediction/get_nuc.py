@@ -152,10 +152,11 @@ def merge_bbox(array, xminpt=4, xmaxpt=7, row_saved=0):
 def add_bbox_size_column(array, xminpt=4, xmaxpt=7):
     out = array.copy()
     if array.ndim == 2:
-        bbox_size = array[:,xmaxpt:xmaxpt+2] - array[:,xminpt:xminpt+2]
+        bbox_size = array[:,xmaxpt:xmaxpt+3] - array[:,xminpt:xminpt+3]
+        out = np.delete(out, [xminpt, xminpt+1, xminpt+2, xmaxpt, xmaxpt+1, xmaxpt+2], axis=1)
     else: # array.ndim == 1
-        bbox_size = array[:,xmaxpt:xmaxpt+2] - array[:,xminpt:xminpt+2]
-    out = np.delete(out, [xminpt, xminpt+1, xminpt+2, xmaxpt, xmaxpt+1, xmaxpt+2], 1)
+        bbox_size = array[xmaxpt:xmaxpt+3] - array[xminpt:xminpt+3]
+        out = np.delete(out, [xminpt, xminpt+1, xminpt+2, xmaxpt, xmaxpt+1, xmaxpt+2])
     out2 = np.hstack((out, bbox_size))
 
     return out2
@@ -295,8 +296,8 @@ def task_merge_across_block(i, data, mergeddir):
         new_maxpts = np.multiply(dup_info[:,7:10], block_loc)
 
         dup_info_0_new = dup_info_0.copy().astype('uint64') # uint to store possible negative values
-        dup_info_0_new[4:7] = np.amin(new_minpts, axis=1)
-        dup_info_0_new[7:10] = np.amax(new_maxpts, axis=1) # [block id, center location in mip0, new bbox min, new bbox max, nuc_segid, nucid] in int64
+        dup_info_0_new[4:7] = np.amin(new_minpts, axis=0)
+        dup_info_0_new[7:10] = np.amax(new_maxpts, axis=0) # [block id, center location in mip0, new bbox min, new bbox max, nuc_segid, nucid] in int64
         # need to -1 from new bbox max?
         hoge = add_bbox_size_column(dup_info_0_new).astype('int64')
         
@@ -317,7 +318,7 @@ def save_merged(mergeddir, array_nochange, name):
 
     stacked  = np.vstack([arr, array_nochange])
     df = pd.DatFrame(stacked)
-    df.to_csv(outputpath + '/' + '{}.csv'.format(name), index=False)
+    df.to_csv(outputpath + '/' + '{}.csv'.format(name), index=False) #header?
 
 
 @queueable
@@ -330,17 +331,6 @@ def task_apply_size_threshold(df):
     except Exception as e:
         with open(outputpath + '/' + 'size_threshold_{}.log'.format(str(i)), 'w') as logfile:
             print(e, file=logfile)
-
-
-# @queueable
-# def task_apply_size_threshold(array, func):
-#     array_input = np.array(list_input, dtype='int64').flatten()
-#     sorted = np.sort(array_input)[::-1]
-#     if cmd == task_merge_within_bbox:
-#         sorted = sorted[0:len(array_input) - 1 - len(block_centers)] # every block stil has np.zeros(12)
-#     np.savetxt(outputpath + '/' + 'count_{}.txt'.format(cmd.split('_', 1)), sorted)
-#     a  = np.vstack((np.array(nuc_data_out), rnochange])) # save csv as one single file
-#     duplicate segID exist
 
 
 def run_local(cmd, count_data=False): # recommended
