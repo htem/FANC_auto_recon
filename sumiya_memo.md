@@ -51,6 +51,7 @@ docker cp ~/.cloudvolume/segmentations.json 3bc6ffc0d501:/home/vscode/.cloudvolu
 
 4. Issues
 pip uninstall dataclasses 
+rmtree? conflict with cache.flush
 
 Note: [gitignore](https://qiita.com/anqooqie/items/110957797b3d5280c44f
 https://www.curict.com/item/fe/fe45741.html)
@@ -62,9 +63,64 @@ rsync
 mkdir Output for pandas
 
 
-pip install igneous-pipeline
-pip install task-queue #numpy first
-
 /home/skuroda/.local/bin/pip
 
 /home/skuroda/.local/bin/pip install task-queue
+
+git clone https://github.com/htem/FANC_auto_recon.git
+cd FANC_auto_recon
+git checkout sumiya-nuclei
+
+/n/groups/htem/users/skuroda
+
+screen -d
+
+
+cat /proc/cpuinfo |grep processor
+
+topでCPU使用率
+
+
+
+rsync ~/info_cellbody_20210721.csv htem:~/
+rsync ~/info_cellbody_20210721.csv skuroda@catmaid3.hms.harvard.edu:~/
+
+
+15199
+
+rsync htem:~/ncount_merged.csv ~/
+rsync skuroda@catmaid3.hms.harvard.edu:~/ncount_merged.csv ~/
+
+
+
+
+6 screen
+
+python3.6 -c 'import cellbody2neuron3; cellbody2neuron3.create_task_queue()' -c 1000
+python3.6 -c 'import cellbody2neuron3; cellbody2neuron3.run_tasks_from_queue()'
+
+u don't have to run it again
+python3.6 -c 'import nuc2body; nuc2body.create_task_queue()' -c 1000 -i ~/missing.txt
+python3.6 -c 'import nuc2body; nuc2body.run_tasks_from_queue()'
+
+python3.6 -c 'import get_nuc; get_nuc.create_task_queue()' -c 500 -x ~/seg0.csv
+python3.6 -c 'import get_nuc; get_nuc.run_local()' -c 500 -x ~/seg0.csv
+python3.6 -c 'import get_nuc; get_nuc.run_tasks_from_queue()'
+
+python3.6 -c 'import count_sv; count_sv.run_local()'
+
+python3.6 -c 'import count_sv; count_sv.run_local()' -i ~/missing_count.txt
+
+cache.flush not work
+
+
+python3.6 -c 'import get_nuc; get_nuc.run_local()' -c 10 -p 18
+./list_missing.sh 13985 block bin
+python3.6 -c 'import get_nuc; get_nuc.run_local()' -c 10 -p 18 -i ~/missing.txt
+
+https://stackoverflow.com/questions/68191392/password-authentication-is-temporarily-disabled-as-part-of-a-brownout-please-us
+
+python3.6 -c "import get_nuc; get_nuc.run_local('task_merge_within_bbox', count_data=True)" -p 18
+./list_missing.sh 13985 block2 bin
+
+python3.6 -c "import get_nuc; get_nuc.run_local('task_merge_across_block', count_data=True)" -p 18
