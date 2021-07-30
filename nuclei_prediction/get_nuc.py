@@ -67,7 +67,6 @@ thres_z = 50-10
 connectivity = 26 # number of nearby voxels to look at for calculating connective components
 
 # name
-merged_product = 'merged'
 final_product = 'nuc_info'
 
 # could-volume url setting
@@ -151,6 +150,14 @@ def merge_bbox(array, xminpt=4, xmaxpt=7, row_saved=0):
     out[xmaxpt+2] = max(array[:,xmaxpt + 2]) # xmax
 
     return out
+
+def add_bbox_size_column(array, xminpt=4, xmaxpt=7):
+    bbox_size = array[xmaxpt:xmaxpt+2] - array[xminpt:xminpt+2]
+    out = array.copy()
+    out = np.delete(out, [xminpt, xminpt+1, xminpt+2, xmaxpt, xmaxpt+1, xmaxpt+2], 1)
+    out2 = np.hstack((out, bbox_size))
+
+    return out2
 
 
 @queueable
@@ -266,30 +273,24 @@ def save_count_data(list_input, func, name):
 
 
 @queueable
-def task_merge_across_bbox(i, output, skipped, data):
+def task_merge_across_bbox(i, output, data):
     try:
-        if xyz_input is not None:
-            dup_info_0 = data[i,:]
-        else:
-            dup_info = data[data[:,11] == i]
-            dup_info_0 = dup_info[0,:]
+        dup_info = data[data[:,11] == i]
+        dup_info_0 = dup_info[0,:]
 
-        loc_mip4 = np.array([(dup_info_0[1]/2**4),(dup_info_0[2]/2**4), dup_info_0[3]], dtype='int64')
-        nuclei = nuclei_seg_cv.download_point(loc_mip4, mip=[68.8,68.8,45.0], size=(block_x*2, block_y*2, block_z*2) ) # download_point uses mip4 for pt, and use first row
+        block_ids = dup_info[:,0]
+        block_loc = (block_centers[block_ids] - block_centers[dup_info_0[0]]) / (block_x*2**4, block_y*2**4, block_z)
+        new_minpts = np.multiply(dup_info[:,4:7], block_loc)
+        new_maxpts = np.multiply(dup_info[:,7:10], block_loc)
 
-        nuclei_temp = nuclei[:,:,:]
-        nuclei_temp2 = np.where(nuclei_temp == dup_info_0[11], 1, 0)
-        nuclei_temp3 = np.squeeze(nuclei_temp2)
-        new_bbx = Bbox.from_points(nuclei_temp3)
-
-        dup_info_0_new = dup_info_0.copy().astype('int64')
-        dup_info_0_new[4:7] = new_bbx.minpt
-        dup_info_0_new[7:10] = new_bbx.maxpt # [block id, center location in mip0, new bbox min, new bbox max, nuc_segid, nucid] in int64
-
-        output.append(dup_info_0_new)
+        dup_info_0_new = dup_info_0.copy().astype('uint64') # uint to store possible negative values
+        dup_info_0_new[4:7] = np.amin(new_minpts, axis=1)
+        dup_info_0_new[7:10] = np.amax(new_maxpts, axis=1) # [block id, center location in mip0, new bbox min, new bbox max, nuc_segid, nucid] in int64
+        # need to -1 from new bbox max?
+        hoge = add_bbox_size_column(dup_info_0_new).astype('int64')
+        output.append(hoge)
       
     except Exception as e:
-        skipped.append(dup_info_0)
         with open(outputpath + '/' + 'across_{}.log'.format(str(i)), 'w') as logfile:
             print(e, file=logfile)
 
@@ -303,7 +304,7 @@ def array_to_csv(array_withchange, array_nochange, name, xyz_input): # name
     else:
         stacked  = np.vstack([array_withchange, array_nochange])
         df = pd.DatFrame(stacked)
-    df.to_csv(outputpath + '/' + '{}.csv'.format(str(name)), index=False)
+    df.to_csv(outputpath + '/' + '{}.csv'.format(name), index=False)
 
 
 @queueable
@@ -352,29 +353,22 @@ def run_local(cmd, count_data=False): # recommended
             tq.insert(partial(save_count_data, clist, func, cmd.split('_', 1)[1]))
     elif func == task_merge_across_bbox:
         nuc_data_out = [] # store output
-        skipped = [] # store skipped IDs
-        if xyz_input is not None:
-            xyzdf = pd.read_csv(xyz_input, header=0)
-            row_nochange = np.zeros(12,dtype='int64')
-            tq.insert(( partial(func, n, nuc_data_out, skipped, xyzdf) for n in range(len(xyzdf)) ))
-            tq.insert(partial(save_skipped, skipped, 'skipped'))
-        else:
-            nuc_data = [] # store input
-            for ii in range(len(block_centers)):
-                z = np.fromfile(outputpath + '/' + 'block2_{}.bin'.format(str(ii)), dtype=np.int64) # z has [block id, center location in mip0, bbox min, bbox max, nuc_segid, nucid] in int64
-                nuc_data.append(z.reshape(int(len(z)/12),12))
-            r = np.concatenate(nuc_data)
-            r2 = r[~np.all(r == 0, axis=1)] # reomve all zero rows
-            u_across, c_across = np.unique(r2[:,11], return_counts=True)
-            nucID_duplicated_across = u_across[c_across > 1]
-            row_nochange = r[np.isin(r[:,11], u_across[c_across == 1])]
-            tq.insert( partial(func, n, nuc_data_out, skipped, r) for n in nucID_duplicated_across)
-            tq.insert(partial(save_skipped, skipped, 'skipped'))
-            if count_data == True:
-                tq.insert(partial(save_count_data, c_across, func, cmd.split('_', 1)[1])) # save count_data
-        tq.insert(partial(array_to_csv, (np.array(nuc_data_out)), row_nochange, merged_product, xyz_input))
+        nuc_data = [] # store input
+        for ii in range(len(block_centers)):
+            z = np.fromfile(outputpath + '/' + 'block2_{}.bin'.format(str(ii)), dtype=np.int64) # z has [block id, center location in mip0, bbox min, bbox max, nuc_segid, nucid] in int64
+            nuc_data.append(z.reshape(int(len(z)/12),12))
+        r = np.concatenate(nuc_data)
+        r2 = r[~np.all(r == 0, axis=1)] # reomve all zero rows
+        u_across, c_across = np.unique(r2[:,11], return_counts=True)
+        nucID_duplicated_across = u_across[c_across > 1]
+        row_nochange = r[np.isin(r[:,11], u_across[c_across == 1])]
+        keep = add_bbox_size_column(row_nochange).astype('int64')
+        tq.insert( partial(func, n, nuc_data_out, r) for n in nucID_duplicated_across)
+        tq.insert(partial(array_to_csv, (np.array(nuc_data_out)), keep, 'merged', xyz_input)) # [block id, center location in mip0, nuc_segid, nucid, new bbox size] in int64
+        if count_data == True:
+            tq.insert(partial(save_count_data, c_across, func, cmd.split('_', 1)[1])) # save count_data
     else: # task_apply_size_threshold
-        previous_df = pd.read_csv(outputpath + '/' + '{}.csv'.format(merged_product), header=0)
+        previous_df = pd.read_csv(outputpath + '/' + 'merged.csv', header=0)
         # tq inset
         # save
         # duplicate de error
