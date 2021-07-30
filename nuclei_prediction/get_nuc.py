@@ -233,7 +233,7 @@ def task_get_nuc_info(i): # use i = 7817 for test, close to [7953 118101 2584]
 
 
 @queueable
-def task_merge_within_bbox(i, clist):
+def task_merge_within_block(i, clist):
     try:
         y = np.fromfile(outputpath + '/' + 'block_{}.bin'.format(str(i)), dtype=np.int64) # y has [block id, center location in mip0, bbox min, bbox max, nuc_segid, nucid] in int64
         y1 = y.reshape(int(len(y)/12),12)
@@ -270,13 +270,13 @@ def task_merge_within_bbox(i, clist):
 def save_count_data(list_input, func, name):
     array_input = np.array(list_input, dtype='int64').flatten()
     sorted = np.sort(array_input)[::-1]
-    if func == task_merge_within_bbox:
+    if func == task_merge_within_block:
         sorted = sorted[0:len(array_input) - 1 - len(block_centers)] # every block stil has np.zeros(12) in task_merge_within_bbox
     np.savetxt(outputpath + '/' + 'count_{}.txt'.format(name), sorted)
 
 
 @queueable
-def task_merge_across_bbox(i, output, data):
+def task_merge_across_block(i, output, data):
     try:
         dup_info = data[data[:,11] == i]
         dup_info_0 = dup_info[0,:]
@@ -299,14 +299,9 @@ def task_merge_across_bbox(i, output, data):
 
 
 @queueable
-def array_to_csv(array_withchange, array_nochange, name, xyz_input): # name
-    if xyz_input is not None:
-        previous_df = pd.read_csv(outputpath + '/' + '{}.csv'.format(str(name)), header=0)
-        new_df = pd.DatFrame(array_withchange)
-        df = pd.concat([previous_df, new_df])
-    else:
-        stacked  = np.vstack([array_withchange, array_nochange])
-        df = pd.DatFrame(stacked)
+def array_to_csv(array_withchange, array_nochange, name): 
+    stacked  = np.vstack([array_withchange, array_nochange])
+    df = pd.DatFrame(stacked)
     df.to_csv(outputpath + '/' + '{}.csv'.format(name), index=False)
 
 
@@ -337,7 +332,7 @@ def run_local(cmd, count_data=False): # recommended
     try:
         func = globals()[cmd]
     except Exception:
-        print("cmd only accepts 'task_get_nuc_info', 'task_merge_within_bbox', 'task_merge_across_bbox', 'task_apply_size_threshold'")
+        print("cmd only accepts 'task_get_nuc_info', 'task_merge_within_block', 'task_merge_across_block', 'task_apply_size_threshold'")
 
     tq = LocalTaskQueue(parallel=parallel_cpu)
     if func == task_get_nuc_info:
@@ -350,7 +345,7 @@ def run_local(cmd, count_data=False): # recommended
             tq.insert(( partial(func, i) for i in range(len(xyzdf)) ))
         else:
             tq.insert(( partial(func, i) for i in range(start, len(block_centers)) )) # NEW SCHOOL
-    elif func == task_merge_within_bbox:
+    elif func == task_merge_within_block:
         clist=[] # save count_data
         if file_input is not None:
             with open(file_input) as fd:      
@@ -360,7 +355,7 @@ def run_local(cmd, count_data=False): # recommended
             tq.insert(( partial(func, i, clist=clist) for i in range(start, len(block_centers)) ))
         if count_data == True:
             tq.insert(partial(save_count_data, clist, func, cmd.split('_', 1)[1]))
-    elif func == task_merge_across_bbox:
+    elif func == task_merge_across_block:
         nuc_data = [] # store input
         for ii in range(len(block_centers)):
             z = np.fromfile(outputpath + '/' + 'block2_{}.bin'.format(str(ii)), dtype=np.int64) # z has [block id, center location in mip0, bbox min, bbox max, nuc_segid, nucid] in int64
@@ -373,7 +368,7 @@ def run_local(cmd, count_data=False): # recommended
         keep = add_bbox_size_column(row_nochange).astype('int64')
         nuc_data_out = [] # store output
         tq.insert( partial(func, n, nuc_data_out, r) for n in nucID_duplicated_across)
-        tq.insert(partial(array_to_csv, (np.array(nuc_data_out)), keep, 'merged', xyz_input)) # [block id, center location in mip0, nuc_segid, nucid, new bbox size] in int64
+        tq.insert(partial(array_to_csv, (np.array(nuc_data_out)), keep, 'merged')) # [block id, center location in mip0, nuc_segid, nucid, new bbox size] in int64
         if count_data == True:
             tq.insert(partial(save_count_data, c_across, func, cmd.split('_', 1)[1])) # save count_data
     else: # task_apply_size_threshold
