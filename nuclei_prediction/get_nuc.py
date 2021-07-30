@@ -281,7 +281,7 @@ def save_count_data(countdir, func, name):
 @queueable
 def save_count(count, name):
     sorted = np.sort(count.astype('int64'))[::-1]
-    np.savetxt(outputpath + '/' + 'count_{}.txt'.format(name), sorted)
+    np.savetxt(outputpath + '/' + 'count_{}.txt'.format(name), sorted.astype('int64'))
 
 
 @queueable
@@ -325,8 +325,9 @@ def save_merged(mergeddir, array_nochange, name):
 
 @queueable
 def task_apply_size_threshold(df):
-    df_o = df.loc[df['size_x_mip4'] > thres_x] & df.loc[df['size_y_mip4'] > thres_y] & df.loc[df['size_z_mip4'] > thres_z] 
+    df_o = df.loc[(df['size_x_mip4'] > thres_x) & (df['size_y_mip4'] > thres_y) & (df['size_z_mip4'] > thres_z)] 
     df_o.to_csv(outputpath + '/' + '{}.csv'.format(final_product), index=False)
+
 
 def run_local(cmd, count_data=False): # recommended
     try:
