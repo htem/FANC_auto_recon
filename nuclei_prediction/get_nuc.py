@@ -325,15 +325,8 @@ def save_merged(mergeddir, array_nochange, name):
 
 @queueable
 def task_apply_size_threshold(df):
-    try:
-        df
-        df_o = 1
-        df_o.to_csv(outputpath + '/' + '{}.csv'.format(final_product), index=False)
-      
-    except Exception as e:
-        with open(outputpath + '/' + 'size_threshold_{}.log'.format(str(i)), 'w') as logfile:
-            print(e, file=logfile)
-
+    df_o = df.loc[df['size_x_mip4'] > thres_x] & df.loc[df['size_y_mip4'] > thres_y] & df.loc[df['size_z_mip4'] > thres_z] 
+    df_o.to_csv(outputpath + '/' + '{}.csv'.format(final_product), index=False)
 
 def run_local(cmd, count_data=False): # recommended
     try:
