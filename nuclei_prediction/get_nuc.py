@@ -347,7 +347,7 @@ def run_local(cmd, count_data=False): # recommended
     try:
         func = globals()[cmd]
     except Exception:
-        print("cmd only accepts 'task_get_nuc_info', 'task_merge_within_block', 'task_merge_across_block', 'task_apply_size_threshold'")
+        print("Error: cmd only accepts 'task_get_nuc_info', 'task_merge_within_block', 'task_merge_across_block', 'task_apply_size_threshold'")
 
     tq = LocalTaskQueue(parallel=parallel_cpu)
     if func == task_get_nuc_info:
