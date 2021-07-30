@@ -287,13 +287,15 @@ def save_count(count, name):
 @queueable
 def task_merge_across_block(i, data, mergeddir):
     try:
-        dup_info = data[data[:,11] == i]
+        extracted = data[data[:,11] == i]
+        #sort
+        dup_info = extracted[np.argsort(extracted[:, 0])]
         dup_info_0 = dup_info[0,:]
 
         block_ids = dup_info[:,0]
         block_loc = (block_centers[block_ids] - block_centers[dup_info_0[0]]) / (block_x*2**4, block_y*2**4, block_z)
-        new_minpts = np.multiply(dup_info[:,4:7], block_loc)
-        new_maxpts = np.multiply(dup_info[:,7:10], block_loc)
+        new_minpts = dup_info[:,4:7] + block_loc*(block_x,block_y,block_z)
+        new_maxpts = dup_info[:,7:10]+ block_loc*(block_x,block_y,block_z)
 
         dup_info_0_new = dup_info_0.copy().astype('uint64') # uint to store possible negative values
         dup_info_0_new[4:7] = np.amin(new_minpts, axis=0)
@@ -317,7 +319,7 @@ def save_merged(mergeddir, array_nochange, name):
     arr = np.array(array_withchange, dtype='int64')
 
     stacked  = np.vstack([arr, array_nochange])
-    df = pd.DatFrame(stacked)
+    df = pd.DataFrame(stacked, columns =["blockID", "x", "y", "z", "nuc_segID", "nucID", "size_x_mip4", "size_y_mip4", "size_z_mip4"])
     df.to_csv(outputpath + '/' + '{}.csv'.format(name), index=False) #header?
 
 
