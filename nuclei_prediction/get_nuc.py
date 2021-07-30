@@ -311,9 +311,15 @@ def array_to_csv(array_withchange, array_nochange, name, xyz_input): # name
 
 
 @queueable
-def save_skipped(list_input, name):
-    array_input = np.array(list_input, dtype='int64')
-    np.savetxt(outputpath + '/' + '{}.txt'.format(name), array_input)
+def task_apply_size_threshold(df):
+    try:
+        df
+        df_o = 1
+        df_o.to_csv(outputpath + '/' + '{}.csv'.format(final_product), index=False)
+      
+    except Exception as e:
+        with open(outputpath + '/' + 'size_threshold_{}.log'.format(str(i)), 'w') as logfile:
+            print(e, file=logfile)
 
 
 # @queueable
@@ -355,7 +361,6 @@ def run_local(cmd, count_data=False): # recommended
         if count_data == True:
             tq.insert(partial(save_count_data, clist, func, cmd.split('_', 1)[1]))
     elif func == task_merge_across_bbox:
-        nuc_data_out = [] # store output
         nuc_data = [] # store input
         for ii in range(len(block_centers)):
             z = np.fromfile(outputpath + '/' + 'block2_{}.bin'.format(str(ii)), dtype=np.int64) # z has [block id, center location in mip0, bbox min, bbox max, nuc_segid, nucid] in int64
@@ -366,15 +371,15 @@ def run_local(cmd, count_data=False): # recommended
         nucID_duplicated_across = u_across[c_across > 1]
         row_nochange = r[np.isin(r[:,11], u_across[c_across == 1])]
         keep = add_bbox_size_column(row_nochange).astype('int64')
+        nuc_data_out = [] # store output
         tq.insert( partial(func, n, nuc_data_out, r) for n in nucID_duplicated_across)
         tq.insert(partial(array_to_csv, (np.array(nuc_data_out)), keep, 'merged', xyz_input)) # [block id, center location in mip0, nuc_segid, nucid, new bbox size] in int64
         if count_data == True:
             tq.insert(partial(save_count_data, c_across, func, cmd.split('_', 1)[1])) # save count_data
     else: # task_apply_size_threshold
         previous_df = pd.read_csv(outputpath + '/' + 'merged.csv', header=0)
-        # tq inset
-        # save
-        # duplicate de error
+        # no file means you haven't merged
+        tq.insert(partial(func, previous_df))
 
     tq.execute(progress=True)
     print('Done')
