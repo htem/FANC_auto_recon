@@ -152,8 +152,11 @@ def merge_bbox(array, xminpt=4, xmaxpt=7, row_saved=0):
     return out
 
 def add_bbox_size_column(array, xminpt=4, xmaxpt=7):
-    bbox_size = array[xmaxpt:xmaxpt+2] - array[xminpt:xminpt+2]
     out = array.copy()
+    if array.ndim == 2:
+        bbox_size = array[:,xmaxpt:xmaxpt+2] - array[:,xminpt:xminpt+2]
+    else: # array.ndim == 1
+        bbox_size = array[:,xmaxpt:xmaxpt+2] - array[:,xminpt:xminpt+2]
     out = np.delete(out, [xminpt, xminpt+1, xminpt+2, xmaxpt, xmaxpt+1, xmaxpt+2], 1)
     out2 = np.hstack((out, bbox_size))
 
