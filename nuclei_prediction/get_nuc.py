@@ -1,12 +1,10 @@
-from PIL import Image
-import matplotlib.pyplot as plt
 import numpy as np
 import sys
 import os
 import pandas as pd
-import csv
 from numpy.random.mtrand import f
 from tqdm import tqdm
+from glob import glob
 import argparse
 
 from cloudvolume import CloudVolume, view, Bbox
@@ -233,7 +231,7 @@ def task_get_nuc_info(i): # use i = 7817 for test, close to [7953 118101 2584]
 
 
 @queueable
-def task_merge_within_block(i, clist):
+def task_merge_within_block(i, count_data, countdir):
     try:
         y = np.fromfile(outputpath + '/' + 'block_{}.bin'.format(str(i)), dtype=np.int64) # y has [block id, center location in mip0, bbox min, bbox max, nuc_segid, nucid] in int64
         y1 = y.reshape(int(len(y)/12),12)
@@ -256,27 +254,37 @@ def task_merge_within_block(i, clist):
 
         # y2 still has [block id, center location in mip0, bbox min, bbox max, nuc_segid, nucid] in int64
         y_out = y2.astype(np.int64)
-        clist.append(c)
-        if xyz_input is not None:
-            y_out.tofile(outputpath + '/' + 'new_block2_{}.bin'.format(str(i)))
+        y_out.tofile(outputpath + '/' + 'block2_{}.bin'.format(str(i)))
+        if count_data == True:
+            c.tofile(countdir + '/' + '{}.bin'.format(str(i)))
         else:
-            y_out.tofile(outputpath + '/' + 'block2_{}.bin'.format(str(i)))
+            pass
     except Exception as e:
         with open(outputpath + '/' + 'within_{}.log'.format(str(i)), 'w') as logfile:
             print(e, file=logfile)
 
 
 @queueable
-def save_count_data(list_input, func, name):
-    array_input = np.array(list_input, dtype='int64').flatten()
-    sorted = np.sort(array_input)[::-1]
+def save_count_data(countdir, func, name):
+    clist = []
+    for file in glob(countdir + '/' + '*.bin'):
+        y = np.fromfile(file, dtype=np.int64)
+        clist.append(y)
+    arr = np.array(clist, dtype='int64').flatten()
+    sorted = np.sort(arr)[::-1]
     if func == task_merge_within_block:
-        sorted = sorted[0:len(array_input) - 1 - len(block_centers)] # every block stil has np.zeros(12) in task_merge_within_bbox
+        sorted = sorted[0:len(arr) - 1 - len(block_centers)] # every block stil has np.zeros(12) in task_merge_within_bbox
     np.savetxt(outputpath + '/' + 'count_{}.txt'.format(name), sorted)
 
 
 @queueable
-def task_merge_across_block(i, output, data):
+def save_count(count, name):
+    sorted = np.sort(count.astype('int64'))[::-1]
+    np.savetxt(outputpath + '/' + 'count_{}.txt'.format(name), sorted)
+
+
+@queueable
+def task_merge_across_block(i, data, mergeddir):
     try:
         dup_info = data[data[:,11] == i]
         dup_info_0 = dup_info[0,:]
@@ -291,7 +299,8 @@ def task_merge_across_block(i, output, data):
         dup_info_0_new[7:10] = np.amax(new_maxpts, axis=1) # [block id, center location in mip0, new bbox min, new bbox max, nuc_segid, nucid] in int64
         # need to -1 from new bbox max?
         hoge = add_bbox_size_column(dup_info_0_new).astype('int64')
-        output.append(hoge)
+        
+        hoge.tofile(mergeddir + '/' + 'nucid_{}.bin'.format(str(i)))
       
     except Exception as e:
         with open(outputpath + '/' + 'across_{}.log'.format(str(i)), 'w') as logfile:
@@ -299,8 +308,14 @@ def task_merge_across_block(i, output, data):
 
 
 @queueable
-def array_to_csv(array_withchange, array_nochange, name): 
-    stacked  = np.vstack([array_withchange, array_nochange])
+def save_merged(mergeddir, array_nochange, name): 
+    array_withchange = []
+    for file in glob(mergeddir + '/' + 'nucid_*.bin'):
+        xx = np.fromfile(file, dtype=np.int64)
+        array_withchange.append(xx)
+    arr = np.array(array_withchange, dtype='int64')
+
+    stacked  = np.vstack([arr, array_nochange])
     df = pd.DatFrame(stacked)
     df.to_csv(outputpath + '/' + '{}.csv'.format(name), index=False)
 
@@ -346,15 +361,13 @@ def run_local(cmd, count_data=False): # recommended
         else:
             tq.insert(( partial(func, i) for i in range(start, len(block_centers)) )) # NEW SCHOOL
     elif func == task_merge_within_block:
-        clist=[] # save count_data
-        if file_input is not None:
-            with open(file_input) as fd:      
-                txtdf = np.loadtxt(fd, dtype='int64')
-                tq.insert( partial(func, i, clist=clist) for i in txtdf )
-        else:
-            tq.insert(( partial(func, i, clist=clist) for i in range(start, len(block_centers)) ))
         if count_data == True:
-            tq.insert(partial(save_count_data, clist, func, cmd.split('_', 1)[1]))
+            countdir = outputpath + '/' + 'count_{}'.format(cmd.split('_', 1)[1])
+            os.makedirs(countdir, exist_ok=True)
+            tq.insert(( partial(func, i, count_data, countdir) for i in range(start, len(block_centers)) ))
+            tq.insert(partial(save_count_data, countdir, func, cmd.split('_', 1)[1]))
+        else:
+            tq.insert(( partial(func, i, count_data) for i in range(start, len(block_centers)) ))
     elif func == task_merge_across_block:
         nuc_data = [] # store input
         for ii in range(len(block_centers)):
@@ -366,11 +379,14 @@ def run_local(cmd, count_data=False): # recommended
         nucID_duplicated_across = u_across[c_across > 1]
         row_nochange = r[np.isin(r[:,11], u_across[c_across == 1])]
         keep = add_bbox_size_column(row_nochange).astype('int64')
-        nuc_data_out = [] # store output
-        tq.insert( partial(func, n, nuc_data_out, r) for n in nucID_duplicated_across)
-        tq.insert(partial(array_to_csv, (np.array(nuc_data_out)), keep, 'merged')) # [block id, center location in mip0, nuc_segid, nucid, new bbox size] in int64
+
+        mergeddir = outputpath + '/' + 'merged_across_block'
+        os.makedirs(mergeddir, exist_ok=True)
+        
+        tq.insert( partial(func, n, r , mergeddir) for n in nucID_duplicated_across)
+        tq.insert(partial(save_merged, mergeddir, keep, 'merged')) # [block id, center location in mip0, nuc_segid, nucid, new bbox size] in int64
         if count_data == True:
-            tq.insert(partial(save_count_data, c_across, func, cmd.split('_', 1)[1])) # save count_data
+            tq.insert(partial(save_count, c_across, cmd.split('_', 1)[1])) # save count_data
     else: # task_apply_size_threshold
         previous_df = pd.read_csv(outputpath + '/' + 'merged.csv', header=0)
         # no file means you haven't merged
