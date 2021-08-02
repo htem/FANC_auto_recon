@@ -44,7 +44,7 @@ path_to_nuc_list = '~/nuc_info.csv'
 
 # variables
 np.random.seed(123)
-window_xy = 160 # window size to get nuclei
+window_xy = 160 # window size to get nuclei in mip2
 window_z = 160 
 # threshold mesh size
 # threshold variance of surrounding id
@@ -111,6 +111,7 @@ def find_most_frequent_ID(array):
 @queueable
 def task_get_mesh_size(i):
   try:
+    # [block id, center location in mip0, new bbox min, new bbox max, nuc_segid, nucid] in int64
     cord_mip0 = df.iloc[i,0:3] #xyz coordinates
     cord_mip2 = cord_mip0.values.copy() # change coordination from mip0 to mip2
     cord_mip2[0]  = (cord_mip0.values[0] /(2**2))
