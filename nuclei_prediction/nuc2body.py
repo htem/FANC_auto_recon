@@ -1,3 +1,4 @@
+from re import A
 import numpy as np
 import sys
 import os
@@ -44,9 +45,7 @@ path_to_nuc_list = '~/nuc_info.csv'
 
 # variables
 np.random.seed(123)
-window_xy = 160 # window size to get nuclei in mip2
-window_z = 160 
-# threshold mesh size
+window_coef = 1.5 # window size to get nuclei in mip2
 # threshold variance of surrounding id
 
 # could-volume url setting
@@ -56,132 +55,158 @@ seg = CloudVolume(auth.get_cv_path('FANC_production_segmentation')['url'], use_h
 df = pd.read_csv(path_to_nuc_list, header=0)
 
 
-def vol_shift(input): # this is still very slow since this overuse RAM even though np.roll is fast
-    # x plane
-    x_p = np.roll(input, 1, axis=0)
-    x_p[0,:,:] = 0
-    x_n = np.roll(input, -1, axis=0)
-    x_n[-1,:,:] = 0
-    # y plane
-    y_p = np.roll(input, 1, axis=1)
-    y_p[:,0,:] = 0
-    y_n = np.roll(input, -1, axis=1)
-    y_n[:,-1,:] = 0
-    # z plane
-    z_p = np.roll(input, 1, axis=2)
-    z_p[:,:,0] = 0
-    z_n = np.roll(input, -1, axis=2)
-    z_n[:,:,-1] = 0
+def mip0_to_mip2(x,y,z):
+  xyz_mip2 = np.array([(x/(2**2)),(y/(2**2)), z])
+  xyz_mip2 = xyz_mip2.astype('int64')
 
-    sum = x_p + x_n + y_p + y_n + z_p + z_n
-    result = sum - input*6
-
-    return result
+  return xyz_mip2[0], xyz_mip2[1], xyz_mip2[2]
 
 
-# edit
-def mip0_to_mip2(x,y,z, img):
-    origin = img.bounds.minpt
-    xyz_mip4 = np.add(np.array([x,y,z]), origin)
-    xyz_mip0 = np.array([(xyz_mip4[0] * 2**4),(xyz_mip4[1] * 2**4), xyz_mip4[2]])
-    xyz_mip0 = xyz_mip0.astype('int64')
-
-    return xyz_mip0[0], xyz_mip0[1], xyz_mip0[2]
+def mip0_to_mip2_array(array):
+  X, Y, Z = mip0_to_mip2(array[0], array[1], array[2])
+  result = np.array([X, Y, Z])
+  return result
 
 
-def mip0_to_mip2_array(array, img):
-    X, Y, Z = mip0_to_mip2(array[0], array[1], array[2], img)
-    result = np.array([X, Y, Z])
-    return result
+def look_faces(volume, value):
+  pixel_total = 2*(volume.shape[0]*volume.shape[1]+volume.shape[1]*volume.shape[2]+volume.shape[0]*volume.shape[2])
+  x1 = (volume[0,:,:] == value).sum()
+  x2 = (volume[-1,:,:] == value).sum()
+  y1 = (volume[:,0,:] == value).sum()
+  y2 = (volume[0,-1,:] == value).sum()
+  z1 = (volume[:,:,0] == value).sum()
+  z2 = (volume[:,:,-1] == value).sum()
+
+  result = (x1 + x2 + y1 + y2 + z1 + z2)/pixel_total
+  
+  return int(result*100) # percentage
 
 
-def find_most_frequent_ID(array):
-    uniqueID, count = np.unique(array, return_counts=True)
-    unsorted_max_indices = np.argsort(-count)
-    topIDs1 = uniqueID[unsorted_max_indices] 
-    topIDs2 = topIDs1[~(topIDs1 == 0)] # no zero
-    if topIDs2.size == 0:
-        topID = np.zeros(1, dtype = 'int64') # empty then zero
-    else:
-        topID = topIDs2.astype('int64')[0]
+def vol_shift(input, pixel): # this is still very slow since this overuse RAM even though np.roll is fast
+  # x plane
+  x_p = np.roll(input, pixel, axis=0)
+  x_p[:pixel,:,:] = 0
+  x_n = np.roll(input, -pixel, axis=0)
+  x_n[-pixel:,:,:] = 0
+  # y plane
+  y_p = np.roll(input, pixel, axis=1)
+  y_p[:,:pixel,:] = 0
+  y_n = np.roll(input, -pixel, axis=1)
+  y_n[:,-pixel,:] = 0
+  # z plane
+  z_p = np.roll(input, pixel, axis=2)
+  z_p[:,:,:pixel] = 0
+  z_n = np.roll(input, -pixel, axis=2)
+  z_n[:,:,-pixel] = 0
 
-    return topID
+  sum = x_p + x_n + y_p + y_n + z_p + z_n
+  result = sum - input*6
+  result[result>0] = 1
+  result[result<0] = 0
+
+  result = result.astype('int64')
+
+  return result
+
+
+def argwhere_from_outside(volume, value, bbox_size):
+  ind = np.argwhere(volume == value)
+  center = bbox_size/2
+
+  distance = np.linalg.norm(ind-center)
+  sorted_indice = np.argsort(-distance)
+  result = ind[sorted_indice]
+  
+  return result
+
+def mip2_to_mip0(x,y,z, img):
+  origin = img.bounds.minpt
+  xyz_mip2 = np.add(np.array([x,y,z]), origin)
+  xyz_mip0 = np.array([(xyz_mip2[0] * 2**2),(xyz_mip2[1] * 2**2), xyz_mip2[2]])
+  xyz_mip0 = xyz_mip0.astype('int64')
+
+  return xyz_mip0[0], xyz_mip0[1], xyz_mip0[2]
+
+
+def mip2_to_mip0_array(array, img):
+  X, Y, Z = mip2_to_mip0(array[0], array[1], array[2], img)
+  result = np.array([X, Y, Z])
+  return result
+
+
+def summarize_topIDs(array, place, fill):
+  uniqueID, count = np.unique(array, return_counts=True)
+  count2 = -count
+  unsorted_max_indices = np.argsort(count2)
+  topIDs = uniqueID[unsorted_max_indices] 
+  count2 = count2 /sum(count2)
+  end_indice = min(place,len(topIDs))
+  id_and_count = np.array([topIDs[0:end_indice-1], count2[0:end_indice-1]],dtype='int64')
+
+  if fill == True:
+    arr_temp = sum(id_and_count.tolist(), [])
+    result = np.array(map(lambda x: x + [0]*(place-len(x)), arr_temp))
+  else:
+    result = id_and_count
+
+  return result
 
 
 @queueable
-def task_get_mesh_size(i):
+def task_get_surrounding(i):
   try:
-    # [block id, center location in mip0, new bbox min, new bbox max, nuc_segid, nucid] in int64
-    cord_mip0 = df.iloc[i,0:3] #xyz coordinates
-    cord_mip2 = cord_mip0.values.copy() # change coordination from mip0 to mip2
-    cord_mip2[0]  = (cord_mip0.values[0] /(2**2))
-    cord_mip2[1]  = (cord_mip0.values[1] /(2**2))
-    cord_mip2 = cord_mip2.astype('int64')
-    id = df.iloc[i,3] #segid
+    # "blockID", "x", "y", "z", "nuc_segID", "nucID", "size_x_mip4", "size_y_mip4", "size_z_mip4", "vol"
+    rowi = df.iloc[i,:].values
+    cord_mip0 = rowi[1:4]
+    cord_mip2 = mip0_to_mip2_array(cord_mip0)
+    bbox_size = [rowi[5]*2**2*window_coef, rowi[6]*2**2*window_coef, rowi[7]*2**2*window_coef]
 
-    if id == 0:
+    seg_nuc = seg.download_point(pt=cord_mip2, segids=rowi[4], size=bbox_size, coord_resolution=[17.2, 17.2, 45.0]) #mip2
+    
+    vol_temp = seg_nuc[:,:,:]
+    vol_temp[vol_temp>0] = 1 # change segID assigned to each cell body into 1
+    vol = np.squeeze(vol_temp)
+
+    one_in_faces = look_faces(vol, value=1) # save in percentage
+
+    filled = fill_voids.fill(vol, in_place=False) # fill the empty space with fill_voids. Igonore warning
+    shifted = vol_shift(filled, pixel=1) # shift the volume one pixel
+    
+    location_one = argwhere_from_outside(shifted, value=1, bbox_size=bbox_size)
+
+    if len(location_one):
+      if choose is not None: 
+        lchosen = location_one[0:choose,:]
+      else:
+        lchosen = location_one
+      
+      lchosen_mip0 = np.apply_along_axis(mip2_to_mip0_array, 1, lchosen, seg_nuc)
+      parent_IDs = IDlook.segIDs_from_pts_cv(pts=lchosen_mip0, cv=seg, progress=False) #mip0
+
+      summarized = summarize_topIDs(parent_IDs,10,fill=True)
+
+      # save
+      uniqueID, count = np.unique(parent_IDs, return_counts=True)
+      unsorted_max_indices = np.argsort(-count)
+      topIDs = uniqueID[unsorted_max_indices] # gives me top5 IDs
+      topIDs2 = topIDs[~(topIDs == id)] # I hope this keeps order, remove if same as nuclei id
+      topIDs3 = topIDs2[~(topIDs2 == 0)] # no zero
+      topIDs3 = np.append(topIDs3, np.zeros(3, dtype = 'uint64'))
+      A = np.append(cord_mip0.values, id).astype('int64')
+      B = topIDs3.astype('int64')[0:3]
+      output = np.append(A, B) #top3
+
+      rowi one_in_faces summarized
+      
+    else:
       A = np.append(cord_mip0.values, id).astype('int64')
       B = np.zeros(3, dtype = 'int64')
       output = np.append(A, B) #xyz, id, 0,0,0
-    else:
-      seg_nuc = seg.download_point(pt=cord_mip2, segids=id, size=[size_xy, size_xy, 160], coord_resolution=[17.2, 17.2, 45.0])
-      # lowest resolution of seg is [17.2, 17.2, 45.0]
-      # pt should be mip0??
-      vol_temp = seg_nuc[:,:,:]
-      vol_temp[vol_temp>0] = 1 # change segID assigned to each cell body into 1
-      vol = np.squeeze(vol_temp)
 
-      filled = fill_voids.fill(vol, in_place=False) # fill the empty space with one 
-      # ignore warning
-
-      shifted = vol_shift(filled) # shift the volume
-      shifted = shifted.astype('float32')
-      shifted[shifted>0] = 1
-      shifted[shifted<0] = 0
-
-      location_one = np.argwhere(shifted == 1)
-      len(location_one)
-
-      if len(location_one):
-        origin = seg_nuc.bounds.minpt # 3072,5248,1792
-        parent_coordinates_mip2 = np.add(np.array(location_one), origin)
-        parent_coordinates = parent_coordinates_mip2
-        parent_coordinates[:,0]  = (parent_coordinates_mip2[:,0] * 2**2)
-        parent_coordinates[:,1]  = (parent_coordinates_mip2[:,1] * 2**2)
-        parent_coordinates = parent_coordinates.astype('int64')
-
-        #random selection?
-        if choose == 0:
-          location_random = parent_coordinates
-        else:
-          index = np.random.choice(parent_coordinates.shape[0], size=choose, replace=False)
-          location_random = parent_coordinates[index]
-
-        # Lets get IDs using cell_body_coordinates
-        parent_IDs = IDlook.segIDs_from_pts_cv(pts=location_random, cv=seg, progress=False) #mip0
-
-        # save
-        uniqueID, count = np.unique(parent_IDs, return_counts=True)
-        unsorted_max_indices = np.argsort(-count)
-        topIDs = uniqueID[unsorted_max_indices] # gives me top5 IDs
-        topIDs2 = topIDs[~(topIDs == id)] # I hope this keeps order, remove if same as nuclei id
-        topIDs3 = topIDs2[~(topIDs2 == 0)] # no zero
-        topIDs3 = np.append(topIDs3, np.zeros(3, dtype = 'uint64'))
-        A = np.append(cord_mip0.values, id).astype('int64')
-        B = topIDs3.astype('int64')[0:3]
-        output = np.append(A, B) #top3
-        
-      else:
-        A = np.append(cord_mip0.values, id).astype('int64')
-        B = np.zeros(3, dtype = 'int64')
-        output = np.append(A, B) #xyz, id, 0,0,0
-
-      output_df = pd.DataFrame(columns=["x", "y", "z", "segIDs", "Parent1", "Parent2", "Parent3"])
-      output_df.loc[0] = output
-      name = str(i)
-      output_df.to_csv(outputpath + '/' + 'cellbody_{}.csv'.format(name), index=False)
-
-    seg.cache.flush()
+    output_df = pd.DataFrame(columns=["x", "y", "z", "segIDs", "Parent1", "Parent2", "Parent3"])
+    output_df.loc[0] = output
+    name = str(i)
+    output_df.to_csv(outputpath + '/' + 'cellbody_{}.csv'.format(name), index=False)
 
   except Exception as e:
     name=str(i)
@@ -277,10 +302,10 @@ def run_local(cmd, count_data=False): # recommended
     try:
         func = globals()[cmd]
     except Exception:
-        print("Error: cmd only accepts 'task_get_mesh_size', 'task_get_surrounding', 'task_get_cellbody'")
+        print("Error: cmd only accepts 'task_get_surrounding', 'task_get_cellbody'")
 
     tq = LocalTaskQueue(parallel=parallel_cpu)
-    if func == task_get_mesh_size:
+    if func == task_get_surrounding:
         if file_input is not None:
             with open(file_input) as fd:      
                 txtdf = np.loadtxt(fd, dtype='int64')
