@@ -301,7 +301,12 @@ def task_merge_across_block(i, data, mergeddir):
         dup_info_0_new[4:7] = np.amin(new_minpts, axis=0)
         dup_info_0_new[7:10] = np.amax(new_maxpts, axis=0) # [block id, center location in mip0, new bbox min, new bbox max, nuc_segid, nucid] in int64
         # need to -1 from new bbox max?
-        hoge = add_bbox_size_column(dup_info_0_new).astype('int64')
+
+        [nX, nY, nZ] = np.array([dup_info_0_new[4]+dup_info_0_new[4+3],dup_info_0_new[5]+dup_info_0_new[5+3],dup_info_0_new[6]+dup_info_0_new[6+3]]) / 2
+        dup_info_0_new[1] = block_centers[dup_info_0_new[0]] + (nX - block_x/2) * 2**4
+        dup_info_0_new[2] = block_centers[dup_info_0_new[0]] + (nY - block_y/2) * 2**4
+        dup_info_0_new[3] = block_centers[dup_info_0_new[0]] + (nZ - block_z/2) * 2**4
+        hoge = add_bbox_size_column(dup_info_0_new).astype('int64') # delete min and max info, and add bbox size column
         
         hoge.tofile(mergeddir + '/' + 'nucid_{}.bin'.format(str(i)))
       
