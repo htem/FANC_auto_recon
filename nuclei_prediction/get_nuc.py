@@ -297,7 +297,7 @@ def task_merge_across_block(i, data, mergeddir):
         new_minpts = dup_info[:,4:7] + block_loc*(block_x,block_y,block_z)
         new_maxpts = dup_info[:,7:10]+ block_loc*(block_x,block_y,block_z)
 
-        dup_info_0_new = dup_info_0.copy().astype('uint64') # uint to store possible negative values
+        dup_info_0_new = dup_info_0.copy().astype('int64') # int to store possible negative values
         dup_info_0_new[4:7] = np.amin(new_minpts, axis=0)
         dup_info_0_new[7:10] = np.amax(new_maxpts, axis=0) # [block id, center location in mip0, new bbox min, new bbox max, nuc_segid, nucid] in int64
         # need to -1 from new bbox max?
