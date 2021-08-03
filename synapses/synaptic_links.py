@@ -6,7 +6,7 @@ import numpy as np
 import os
 import pandas as pd
 import random
-from ..segmentation import rootID_lookup
+from ..segmentation import rootID_lookup, authentication_utils
 
 
 def flip_xyz_zyx_convention(array, inplace=True):
