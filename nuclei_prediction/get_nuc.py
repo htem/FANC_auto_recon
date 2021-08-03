@@ -334,9 +334,7 @@ def task_apply_size_threshold(df):
     df_1 = df.loc[(df['size_x_mip4'] > thres_x) & (df['size_y_mip4'] > thres_y) & (df['size_z_mip4'] > thres_z)] 
     df_o = df_1.sort_values('vol') # sort based on vol column
     df_o.to_csv(outputpath + '/' + '{}.csv'.format(final_product), index=False)
-
-
-# df_1['vol'] = df_1.apply(lambda row: (row['size_x_mip4']*row['size_y_mip4']*row['size_z_mip4']), axis=1)
+    # "blockID", "x", "y", "z", "nuc_segID", "nucID", "size_x_mip4", "size_y_mip4", "size_z_mip4", "vol"
 
 
 def run_local(cmd, count_data=False): # recommended
