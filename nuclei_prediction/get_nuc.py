@@ -305,7 +305,7 @@ def task_merge_across_block(i, data, mergeddir):
         [nX, nY, nZ] = np.array([dup_info_0_new[4]+dup_info_0_new[4+3],dup_info_0_new[5]+dup_info_0_new[5+3],dup_info_0_new[6]+dup_info_0_new[6+3]]) / 2
         dup_info_0_new[1] = block_centers[dup_info_0_new[0]][0] + (nX - block_x/2) * 2**4
         dup_info_0_new[2] = block_centers[dup_info_0_new[0]][1] + (nY - block_y/2) * 2**4
-        dup_info_0_new[3] = block_centers[dup_info_0_new[0]][2] + (nZ - block_z/2) * 2**4
+        dup_info_0_new[3] = block_centers[dup_info_0_new[0]][2] + (nZ - block_z/2)
         hoge = add_bbox_size_column(dup_info_0_new).astype('int64') # delete min and max info, and add bbox size column
         
         hoge.tofile(mergeddir + '/' + 'nucid_{}.bin'.format(str(i)))
@@ -347,7 +347,7 @@ def run_local(cmd, count_data=False): # recommended
     if func == task_get_nuc_info:
         if file_input is not None:
             with open(file_input) as fd:      
-                txtdf = np.loadtxt(fd, dtype='int64')
+                txtdf = np.loadtxt(fd, dtype='int64', ndmin=1)
                 tq.insert( partial(func, i) for i in txtdf )
         elif xyz_input is not None:
             xyzdf = pd.read_csv(xyz_input, header=0)
