@@ -182,7 +182,7 @@ def task_get_surrounding(i):
     rowi = df.iloc[i,:].values
     cord_mip0 = rowi[1:4]
     cord_mip4 = mip0_to_mip4_array(cord_mip0)
-    bbox_size = np.array([rowi[5]*window_coef, rowi[6]*window_coef, rowi[7]*window_coef])
+    bbox_size = np.array([rowi[6]*window_coef, rowi[7]*window_coef, rowi[8]*window_coef], dtype='int64')
 
     # seg_nuc = seg.download_point(pt=cord_mip2, segids=rowi[4], size=bbox_size, coord_resolution=[17.2, 17.2, 45.0]) #mip2
     seg_nuc = nuclei_seg_cv.download_point(pt=cord_mip4, size=bbox_size, mip=[68.8,68.8,45.0]) #mip4
@@ -193,14 +193,14 @@ def task_get_surrounding(i):
 
     # one_in_faces = look_faces(vol, value=1) # save in percentage
 
-    filled = fill_voids.fill(vol, in_place=False) # fill the empty space with fill_voids. Ignore warning
+    filled = fill_voids.fill(vol, in_place=False) # fill the empty space with fill_voids. Ignore DeprecationWarning
     shifted = vol_shift(filled, pixel=1) # shift the volume one pixel
     
     location_one = argwhere_from_outside(shifted, value=1, bbox_size=bbox_size)
 
     if len(location_one):
       if choose is not None: 
-        lchosen = location_one[0:choose,:]
+        lchosen = location_one[0:min(choose,location_one),:]
       else:
         lchosen = location_one
       
