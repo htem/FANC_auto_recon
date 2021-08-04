@@ -193,7 +193,7 @@ def task_get_surrounding(i):
 
     # one_in_faces = look_faces(vol, value=1) # save in percentage
 
-    filled = fill_voids.fill(vol, in_place=False) # fill the empty space with fill_voids. Igonore warning
+    filled = fill_voids.fill(vol, in_place=False) # fill the empty space with fill_voids. Ignore warning
     shifted = vol_shift(filled, pixel=1) # shift the volume one pixel
     
     location_one = argwhere_from_outside(shifted, value=1, bbox_size=bbox_size)
@@ -222,6 +222,7 @@ def task_get_surrounding(i):
         print(e, file=logfile)
 
 
+@queueable
 def task_save_as_csv(mergeddir, name): 
   array_withchange = []
   for file in glob(mergeddir + '/' + '*.bin'):
