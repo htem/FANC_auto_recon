@@ -200,7 +200,7 @@ def task_get_surrounding(i):
 
     if len(location_one):
       if choose is not None: 
-        lchosen = location_one[0:min(choose,location_one),:]
+        lchosen = location_one[0:min(choose,len(location_one)),:]
       else:
         lchosen = location_one
       
