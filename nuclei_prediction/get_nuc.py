@@ -49,7 +49,7 @@ else:
 # path
 queuepath = '/n/groups/htem/users/skuroda/nuclei_tasks4'
 # queuepath = '../Output/nuclei_tasks'
-outputpath = '/n/groups/htem/users/skuroda/nuclei_output4'
+outputpath = '/n/groups/htem/users/skuroda/nuclei_output5'
 # outputpath = '../Output'
 
 # variables
@@ -58,7 +58,7 @@ block_x = 256 # block size in mip4 (72x72x45)
 block_y = 256
 block_z = 256
 skip_y = block_y*288 # 73728, this will ignore y < skip_y
-thres_s = 0.5 # signal threshold, > thrreshold to generate nuclei_seg_cv=0.2
+thres_s = 0.7 # signal threshold, > thrreshold to generate nuclei_seg_cv=0.2
 thres_x = 33-10 # size threshold for xyz in mip4 (68.8x68.8x45)
 thres_y = 33-10 # 50/(4.3*2^4/45) = 50/1.53??
 thres_z = 50-10 
