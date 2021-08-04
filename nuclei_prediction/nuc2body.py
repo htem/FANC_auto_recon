@@ -278,6 +278,3 @@ def run_tasks_from_queue():
         tally=True # makes tq.completed work, logs 1 byte per completed task
     )
     print('All Done')
-
-
-# run with taskset?
