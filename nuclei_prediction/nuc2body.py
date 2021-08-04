@@ -197,6 +197,7 @@ def task_get_surrounding(i):
       output = np.append(A, B) #top3
 
       rowi one_in_faces summarized
+      save in bin
       
     else:
       A = np.append(cord_mip0.values, id).astype('int64')
