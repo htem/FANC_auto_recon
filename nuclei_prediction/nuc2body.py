@@ -40,7 +40,7 @@ queuepath = '/n/groups/htem/users/skuroda/nuclei_tasks6'
 # queuepath = '../Output/nuclei_tasks'
 outputpath = '/n/groups/htem/users/skuroda/nuclei_output6'
 # outputpath = '../Output'
-path_to_nuc_list = '~/nuc_info.csv'
+path_to_nuc_list = '~/nuc_info_20210804.csv'
 # path_to_nuc_list = '../Output/nuc_info.csv'
 
 # variables
