@@ -182,7 +182,7 @@ def task_get_surrounding(i):
     rowi = df.iloc[i,:].values
     cord_mip0 = rowi[1:4]
     cord_mip4 = mip0_to_mip4_array(cord_mip0)
-    bbox_size = [rowi[5]*window_coef, rowi[6]*window_coef, rowi[7]*window_coef]
+    bbox_size = np.array([rowi[5]*window_coef, rowi[6]*window_coef, rowi[7]*window_coef])
 
     # seg_nuc = seg.download_point(pt=cord_mip2, segids=rowi[4], size=bbox_size, coord_resolution=[17.2, 17.2, 45.0]) #mip2
     seg_nuc = nuclei_seg_cv.download_point(pt=cord_mip4, size=bbox_size, mip=[68.8,68.8,45.0]) #mip4
@@ -214,7 +214,7 @@ def task_get_surrounding(i):
 
     x = np.hstack((rowi, np.array(body_segID, dtype='int64')))
     x1 = x.astype(np.int64)
-    x1.tofile(outputpath + '/' + 'block_{}.bin'.format(str(i)))
+    x1.tofile(outputpath + '/' + 'nuc_{}.bin'.format(str(i)))
 
   except Exception as e:
     name=str(i)
