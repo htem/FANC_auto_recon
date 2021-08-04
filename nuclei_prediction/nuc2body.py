@@ -1,4 +1,3 @@
-from re import A
 import numpy as np
 import sys
 import os
@@ -186,11 +185,11 @@ def task_get_surrounding(i):
     bbox_size = [rowi[5]*window_coef, rowi[6]*window_coef, rowi[7]*window_coef]
 
     # seg_nuc = seg.download_point(pt=cord_mip2, segids=rowi[4], size=bbox_size, coord_resolution=[17.2, 17.2, 45.0]) #mip2
-    seg_nuc = nuclei_seg_cv.download_point(pt=cord_mip4, segids=rowi[5], size=bbox_size, mip=[68.8,68.8,45.0]) #mip4
+    seg_nuc = nuclei_seg_cv.download_point(pt=cord_mip4, size=bbox_size, mip=[68.8,68.8,45.0]) #mip4
     
     vol_temp = seg_nuc[:,:,:]
-    vol_temp[vol_temp>0] = 1 # change nucID assigned to each cell body into 1
-    vol = np.squeeze(vol_temp)
+    vol_temp2 = np.where(vol_temp == rowi[5], 1, 0)
+    vol = np.squeeze(vol_temp2)
 
     # one_in_faces = look_faces(vol, value=1) # save in percentage
 
@@ -223,7 +222,7 @@ def task_get_surrounding(i):
         print(e, file=logfile)
 
 
-def save_merged(mergeddir, name): 
+def task_save_as_csv(mergeddir, name): 
   array_withchange = []
   for file in glob(mergeddir + '/' + '*.bin'):
       xx = np.fromfile(file, dtype=np.int64)
@@ -249,7 +248,7 @@ def run_local(cmd): # recommended
         else:
             tq.insert(( partial(func, i) for i in range(len(df)) )) # NEW SCHOOL
     else: # 'task_save_as_csv'
-      tq.insert(partial(save_merged, outputpath,'body_info'))
+      tq.insert(partial(func, outputpath,'body_info'))
 
     tq.execute(progress=True)
     print('Done')
