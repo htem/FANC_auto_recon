@@ -230,8 +230,9 @@ def task_save_as_csv(mergeddir, name):
       array_withchange.append(xx)
   arr = np.array(array_withchange, dtype='int64')
 
-  df = pd.DataFrame(arr, columns =["blockID", "x", "y", "z", "nuc_segID", "nucID", "size_x_mip4", "size_y_mip4", "size_z_mip4", "vol", "body_segID"])
-  df.to_csv(outputpath + '/' + '{}.csv'.format(name), index=False) #header?
+  df_o = pd.DataFrame(arr, columns =["blockID", "x", "y", "z", "nuc_segID", "nucID", "size_x_mip4", "size_y_mip4", "size_z_mip4", "vol", "body_segID"])
+  df_o2 = df_o.sort_values('vol')
+  df_o2.to_csv(outputpath + '/' + '{}.csv'.format(name), index=False) #header?
 
 
 def run_local(cmd): # recommended
@@ -244,7 +245,7 @@ def run_local(cmd): # recommended
     if func == task_get_surrounding:
         if file_input is not None:
             with open(file_input) as fd:      
-                txtdf = np.loadtxt(fd, dtype='int64')
+                txtdf = np.loadtxt(fd, dtype='int64', ndmin=1)
                 tq.insert( partial(func, i) for i in txtdf )
         else:
             tq.insert(( partial(func, i) for i in range(len(df)) )) # NEW SCHOOL
