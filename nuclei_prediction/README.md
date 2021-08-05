@@ -82,14 +82,14 @@ topでCPU使用率
 
 
 
-rsync ~/info_cellbody_20210721.csv htem:~/
-rsync ~/info_cellbody_20210721.csv skuroda@catmaid3.hms.harvard.edu:~/
+rsync ~/body_info.csv htem:~/
+rsync ~/body_info.csv skuroda@catmaid3.hms.harvard.edu:~/
 
 
 15199
 
-rsync htem:~/ncount_merged.csv ~/
-rsync skuroda@catmaid3.hms.harvard.edu:~/ncount_merged.csv ~/
+rsync htem:~/body_info.csv ~/
+rsync skuroda@catmaid3.hms.harvard.edu:~/body_info.csv ~/
 
 
 
@@ -114,13 +114,26 @@ python3.6 -c 'import count_sv; count_sv.run_local()' -i ~/missing_count.txt
 cache.flush not work
 
 
-python3.6 -c 'import get_nuc; get_nuc.run_local()' -c 10 -p 18
-./list_missing.sh 13985 block bin
-python3.6 -c 'import get_nuc; get_nuc.run_local()' -c 10 -p 18 -i ~/missing.txt
-
 https://stackoverflow.com/questions/68191392/password-authentication-is-temporarily-disabled-as-part-of-a-brownout-please-us
 
-python3.6 -c "import get_nuc; get_nuc.run_local('task_merge_within_bbox', count_data=True)" -p 18
+
+python3.6 -c "import get_nuc; get_nuc.run_local('task_get_nuc_info')" -c 10 -p 12
+./list_missing.sh 13985 block bin
+python3.6 -c "import get_nuc; get_nuc.run_local('task_get_nuc_info')" -c 10 -p 24 -i ~/missing.txt
+
+python3.6 -c "import get_nuc; get_nuc.run_local('task_merge_within_block', count_data=True)" -p 18
 ./list_missing.sh 13985 block2 bin
 
+
 python3.6 -c "import get_nuc; get_nuc.run_local('task_merge_across_block', count_data=True)" -p 18
+python3.6 -c "import get_nuc; get_nuc.run_local('task_apply_size_threshold')"
+
+
+
+python3.6 -c "import nuc2body; nuc2body.run_local('task_get_surrounding')" -c 100 -p 12
+./list_missing.sh 17134 nuc bin
+python3.6 -c "import nuc2body; nuc2body.run_local('task_get_surrounding')" -c 100 -p 12 -i ~/missing.txt
+python3.6 -c "import nuc2body; nuc2body.run_local('task_save_as_csv')" -c 100 -p 12
+
+
+check 17134 was actually one with nucID=0
