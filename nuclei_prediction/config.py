@@ -108,7 +108,7 @@ def segID_to_svID(segID, ID_array, location_array_mip0):
     pts = location_array_mip0[indices]
     for j in len(pts):
         svID = IDlook.segIDs_from_pts_service(pts[j], return_roots=False)
-        if svID > 0:
+        if (svID > 0) & (segID != 0):
             break
 
     return svID

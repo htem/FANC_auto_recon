@@ -39,8 +39,6 @@ else:
     pass
 
 # path
-queuepath = '/n/groups/htem/users/skuroda/nuclei_tasks4'
-# queuepath = '../Output/nuclei_tasks'
 outputpath = '/n/groups/htem/users/skuroda/nuclei_output5'
 # outputpath = '../Output'
 
@@ -352,32 +350,3 @@ def run_local(cmd, count_data=False): # recommended
 
     tq.execute(progress=True)
     print('Done')
-
-
-def create_task_queue():
-    tq = TaskQueue('fq://' + queuepath)
-    if file_input is not None:
-        with open(file_input) as fd:      
-            txtdf = np.loadtxt(fd, dtype='int64')
-            tq.insert(( partial(task_get_nuc_id, i) for i in txtdf ), parallel=parallel_cpu)
-            print('Done adding {} tasks to queue at {}'.format(len(txtdf), queuepath))
-    elif xyz_input is not None:
-        xyzdf = pd.read_csv(xyz_input, header=0)
-        tq.insert(( partial(task_get_nuc_id, i) for i in range(len(xyzdf)) ), parallel=parallel_cpu)
-        print('Done adding {} tasks to queue at {}'.format(len(xyzdf), queuepath))
-    else:
-        tq.insert(( partial(task_get_nuc_id, i) for i in range(len(block_centers)) ), parallel=parallel_cpu) # NEW SCHOOL?
-        print('Done adding {} tasks to queue at {}'.format(len(block_centers), queuepath))
-        
-    tq.rezero()
-
-
-def run_tasks_from_queue():
-    tq = TaskQueue('fq://' + queuepath)
-    print('Working on tasks from filequeue "{}"'.format(queuepath))
-    tq.poll(
-        verbose=True, # prints progress
-        lease_seconds=int(lease),
-        tally=True # makes tq.completed work, logs 1 byte per completed task
-    )
-    print('All Done')

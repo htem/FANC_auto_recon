@@ -27,9 +27,8 @@ choose=args.choose
 lease=args.lease
 parallel_cpu=args.parallel
 file_input=args.input
+
 # path
-queuepath = '/n/groups/htem/users/skuroda/nuclei_tasks6'
-# queuepath = '../Output/nuclei_tasks'
 outputpath = '/n/groups/htem/users/skuroda/nuclei_output6'
 # outputpath = '../Output'
 path_to_nuc_list = '~/nuc_info_20210804.csv'
@@ -142,6 +141,19 @@ def task_save_as_csv(mergeddir, name):
   df_o2.to_csv(outputpath + '/' + '{}.csv'.format(name), index=False) #header?
 
 
+@queueable # edit https://caveclient.readthedocs.io/en/latest/guide/chunkedgraph.html
+def task_get_current_rootIDs(mergeddir, name): 
+  array_withchange = []
+  for file in glob(mergeddir + '/' + '*.bin'):
+      xx = np.fromfile(file, dtype=np.int64)
+      array_withchange.append(xx)
+  arr = np.array(array_withchange, dtype='int64')
+
+  df_o = pd.DataFrame(arr, columns =["blockID", "x", "y", "z", "nuc_segID", "nucID", "size_x_mip4", "size_y_mip4", "size_z_mip4", "vol", "body_segID"])
+  df_o2 = df_o.sort_values('vol')
+  df_o2.to_csv(outputpath + '/' + '{}.csv'.format(name), index=False) #header?
+
+
 def run_local(cmd): # recommended
     try:
         func = globals()[cmd]
@@ -161,28 +173,3 @@ def run_local(cmd): # recommended
 
     tq.execute(progress=True)
     print('Done')
-
-
-def create_task_queue():
-    tq = TaskQueue('fq://' + queuepath)
-    if file_input is None:
-      tq.insert(( partial(task_nuc2body, i) for i in range(len(df)) ), parallel=parallel_cpu) # NEW SCHOOL?
-      print('Done adding {} tasks to queue at {}'.format(len(df), queuepath))
-    else:
-      with open(file_input) as fd:      
-        txtdf = np.loadtxt(fd, dtype='int64')
-        tq.insert(( partial(task_nuc2body, i) for i in txtdf ), parallel=parallel_cpu)
-        print('Done adding {} tasks to queue at {}'.format(len(txtdf), queuepath))
-        
-    tq.rezero()
-
-
-def run_tasks_from_queue():
-    tq = TaskQueue('fq://' + queuepath)
-    print('Working on tasks from filequeue "{}"'.format(queuepath))
-    tq.poll(
-        verbose=True, # prints progress
-        lease_seconds=int(lease),
-        tally=True # makes tq.completed work, logs 1 byte per completed task
-    )
-    print('All Done')
