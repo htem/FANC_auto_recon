@@ -2,27 +2,19 @@ import numpy as np
 import sys
 import os
 import pandas as pd
-from tqdm import tqdm
 from glob import glob
 import argparse
 
-from cloudvolume import CloudVolume, view, Bbox
+from cloudvolume import CloudVolume, Bbox
 import fill_voids
 from taskqueue import TaskQueue, queueable, LocalTaskQueue
 from functools import partial
-from concurrent.futures import ProcessPoolExecutor
+from config import *
 sys.path.append(os.path.abspath("../segmentation"))
 # to import rootID_lookup and authentication_utils like below
 import rootID_lookup as IDlook
 import authentication_utils as auth
 
-
-def validate_file(f):
-    if not os.path.exists(f):
-        # Argparse uses the ArgumentTypeError to give a rejection message like:
-        # error: argument input: x does not exist
-        raise argparse.ArgumentTypeError("{0} does not exist".format(f))
-    return f
 
 parser = argparse.ArgumentParser(description='get segIDs of parent neurons from csv files') 
 parser.add_argument('-c', '--choose', help='specify the numer of pixels randomly chosen to get segID of parent neuron. default is all surroundinx pixels', type=int)
@@ -53,46 +45,6 @@ seg = CloudVolume(auth.get_cv_path('FANC_production_segmentation')['url'], use_h
 nuclei_seg_cv = CloudVolume(auth.get_cv_path('nuclei_seg_Jul2021')['url'], cache=False, progress=False, use_https=True,autocrop=True, bounded=False) # mip4
 # read csv
 df = pd.read_csv(path_to_nuc_list, header=0)
-
-
-def mip0_to_mip2(x,y,z):
-  xyz_mip2 = np.array([(x/(2**2)),(y/(2**2)), z])
-  xyz_mip2 = xyz_mip2.astype('int64')
-
-  return xyz_mip2[0], xyz_mip2[1], xyz_mip2[2]
-
-
-def mip0_to_mip2_array(array):
-  X, Y, Z = mip0_to_mip2(array[0], array[1], array[2])
-  result = np.array([X, Y, Z])
-  return result
-
-
-def mip0_to_mip4(x,y,z):
-  xyz_mip4 = np.array([(x/(2**4)),(y/(2**4)), z])
-  xyz_mip4 = xyz_mip4.astype('int64')
-
-  return xyz_mip4[0], xyz_mip4[1], xyz_mip4[2]
-
-
-def mip0_to_mip4_array(array):
-  X, Y, Z = mip0_to_mip4(array[0], array[1], array[2])
-  result = np.array([X, Y, Z])
-  return result
-
-
-def look_faces(volume, value):
-  pixel_total = 2*(volume.shape[0]*volume.shape[1]+volume.shape[1]*volume.shape[2]+volume.shape[0]*volume.shape[2])
-  x1 = (volume[0,:,:] == value).sum()
-  x2 = (volume[-1,:,:] == value).sum()
-  y1 = (volume[:,0,:] == value).sum()
-  y2 = (volume[0,-1,:] == value).sum()
-  z1 = (volume[:,:,0] == value).sum()
-  z2 = (volume[:,:,-1] == value).sum()
-
-  result = (x1 + x2 + y1 + y2 + z1 + z2)/pixel_total
-  
-  return int(result*100) # percentage
 
 
 def vol_shift(input, pixel): # this is still very slow since this overuse RAM even though np.roll is fast
@@ -132,48 +84,6 @@ def argwhere_from_outside(volume, value, bbox_size):
   
   return result
 
-def mip2_to_mip0(x,y,z, img):
-  origin = img.bounds.minpt
-  xyz_mip2 = np.add(np.array([x,y,z]), origin)
-  xyz_mip0 = np.array([(xyz_mip2[0] * 2**2),(xyz_mip2[1] * 2**2), xyz_mip2[2]])
-  xyz_mip0 = xyz_mip0.astype('int64')
-
-  return xyz_mip0[0], xyz_mip0[1], xyz_mip0[2]
-
-
-def mip2_to_mip0_array(array, img):
-  X, Y, Z = mip2_to_mip0(array[0], array[1], array[2], img)
-  result = np.array([X, Y, Z])
-  return result
-
-
-def mip4_to_mip0(x,y,z, img):
-  origin = img.bounds.minpt
-  xyz_mip4 = np.add(np.array([x,y,z]), origin)
-  xyz_mip0 = np.array([(xyz_mip4[0] * 2**4),(xyz_mip4[1] * 2**4), xyz_mip4[2]])
-  xyz_mip0 = xyz_mip0.astype('int64')
-
-  return xyz_mip0[0], xyz_mip0[1], xyz_mip0[2]
-
-
-def mip4_to_mip0_array(array, img):
-  X, Y, Z = mip4_to_mip0(array[0], array[1], array[2], img)
-  result = np.array([X, Y, Z])
-  return result
-
-
-def find_most_frequent_ID(array):
-  uniqueID, count = np.unique(array, return_counts=True)
-  unsorted_max_indices = np.argsort(-count)
-  topIDs1 = uniqueID[unsorted_max_indices] 
-  topIDs2 = topIDs1[~(topIDs1 == 0)] # no zero
-  if topIDs2.size == 0:
-      topID = np.zeros(1, dtype = 'int64') # empty then zero
-  else:
-      topID = topIDs2.astype('int64')[0]
-
-  return topID
-
 
 @queueable
 def task_get_surrounding(i):
@@ -184,14 +94,11 @@ def task_get_surrounding(i):
     cord_mip4 = mip0_to_mip4_array(cord_mip0)
     bbox_size = np.array([rowi[6]*window_coef, rowi[7]*window_coef, rowi[8]*window_coef], dtype='int64')
 
-    # seg_nuc = seg.download_point(pt=cord_mip2, segids=rowi[4], size=bbox_size, coord_resolution=[17.2, 17.2, 45.0]) #mip2
     seg_nuc = nuclei_seg_cv.download_point(pt=cord_mip4, size=bbox_size, mip=[68.8,68.8,45.0]) #mip4
     
     vol_temp = seg_nuc[:,:,:]
     vol_temp2 = np.where(vol_temp == rowi[5], 1, 0)
     vol = np.squeeze(vol_temp2)
-
-    # one_in_faces = look_faces(vol, value=1) # save in percentage
 
     filled = fill_voids.fill(vol, in_place=False) # fill the empty space with fill_voids. Ignore DeprecationWarning
     shifted = vol_shift(filled, pixel=1) # shift the volume one pixel

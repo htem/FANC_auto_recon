@@ -2,28 +2,20 @@ import numpy as np
 import sys
 import os
 import pandas as pd
-from numpy.random.mtrand import f
-from tqdm import tqdm
 from glob import glob
 import argparse
 
-from cloudvolume import CloudVolume, view, Bbox
+from cloudvolume import CloudVolume, Bbox
 import cc3d
-from tifffile.tifffile import imagej_metadata, imwrite
 from taskqueue import TaskQueue, queueable, LocalTaskQueue
 from functools import partial
+from config import *
 sys.path.append(os.path.abspath("../segmentation"))
 # to import rootID_lookup and authentication_utils like below
 
 import rootID_lookup as IDlook
 import authentication_utils as auth
 
-def validate_file(f):
-    if not os.path.exists(f):
-        # Argparse uses the ArgumentTypeError to give a rejection message like:
-        # error: argument input: x does not exist
-        raise argparse.ArgumentTypeError("{0} does not exist".format(f))
-    return f
 
 parser = argparse.ArgumentParser(description='get segIDs of cell bodies and save into csv files') 
 parser.add_argument('-s', '--start', help='specify starting chunk. default is 0', default=0, type=int)
@@ -108,34 +100,6 @@ centerZ = np.append(centerZ, cv.bounds.maxpt[2]-start_z)
 
 block_centers = np.array(np.meshgrid(centerX, centerY, centerZ), dtype='int64').T.reshape(-1,3)
 len(block_centers)
-
-
-def mip4_to_mip0(x,y,z, img):
-    origin = img.bounds.minpt
-    xyz_mip4 = np.add(np.array([x,y,z]), origin)
-    xyz_mip0 = np.array([(xyz_mip4[0] * 2**4),(xyz_mip4[1] * 2**4), xyz_mip4[2]])
-    xyz_mip0 = xyz_mip0.astype('int64')
-
-    return xyz_mip0[0], xyz_mip0[1], xyz_mip0[2]
-
-
-def mip4_to_mip0_array(array, img):
-    X, Y, Z = mip4_to_mip0(array[0], array[1], array[2], img)
-    result = np.array([X, Y, Z])
-    return result
-
-
-def find_most_frequent_ID(array):
-    uniqueID, count = np.unique(array, return_counts=True)
-    unsorted_max_indices = np.argsort(-count)
-    topIDs1 = uniqueID[unsorted_max_indices] 
-    topIDs2 = topIDs1[~(topIDs1 == 0)] # no zero
-    if topIDs2.size == 0:
-        topID = np.zeros(1, dtype = 'int64') # empty then zero
-    else:
-        topID = topIDs2.astype('int64')[0]
-
-    return topID
 
 
 def merge_bbox(array, xminpt=4, xmaxpt=7, row_saved=0):
