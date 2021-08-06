@@ -107,7 +107,7 @@ def segID_to_svID(segID, ID_array, location_array_mip0):
     indices = np.where(ID_array == segID)[0]
     pts = location_array_mip0[indices]
     for j in len(pts):
-        svID = segIDs_from_pts_service(pts[j], return_roots=False)
+        svID = IDlook.segIDs_from_pts_service(pts[j], return_roots=False)
         if svID > 0:
             break
 
