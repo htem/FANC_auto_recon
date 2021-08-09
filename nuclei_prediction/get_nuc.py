@@ -22,7 +22,6 @@ parser.add_argument('-s', '--start', help='specify starting chunk. default is 0'
 parser.add_argument('-l', '--lease', help='lease_seconds for TaskQueue.poll. specify in seconds. default is 1800sec', default=1800, type=int)
 parser.add_argument('-p', '--parallel', help='number of cpu cores for parallel processing. default is 12', default=12, type=int)
 parser.add_argument('-i', '--input', help='input the list of chunk numbers need recalculated again', type=validate_file)
-parser.add_argument('-x', '--xyz', help='You have the list of nuclei info you want to try again? Use this one', type=validate_file)
 parser.add_argument('-c', '--choose', help='specify the numer of pixels randomly chosen to get segID of nuclei. default is all pixels inside each nucleus', type=int)
 args = parser.parse_args()
 
@@ -30,11 +29,10 @@ start=args.start
 lease=args.lease
 parallel_cpu=args.parallel
 file_input=args.input
-xyz_input=args.xyz
 choose=args.choose
 
-if (file_input is not None) & (xyz_input is not None):
-    print("Error: Choose either --input or --xyz")
+if (file_input is not None):
+    print("Error: Choose --input")
 else:
     pass
 
@@ -48,14 +46,17 @@ block_x = 256 # block size in mip4 (72x72x45)
 block_y = 256
 block_z = 256
 skip_y = block_y*288 # 73728, this will ignore y < skip_y
-thres_s = 0.7 # signal threshold, > thrreshold to generate nuclei_seg_cv=0.2
-thres_x = 33-10 # size threshold for xyz in mip4 (68.8x68.8x45)
-thres_y = 33-10 # 50/(4.3*2^4/45) = 50/1.53??
-thres_z = 50-10 
+thres_s = 0.7 # signal threshold, > threshold to generate nuclei_seg_cv=0.2
+thres_x_min = 33-10 # size threshold for xyz in mip4 (68.8x68.8x45)
+thres_y_min = 33-10 # 50/(4.3*2^4/45) = 50/1.53??
+thres_z_min = 50-10 
+thres_x_max = 33-10 # size threshold for xyz in mip4 (68.8x68.8x45)
+thres_y_max = 33-10 # 50/(4.3*2^4/45) = 50/1.53??
+thres_z_max = 50-10 
 connectivity = 26 # number of nearby voxels to look at for calculating connective components
 
 # name
-final_product = 'nuc_info'
+final_product = 'nuc_info_thres_sxyz_changed'
 
 # could-volume url setting
 cv = CloudVolume(auth.get_cv_path('Image')['url'], use_https=True, agglomerate=False) # mip0
@@ -127,12 +128,7 @@ def add_bbox_size_column(array, xminpt=4, xmaxpt=7):
 @queueable
 def task_get_nuc_info(i): # use i = 7817 for test, close to [7953 118101 2584]
     try:
-        if xyz_input is not None:
-            xyzdf = pd.read_csv(xyz_input, header=0)
-            xyz_mip0 = xyzdf.iloc[i,1:4] #xyz coordinates
-            nuclei = nuclei_cv.download_point(xyz_mip0, mip=[68.8,68.8,45.0], size=(block_x, block_y, block_z) )
-        else:
-            nuclei = nuclei_cv.download_point(block_centers[i], mip=[68.8,68.8,45.0], size=(block_x, block_y, block_z) ) # download_point uses mip0 for pt
+        nuclei = nuclei_cv.download_point(block_centers[i], mip=[68.8,68.8,45.0], size=(block_x, block_y, block_z) ) # download_point uses mip0 for pt
 
         mask_temp = nuclei[:,:,:]
         mask = np.where(mask_temp > thres_s, 1, 0)
@@ -184,10 +180,7 @@ def task_get_nuc_info(i): # use i = 7817 for test, close to [7953 118101 2584]
 
         # arr2 has [block id, center location in mip0, bbox min, bbox max, nuc_segid, nucid] in int64
         x = arr2.astype(np.int64)
-        if xyz_input is not None:
-            x.tofile(outputpath + '/' + 'new_block_{}.bin'.format(str(i)))
-        else:
-            x.tofile(outputpath + '/' + 'block_{}.bin'.format(str(i)))
+        x.tofile(outputpath + '/' + 'block_{}.bin'.format(str(i)))
     except Exception as e:
         with open(outputpath + '/' + '{}.log'.format(str(i)), 'w') as logfile:
             print(e, file=logfile)
@@ -293,7 +286,7 @@ def save_merged(mergeddir, array_nochange, name):
 @queueable
 def task_apply_size_threshold(df):
     df['vol'] = df['size_x_mip4'] * df['size_y_mip4'] * df['size_z_mip4'] # add vol column
-    df_1 = df.loc[(df['size_x_mip4'] > thres_x) & (df['size_y_mip4'] > thres_y) & (df['size_z_mip4'] > thres_z)] 
+    df_1 = df.loc[(df['size_x_mip4'] > thres_x_min) & (df['size_y_mip4'] > thres_y_min) & (df['size_z_mip4'] > thres_z_min)] 
     df_o = df_1.sort_values('vol') # sort based on vol column
     df_o.to_csv(outputpath + '/' + '{}.csv'.format(final_product), index=False)
     # "blockID", "x", "y", "z", "nuc_segID", "nucID", "size_x_mip4", "size_y_mip4", "size_z_mip4", "vol"
@@ -311,9 +304,6 @@ def run_local(cmd, count_data=False): # recommended
             with open(file_input) as fd:      
                 txtdf = np.loadtxt(fd, dtype='int64', ndmin=1)
                 tq.insert( partial(func, i) for i in txtdf )
-        elif xyz_input is not None:
-            xyzdf = pd.read_csv(xyz_input, header=0)
-            tq.insert(( partial(func, i) for i in range(len(xyzdf)) ))
         else:
             tq.insert(( partial(func, i) for i in range(start, len(block_centers)) )) # NEW SCHOOL
     elif func == task_merge_within_block:
