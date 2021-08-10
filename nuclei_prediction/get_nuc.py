@@ -162,6 +162,7 @@ def task_get_nuc_info(i): # use i = 7817 for test, close to [7953 118101 2584]
 
                 segIDs = IDlook.segIDs_from_pts_cv(pts=lrandom_mip0, cv=seg, progress=False) # segIDs_from_pts_cv uses mip0 for pt
                 nuc_segID = find_most_frequent_ID(segIDs)
+                nuc_svID = segID_to_svID(nuc_segID, segIDs, lrandom_mip0, reversed=False)
 
                 nucIDs_list = []
                 for k in range(len(lrandom_mip4)):
@@ -170,7 +171,7 @@ def task_get_nuc_info(i): # use i = 7817 for test, close to [7953 118101 2584]
                 nucID = find_most_frequent_ID(np.array(nucIDs_list, dtype='int64'))
 
                 arr2[obj,1:4] = center_mip0 # change xyz from mip4 to mip0
-                arr2[obj,10] = nuc_segID # insert
+                arr2[obj,10] = nuc_svID # insert
                 arr2[obj,11] = nucID # insert
                 arr2[obj,0] = i # no longer need ccid
 
@@ -279,7 +280,7 @@ def save_merged(mergeddir, array_nochange, name):
     arr = np.array(array_withchange, dtype='int64')
 
     stacked  = np.vstack([arr, array_nochange])
-    df = pd.DataFrame(stacked, columns =["blockID", "x", "y", "z", "nuc_segID", "nucID", "size_x_mip4", "size_y_mip4", "size_z_mip4"])
+    df = pd.DataFrame(stacked, columns =["blockID", "x", "y", "z", "nuc_svID", "nucID", "size_x_mip4", "size_y_mip4", "size_z_mip4"])
     df.to_csv(outputpath + '/' + '{}.csv'.format(name), index=False) #header?
 
 
