@@ -47,11 +47,11 @@ block_y = 256
 block_z = 256
 skip_y = block_y*288 # 73728, this will ignore y < skip_y
 thres_s = 0.7 # signal threshold, > threshold to generate nuclei_seg_cv=0.2
-thres_x_min = 33-10 # size threshold for xyz in mip4 (68.8x68.8x45)
-thres_y_min = 33-10 # 50/(4.3*2^4/45) = 50/1.53??
-thres_z_min = 50-10 
-thres_x_max = 33-10 # size threshold for xyz in mip4 (68.8x68.8x45)
-thres_y_max = 33-10 # 50/(4.3*2^4/45) = 50/1.53??
+thres_x_min = 20 # size threshold for xyz in mip4 (68.8x68.8x45)
+thres_y_min = 20 
+thres_z_min = 40 
+thres_x_max = 33-10
+thres_y_max = 33-10 
 thres_z_max = 50-10 
 connectivity = 26 # number of nearby voxels to look at for calculating connective components
 
@@ -287,7 +287,9 @@ def save_merged(mergeddir, array_nochange, name):
 def task_apply_size_threshold(df):
     df['vol'] = df['size_x_mip4'] * df['size_y_mip4'] * df['size_z_mip4'] # add vol column
     df_1 = df.loc[(df['size_x_mip4'] > thres_x_min) & (df['size_y_mip4'] > thres_y_min) & (df['size_z_mip4'] > thres_z_min)] 
+    # apply max threshold if u want
     df_o = df_1.sort_values('vol') # sort based on vol column
+    df_o = df_o[df_o['nucID'] != 0]
     df_o.to_csv(outputpath + '/' + '{}.csv'.format(final_product), index=False)
     # "blockID", "x", "y", "z", "nuc_segID", "nucID", "size_x_mip4", "size_y_mip4", "size_z_mip4", "vol"
 

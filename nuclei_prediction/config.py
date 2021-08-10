@@ -8,9 +8,6 @@ from glob import glob
 import argparse
 
 from cloudvolume import CloudVolume, view, Bbox
-import cc3d
-from taskqueue import TaskQueue, queueable, LocalTaskQueue
-from functools import partial
 sys.path.append(os.path.abspath("../segmentation"))
 # to import rootID_lookup and authentication_utils like below
 
@@ -103,13 +100,19 @@ def find_most_frequent_ID(array):
     return topID
 
 
-def segID_to_svID(segID, ID_array, location_array_mip0):
+def segID_to_svID(segID, ID_array, location_array_mip0, reversed=False):
     indices = np.where(ID_array == segID)[0]
     pts = location_array_mip0[indices]
-    for j in len(pts):
-        svID = IDlook.segIDs_from_pts_service(pts[j], return_roots=False)
-        if (svID > 0) & (segID != 0):
-            break
+    if reversed == False:
+      for j in range(len(pts)):
+          svID = IDlook.segIDs_from_pts_service(pts[j], return_roots=False)
+          if (svID > 0) & (segID != 0):
+              break
+    else: # reversed == True
+      for j in reversed(range(len(pts))):
+          svID = IDlook.segIDs_from_pts_service(pts[j], return_roots=False)
+          if (svID > 0) & (segID != 0):
+              break
 
     return svID
 
