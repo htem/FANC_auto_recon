@@ -4,6 +4,7 @@ import os
 import pandas as pd
 from glob import glob
 import argparse
+import  sqlite3
 
 from cloudvolume import CloudVolume, Bbox
 import fill_voids
@@ -37,7 +38,8 @@ path_to_nuc_list = '~/nuc_info.csv'
 # variables
 np.random.seed(123)
 window_coef = 1.5 # window size to get nuclei in mip2
-# threshold variance of surrounding id
+output_name = 'body_info'
+output_name2 = 'full_vnc_soma_20210811'
 
 # could-volume url setting
 seg = CloudVolume(auth.get_cv_path('FANC_production_segmentation')['url'], use_https=True, agglomerate=False, cache=True, progress=False) # mip2
@@ -136,36 +138,35 @@ def task_get_surrounding(i):
 
 
 @queueable
-def task_save_as_csv(mergeddir, name): 
-  array_withchange = []
-  for file in glob(mergeddir + '/' + '*.bin'):
+def task_save(dir): 
+  arr_temp = []
+  for file in glob(dir + '/' + '*.bin'):
       xx = np.fromfile(file, dtype=np.int64)
-      array_withchange.append(xx)
-  arr = np.array(array_withchange, dtype='int64')
+      arr_temp.append(xx)
+  arr = np.array(arr_temp, dtype='int64')
+  
+  arr2 = np.hstack((arr, np.zeros((arr.shape[0],2), dtype='int64')))
 
-  df_o = pd.DataFrame(arr, columns =["blockID", "x", "y", "z", "nuc_svID", "nucID", "size_x_mip4", "size_y_mip4", "size_z_mip4", "vol", "body_svID"])
+  df_o = pd.DataFrame(arr2, columns =["blockID", "x", "y", "z", "nuc_svID", "nucID", "size_x_mip4", "size_y_mip4", "size_z_mip4", "vol", "body_svID", "nuc_rootID", "body_rootID"])
   df_o2 = df_o.sort_values('vol')
-  df_o2.to_csv(outputpath + '/' + '{}.csv'.format(name), index=False) #header?
+
+  # save as csv
+  df_o2.to_csv(outputpath + '/' + '{}.csv'.format(output_name), index=False)
+
+  # save as db
+  # write_in_db
 
 
-@queueable # edit https://caveclient.readthedocs.io/en/latest/guide/chunkedgraph.html
-def task_get_current_rootIDs(mergeddir, name): 
-  array_withchange = []
-  for file in glob(mergeddir + '/' + '*.bin'):
-      xx = np.fromfile(file, dtype=np.int64)
-      array_withchange.append(xx)
-  arr = np.array(array_withchange, dtype='int64')
-
-  df_o = pd.DataFrame(arr, columns =["blockID", "x", "y", "z", "nuc_segID", "nucID", "size_x_mip4", "size_y_mip4", "size_z_mip4", "vol", "body_segID"])
-  df_o2 = df_o.sort_values('vol')
-  df_o2.to_csv(outputpath + '/' + '{}.csv'.format(name), index=False) #header?
+@queueable 
+def task_get_updated_rootIDs(path, input_table_name, output_table_name): 
+  update_soma_table(path, input_table_name, output_table_name, seg)
 
 
 def run_local(cmd): # recommended
     try:
         func = globals()[cmd]
     except Exception:
-        print("Error: cmd only accepts 'task_get_surrounding', 'task_save_as_csv'")
+        print("Error: cmd only accepts 'task_get_surrounding', 'task_save', 'task_get_updated_rootIDs'")
 
     tq = LocalTaskQueue(parallel=parallel_cpu)
     if func == task_get_surrounding:
@@ -175,8 +176,10 @@ def run_local(cmd): # recommended
                 tq.insert( partial(func, i) for i in txtdf )
         else:
             tq.insert(( partial(func, i) for i in range(len(df)) )) # NEW SCHOOL
-    else: # 'task_save_as_csv'
-      tq.insert(partial(func, outputpath,'body_info'))
+    elif  func == task_save:
+      tq.insert(partial(func, outputpath))
+    else: # 'task_get_updated_rootIDs' 
+      tq.insert(partial(func, outputpath, output_name, output_name2))
 
     tq.execute(progress=True)
     print('Done')
