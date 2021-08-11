@@ -37,7 +37,7 @@ else:
     pass
 
 # path
-outputpath = '/n/groups/htem/users/skuroda/nuclei_output5'
+outputpath = '/n/groups/htem/users/skuroda/nuclei_output_20210810'
 # outputpath = '../Output'
 
 # variables
@@ -56,7 +56,7 @@ thres_z_max = 50-10
 connectivity = 26 # number of nearby voxels to look at for calculating connective components
 
 # name
-final_product = 'nuc_info_thres_sxyz_changed'
+final_product = 'nuc_info'
 
 # could-volume url setting
 cv = CloudVolume(auth.get_cv_path('Image')['url'], use_https=True, agglomerate=False) # mip0
