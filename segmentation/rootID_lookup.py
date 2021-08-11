@@ -150,8 +150,9 @@ def segIDs_from_pts_service(pts,
                          cv = None):
         
         #Reshape from list entries if dataframe column is passed
-        if len(pts.shape) == 1:
-            pts = np.concatenate(pts).reshape(-1,3)
+        if pts.shape != (3,):
+            if len(pts.shape) == 1:
+                pts = np.concatenate(pts).reshape(-1,3)
             
         service_url = service_url.format(scale)
         pts = np.array(pts, dtype=np.uint32)

@@ -107,18 +107,16 @@ def segID_to_svID(segID, ID_array, location_array_mip0, reversed=False):
     pts = location_array_mip0[indices]
     if reversed == False:
       for j in range(len(pts)):
-          ptsj = np.atleast_1d(pts[j])
-          svID = IDlook.segIDs_from_pts_service(ptsj, return_roots=False)
-          if (svID > 0) & (segID != 0):
+          svID = IDlook.segIDs_from_pts_service(pts[j], return_roots=False)
+          if (svID[0] > 0) & (segID != 0):
               break
     else: # reversed == True
       for j in reversed(range(len(pts))):
-          ptsj = np.atleast_1d(pts[j])
-          svID = IDlook.segIDs_from_pts_service(ptsj, return_roots=False)
-          if (svID > 0) & (segID != 0):
+          svID = IDlook.segIDs_from_pts_service(pts[j], return_roots=False)
+          if (svID[0] > 0) & (segID != 0):
               break
 
-    return svID
+    return svID[0]
 
 
 # def write_in_db(path, output_name):  
