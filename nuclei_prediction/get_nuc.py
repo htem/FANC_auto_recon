@@ -31,11 +31,6 @@ parallel_cpu=args.parallel
 file_input=args.input
 choose=args.choose
 
-if (file_input is not None):
-    print("Error: Choose --input")
-else:
-    pass
-
 # path
 outputpath = '/n/groups/htem/users/skuroda/nuclei_output_20210810'
 # outputpath = '../Output'
