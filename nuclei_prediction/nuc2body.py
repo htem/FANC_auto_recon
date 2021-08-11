@@ -29,9 +29,9 @@ parallel_cpu=args.parallel
 file_input=args.input
 
 # path
-outputpath = '/n/groups/htem/users/skuroda/nuclei_output6'
+outputpath = '/n/groups/htem/users/skuroda/nuclei_output_20210811'
 # outputpath = '../Output'
-path_to_nuc_list = '~/nuc_info_20210804.csv'
+path_to_nuc_list = '~/nuc_info.csv'
 # path_to_nuc_list = '../Output/nuc_info.csv'
 
 # variables
@@ -105,20 +105,27 @@ def task_get_surrounding(i):
     location_one = argwhere_from_outside(shifted, value=1, bbox_size=bbox_size)
 
     if len(location_one):
-      if choose is not None: 
-        lchosen = location_one[0:min(choose,len(location_one)),:]
-      else:
+      if choose is None: 
         lchosen = location_one
-      
-      lchosen_mip0 = np.apply_along_axis(mip4_to_mip0_array, 1, lchosen, seg_nuc)
-      surrounding_IDs = IDlook.segIDs_from_pts_cv(pts=lchosen_mip0, cv=seg, progress=False) #mip0
+        lchosen_mip0 = np.apply_along_axis(mip4_to_mip0_array, 1, lchosen, seg_nuc)
+        surrounding_IDs = IDlook.segIDs_from_pts_cv(pts=lchosen_mip0, cv=seg, progress=False) #mip0
+        body_segID = find_most_frequent_ID(surrounding_IDs) # zero excluded
+      else:
+        p = int(len(location_one) // choose)
+        for pi in range(p+1):
+          lchosen = location_one[pi*choose:min((pi+1)*choose-1,len(location_one)),:]
+          lchosen_mip0 = np.apply_along_axis(mip4_to_mip0_array, 1, lchosen, seg_nuc)
+          surrounding_IDs = IDlook.segIDs_from_pts_cv(pts=lchosen_mip0, cv=seg, progress=False) #mip0
+          body_segID = find_most_frequent_ID(surrounding_IDs)
+          if body_segID != 0:
+            break
 
-      body_segID = find_most_frequent_ID(surrounding_IDs) # zero excluded
+      body_svID = segID_to_svID(body_segID, surrounding_IDs, lchosen_mip0, reversed=True) # look up from inner voxels
       
     else:
-      body_segID = int(0)
+      body_svID = int(0) # proofread
 
-    x = np.hstack((rowi, np.array(body_segID, dtype='int64')))
+    x = np.hstack((rowi, np.array(body_svID, dtype='int64')))
     x1 = x.astype(np.int64)
     x1.tofile(outputpath + '/' + 'nuc_{}.bin'.format(str(i)))
 
@@ -136,7 +143,7 @@ def task_save_as_csv(mergeddir, name):
       array_withchange.append(xx)
   arr = np.array(array_withchange, dtype='int64')
 
-  df_o = pd.DataFrame(arr, columns =["blockID", "x", "y", "z", "nuc_segID", "nucID", "size_x_mip4", "size_y_mip4", "size_z_mip4", "vol", "body_segID"])
+  df_o = pd.DataFrame(arr, columns =["blockID", "x", "y", "z", "nuc_svID", "nucID", "size_x_mip4", "size_y_mip4", "size_z_mip4", "vol", "body_svID"])
   df_o2 = df_o.sort_values('vol')
   df_o2.to_csv(outputpath + '/' + '{}.csv'.format(name), index=False) #header?
 
