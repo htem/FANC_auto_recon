@@ -197,7 +197,11 @@ def task_merge_within_block(i, count_data, countdir):
                 merged=[]
                 for dup in range(len(nucID_duplicated)):
                     foo = y1[(y1[:,11] == nucID_duplicated[dup])]
-                    bar = merge_bbox(foo)
+                    hoge = np.where(foo[:,10] != 0)[0]
+                    if len(hoge) == 0:
+                        bar = merge_bbox(foo)
+                    else:
+                        bar = merge_bbox(foo, row_saved=hoge[0])
                     merged.append(bar)
 
                 y2 = np.vstack((np.array(merged), y1[np.isin(y1[:,11], u[c == 1])]))
@@ -239,9 +243,13 @@ def save_count(count, name):
 def task_merge_across_block(i, data, mergeddir):
     try:
         extracted = data[data[:,11] == i]
-        #sort
-        dup_info = extracted[np.argsort(extracted[:, 0])]
-        dup_info_0 = dup_info[0,:]
+        dup_info = extracted[np.argsort(extracted[:, 0])] #sort
+        hoge = np.where(dup_info[:,10] != 0)[0]
+        
+        if len(hoge) == 0:
+            dup_info_0 = dup_info[0,:]
+        else:
+            dup_info_0 = dup_info[hoge[0],:]
 
         block_ids = dup_info[:,0]
         block_loc = (block_centers[block_ids] - block_centers[dup_info_0[0]]) / (block_x*2**4, block_y*2**4, block_z)
