@@ -102,17 +102,17 @@ def find_most_frequent_ID(array):
     return topID
 
 
-def segID_to_svID(segID, ID_array, location_array_mip0, reversed=False):
+def segID_to_svID(segID, ID_array, location_array_mip0, reverse=False):
     indices = np.where(ID_array == segID)[0]
     pts = location_array_mip0[indices]
-    if reversed == False:
+    if reverse == False:
       for j in range(len(pts)):
           svID = IDlook.segIDs_from_pts_service(pts[j], return_roots=False)
           if svID is None:
             svID = [0]
           if (svID[0] > 0) & (segID != 0):
               break
-    else: # reversed == True
+    else: # reverse == True
       for j in reversed(range(len(pts))):
           svID = IDlook.segIDs_from_pts_service(pts[j], return_roots=False)
           if svID is None:

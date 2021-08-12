@@ -122,7 +122,7 @@ def task_get_surrounding(i):
           if body_segID != 0:
             break
 
-      body_svID = segID_to_svID(body_segID, surrounding_IDs, lchosen_mip0, reversed=True) # look up from inner voxels
+      body_svID = segID_to_svID(body_segID, surrounding_IDs, lchosen_mip0, reverse=True) # look up from inner voxels
       
     else:
       body_svID = int(0) # proofread

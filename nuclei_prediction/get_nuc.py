@@ -157,7 +157,7 @@ def task_get_nuc_info(i): # use i = 7817 for test, close to [7953 118101 2584]
 
                 segIDs = IDlook.segIDs_from_pts_cv(pts=lrandom_mip0, cv=seg, progress=False) # segIDs_from_pts_cv uses mip0 for pt
                 nuc_segID = find_most_frequent_ID(segIDs)
-                nuc_svID = segID_to_svID(nuc_segID, segIDs, lrandom_mip0, reversed=False)
+                nuc_svID = segID_to_svID(nuc_segID, segIDs, lrandom_mip0, reverse=False)
 
                 nucIDs_list = []
                 for k in range(len(lrandom_mip4)):
