@@ -108,15 +108,15 @@ def segID_to_svID(segID, ID_array, location_array_mip0, reversed=False):
     if reversed == False:
       for j in range(len(pts)):
           svID = IDlook.segIDs_from_pts_service(pts[j], return_roots=False)
-          if len(svID) == 0:
-            svID = int(0)
+          if svID is None:
+            svID = [0]
           if (svID[0] > 0) & (segID != 0):
               break
     else: # reversed == True
       for j in reversed(range(len(pts))):
           svID = IDlook.segIDs_from_pts_service(pts[j], return_roots=False)
-          if len(svID) == 0:
-            svID = int(0)
+          if svID is None:
+            svID = [0]
           if (svID[0] > 0) & (segID != 0):
               break
 
