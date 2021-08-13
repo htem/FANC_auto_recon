@@ -17,3 +17,4 @@ argparse
 task-queue
 nglui
 glob2
+caveclient
