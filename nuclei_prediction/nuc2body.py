@@ -30,7 +30,7 @@ parallel_cpu=args.parallel
 file_input=args.input
 
 # path
-outputpath = '/n/groups/htem/users/skuroda/nuclei_output_20210811'
+outputpath = '/n/groups/htem/users/skuroda/nuclei_output_Aug2021body'
 # outputpath = '../Output'
 path_to_nuc_list = '~/nuc_info.csv'
 # path_to_nuc_list = '../Output/nuc_info.csv'
@@ -38,12 +38,12 @@ path_to_nuc_list = '~/nuc_info.csv'
 # variables
 np.random.seed(123)
 window_coef = 1.5 # window size to get nuclei in mip2
-output_name = 'body_info'
-output_name2 = 'full_vnc_soma_20210811'
+output_name = 'body_info_Aug2021'
+output_name2 = 'full_vnc_soma_20210816'
 
 # could-volume url setting
 seg = CloudVolume(auth.get_cv_path('FANC_production_segmentation')['url'], use_https=True, agglomerate=False, cache=True, progress=False) # mip2
-nuclei_seg_cv = CloudVolume(auth.get_cv_path('nuclei_seg_Jul2021')['url'], cache=False, progress=False, use_https=True,autocrop=True, bounded=False) # mip4
+nuclei_seg_cv = CloudVolume(auth.get_cv_path('nuclei_seg_Aug2021')['url'], cache=False, progress=False, use_https=True,autocrop=True, bounded=False) # mip4
 # read csv
 df = pd.read_csv(path_to_nuc_list, header=0)
 

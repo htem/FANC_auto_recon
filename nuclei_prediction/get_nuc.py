@@ -32,7 +32,7 @@ file_input=args.input
 choose=args.choose
 
 # path
-outputpath = '/n/groups/htem/users/skuroda/nuclei_output_20210810'
+outputpath = '/n/groups/htem/users/skuroda/nuclei_output_Aug2021'
 # outputpath = '../Output'
 
 # variables
@@ -57,7 +57,7 @@ final_product = 'nuc_info'
 cv = CloudVolume(auth.get_cv_path('Image')['url'], use_https=True, agglomerate=False) # mip0
 seg = CloudVolume(auth.get_cv_path('FANC_production_segmentation')['url'], use_https=True, agglomerate=False, cache=False) # mip2
 nuclei_cv = CloudVolume( # mip4
-    auth.get_cv_path('nuclei_map_Jul2021')['url'],
+    auth.get_cv_path('nuclei_map_Aug2021')['url'],
     progress=False,
     cache=False, # to aviod conflicts with LocalTaskQueue
     use_https=True,
@@ -65,7 +65,7 @@ nuclei_cv = CloudVolume( # mip4
     bounded=False
 )
 nuclei_seg_cv = CloudVolume( # mip4
-    auth.get_cv_path('nuclei_seg_Jul2021')['url'],
+    auth.get_cv_path('nuclei_seg_Aug2021')['url'],
     cache=False,
     progress=False,
     use_https=True, # this is precomputed so no need to specify agglomerate=False
