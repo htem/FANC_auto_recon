@@ -37,8 +37,10 @@ MN = pd.read_csv('/home/skuroda/MN.csv', header=0)
 column_name = ['Seg ID','Synapses','Has soma?','Major merges fixed?','Major splits fixed?','Come back to me later','Other notes']
 
 # update
-synaptic_links.update_synapse_tables(csv_path=syn_table)
-synaptic_links.update_synapse_tables(csv_path=syn_table, db_path=syn_table_db)
+cv = auth.get_cv()
+
+synaptic_links.update_synapse_csv(syn_table,cv, max_tries=1000)
+synaptic_links.update_synapse_db(syn_table_db,syn_table)
 config.update_soma_table(soma_table.rsplit('/', 1)[0], input_table_name='body_info_Aug2021', output_table_name=output_somadf_name)
 updated_soma_table = soma_table.rsplit('/', 1)[0] + '/' + output_somadf_name
 df = pd.read_csv(updated_soma_table, header=0)
