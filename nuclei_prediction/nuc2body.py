@@ -157,16 +157,11 @@ def task_save(dir):
   # write_in_db
 
 
-@queueable 
-def task_get_updated_rootIDs(path, input_table_name, output_table_name): 
-  update_soma_table(path, input_table_name, output_table_name, seg)
-
-
 def run_local(cmd): # recommended
     try:
         func = globals()[cmd]
     except Exception:
-        print("Error: cmd only accepts 'task_get_surrounding', 'task_save', 'task_get_updated_rootIDs'")
+        print("Error: cmd only accepts 'task_get_surrounding', 'task_save'")
 
     tq = LocalTaskQueue(parallel=parallel_cpu)
     if func == task_get_surrounding:
@@ -176,10 +171,8 @@ def run_local(cmd): # recommended
                 tq.insert( partial(func, i) for i in txtdf )
         else:
             tq.insert(( partial(func, i) for i in range(len(df)) )) # NEW SCHOOL
-    elif  func == task_save:
+    else: # func == task_save
       tq.insert(partial(func, outputpath))
-    else: # 'task_get_updated_rootIDs' 
-      tq.insert(partial(func, outputpath, output_name, output_name2))
 
     tq.execute(progress=True)
     print('Done')
