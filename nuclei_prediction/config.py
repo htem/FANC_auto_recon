@@ -122,33 +122,11 @@ def segID_to_svID(segID, ID_array, location_array_mip0, reverse=False):
 
     return svID[0]
 
-
-# def write_in_db(path, output_name):  
-        
-#     temp_file = Path(path).parent / '{}.db'.format(random.randint(111111,999999)) 
     
-#     con = sqlite3.connect(temp_file)
-#     cur = con.cursor()
+def update_soma_table(dir, input_table_name, output_table_name, cv=None, retry=True, max_tries=10, chunksize = 1000):
+  if cv is None:
+    cv = auth.get_cv()
 
-#     # Create table
-#     cur.execute('''CREATE TABLE synapses
-#                    (source text, post_pt text, pre_SV INTEGER, post_SV INTEGER, pre_pt text, pre_root INTEGER, post_root INTEGER)''')
-
-#     # Insert a row of data
-
-#     with open(synapse_csv_fname, 'r') as fin: # `with` statement available in 2.5+
-#         # csv.DictReader uses first line in file for column headings by default
-#         dr = csv.DictReader(fin) # comma is default delimiter
-#         to_db = [(i['source'], i['post_pt'], i['pre_SV'], i['post_SV'], i['pre_pt'], i['pre_root'], i['post_root']) for i in dr]
-
-#     cur.executemany("INSERT INTO synapses (source, post_pt, pre_SV, post_SV, pre_pt, pre_root, post_root) VALUES (?, ?, ?, ?, ?, ?, ?);", to_db)
-#     con.commit()
-#     con.close()
-    
-#     os.replace(temp_file,synapse_db_fname)
-
-    
-def update_soma_table(dir, input_table_name, output_table_name, cv, retry=True, max_tries=10, chunksize = 1000):
   temp = dir + '/' + str(random.randint(111111,999999)) + '.csv'
   header = True
   idx = 0
@@ -164,8 +142,8 @@ def update_soma_table(dir, input_table_name, output_table_name, cv, retry=True, 
         tries = 0
         while tries < max_tries:
           try:
-            chunk.pre_root = IDlook.get_roots(chunk.pre_SV.values, cv)
-            chunk.post_root = IDlook.get_roots(chunk.post_SV.values, cv)
+            chunk.loc[:,'nuc_rootID'] = IDlook.get_roots(chunk.nuc_svID.values,cv)
+            chunk.loc[:,'body_rootID'] = IDlook.get_roots(chunk.body_svID.values,cv)
             chunk.to_csv(temp, mode='a', index=False, header=False)
             tries = max_tries+1
           except Exception as e2:
