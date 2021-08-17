@@ -127,7 +127,7 @@ def task_get_surrounding(i):
       body_svID = int(0) # proofread
       body_xyz = int(0)
 
-    x = np.hstack((rowi, np.array([body_svID,body_xyz], dtype='int64')))
+    x = np.hstack((rowi, np.array(body_svID, dtype='int64'),np.array(body_xyz, dtype='int64')))
     x1 = x.astype(np.int64)
     x1.tofile(outputpath + '/' + 'nuc_{}.bin'.format(str(i)))
 
