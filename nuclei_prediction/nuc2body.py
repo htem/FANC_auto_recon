@@ -30,7 +30,7 @@ parallel_cpu=args.parallel
 file_input=args.input
 
 # path
-outputpath = '/n/groups/htem/users/skuroda/nuclei_output_Aug2021body'
+outputpath = '/n/groups/htem/users/skuroda/nuclei_output_Aug2021body2'
 # outputpath = '../Output'
 path_to_nuc_list = '~/nuc_info.csv'
 # path_to_nuc_list = '../Output/nuc_info.csv'
@@ -39,7 +39,6 @@ path_to_nuc_list = '~/nuc_info.csv'
 np.random.seed(123)
 window_coef = 1.5 # window size to get nuclei in mip2
 output_name = 'body_info_Aug2021'
-output_name2 = 'full_vnc_soma_20210816'
 
 # could-volume url setting
 seg = CloudVolume(auth.get_cv_path('FANC_production_segmentation')['url'], use_https=True, agglomerate=False, cache=True, progress=False) # mip2
@@ -122,12 +121,13 @@ def task_get_surrounding(i):
           if body_segID != 0:
             break
 
-      body_svID = segID_to_svID(body_segID, surrounding_IDs, lchosen_mip0, reverse=True) # look up from inner voxels
+      body_svID,body_xyz = segID_to_svID(body_segID, surrounding_IDs, lchosen_mip0, reverse=True) # look up from inner voxels
       
     else:
       body_svID = int(0) # proofread
+      body_xyz = int(0)
 
-    x = np.hstack((rowi, np.array(body_svID, dtype='int64')))
+    x = np.hstack((rowi, np.array([body_svID,body_xyz], dtype='int64')))
     x1 = x.astype(np.int64)
     x1.tofile(outputpath + '/' + 'nuc_{}.bin'.format(str(i)))
 
@@ -147,11 +147,12 @@ def task_save(dir):
   
   arr2 = np.hstack((arr, np.zeros((arr.shape[0],2), dtype='int64')))
 
-  df_o = pd.DataFrame(arr2, columns =["blockID", "x", "y", "z", "nuc_svID", "nucID", "size_x_mip4", "size_y_mip4", "size_z_mip4", "vol", "body_svID", "nuc_rootID", "body_rootID"])
+  df_o = pd.DataFrame(arr2, columns =["blockID", "x", "y", "z", "nuc_svID", "nucID", "size_x_mip4", "size_y_mip4", "size_z_mip4", "vol", "body_svID", "body_xyz", "nuc_rootID", "body_rootID"])
   df_o2 = df_o.sort_values('vol')
-
+  df_o3 = df_o2.assign(nuc_xyz=[*zip(df_o2.x, df_o2.y, df_o2.z)])
+  df_o4 = df_o3.reindex(columns=['nuc_xyz', 'nucID', 'nuc_svID', 'nuc_rootID', 'body_xyz', 'body_svID', 'body_rootID', 'size_x_mip4', 'size_y_mip4', 'size_z_mip4', 'vol'])
   # save as csv
-  df_o2.to_csv(outputpath + '/' + '{}.csv'.format(output_name), index=False)
+  df_o4.to_csv(outputpath + '/' + '{}.csv'.format(output_name), index=False)
 
   # save as db
   # write_in_db
