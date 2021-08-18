@@ -5,8 +5,11 @@ from secrets import token_hex
 import numpy as np
 import os
 import pandas as pd
+from pathlib import Path
 import random
 import sys
+import sqlite3
+import csv
 sys.path.append(os.path.abspath("/home/skuroda/FANC_auto_recon/segmentation"))
 import rootID_lookup
 import authentication_utils
@@ -258,7 +261,7 @@ def update_synapse_tables(csv_path=None, db_path=None, cv=None):
     if db_path is not None and csv_path is not None:
         update_synapse_db(db_path,csv_path)
 
-def update_synapse_db(synapse_db_fname,synapse_csv_fname):
+def update_synapse_db(synapse_db,synapse_csv_fname):
     
     if isinstance(synapse_db,str):
         synapse_db = Path(synapse_db)
@@ -269,7 +272,7 @@ def update_synapse_db(synapse_db_fname,synapse_csv_fname):
         
     temp_file = synapse_db.parent / '{}.db'.format(random.randint(111111,999999)) 
     
-    con = sqlite3.connect(temp_file)
+    con = sqlite3.connect(str(temp_file))
     cur = con.cursor()
 
     # Create table
@@ -287,7 +290,7 @@ def update_synapse_db(synapse_db_fname,synapse_csv_fname):
     con.commit()
     con.close()
     
-    os.replace(temp_file,synapse_db_fname)
+    os.replace(temp_file,synapse_db)
 
 
     
