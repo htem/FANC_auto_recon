@@ -147,12 +147,13 @@ def task_save(dir):
   
   arr2 = np.hstack((arr, np.zeros((arr.shape[0],2), dtype='int64')))
 
-  df_o = pd.DataFrame(arr2, columns =["blockID", "x", "y", "z", "nuc_svID", "nucID", "size_x_mip4", "size_y_mip4", "size_z_mip4", "vol", "body_svID", "body_xyz", "nuc_rootID", "body_rootID"])
+  df_o = pd.DataFrame(arr2, columns =["blockID", "x", "y", "z", "nuc_svID", "nucID", "size_x_mip4", "size_y_mip4", "size_z_mip4", "vol", "body_svID", "body_x", "body_y", "body_z", "nuc_rootID", "body_rootID"])
   df_o2 = df_o.sort_values('vol')
   df_o3 = df_o2.assign(nuc_xyz=[*zip(df_o2.x, df_o2.y, df_o2.z)])
-  df_o4 = df_o3.reindex(columns=['nuc_xyz', 'nucID', 'nuc_svID', 'nuc_rootID', 'body_xyz', 'body_svID', 'body_rootID', 'size_x_mip4', 'size_y_mip4', 'size_z_mip4', 'vol'])
+  df_o4 = df_o3.assign(body_xyz=[*zip(df_o3.body_x, df_o3.body_y, df_o3.body_z)])
+  df_o5 = df_o4.reindex(columns=['nuc_xyz', 'nucID', 'nuc_svID', 'nuc_rootID', 'body_xyz', 'body_svID', 'body_rootID', 'size_x_mip4', 'size_y_mip4', 'size_z_mip4', 'vol'])
   # save as csv
-  df_o4.to_csv(outputpath + '/' + '{}.csv'.format(output_name), index=False)
+  df_o5.to_csv(outputpath + '/' + '{}.csv'.format(output_name), index=False)
 
   # save as db
   # write_in_db
