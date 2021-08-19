@@ -79,7 +79,7 @@ for i in range(len(pMN)):
     if pMN.loc[i,column_name[0]] in df['body_rootID'].values:
         pMN.loc[i,column_name[2]] = 'y'
     else:
-        pass
+        pMN.loc[i,column_name[2]] = ""
 
 obj_with_nuclei = (pMN[column_name[2]] == 'y').sum()
 syn_with_nuclei = pMN[(pMN[column_name[2]] == 'y')][column_name[1]].sum()
