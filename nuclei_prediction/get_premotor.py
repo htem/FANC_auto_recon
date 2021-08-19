@@ -89,7 +89,7 @@ output.to_csv(outputpath + '/' + output_name, index=False)
 text_o = """\
     as of {date}
     {A} objects out of {B} premotor inputs have nuclei (~{C}%)
-    {D} synapses out of {E} premotor inputs have nuclei (~{F}%)\
+    {D} synapses out of {E} premotor synapses have nuclei (~{F}%)\
     """.format(date=date or 'now',
                 A=obj_with_nuclei,
                 B=len(pMN),
