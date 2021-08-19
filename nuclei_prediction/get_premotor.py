@@ -52,7 +52,7 @@ config.update_soma_table(orig_soma.rsplit('/', 1)[0], orig_soma.rsplit('/', 1)[1
 print('soma table updated')
 
 if pMN_csv == None:
-    synaptic_links.update_synapse_csv(orig_syn_csv,cv,max_tries=1000)
+    synaptic_links.update_synapse_csv(orig_syn_csv,cv,max_tries=100000)
     synaptic_links.update_synapse_db(orig_syn_db,orig_syn_csv)
     print('synapse table updated')
     MN_table = pd.read_csv(MN, header=0)
@@ -62,8 +62,8 @@ if pMN_csv == None:
     pMNs = connectivity_utils.get_synapses(MN_table['pt_root_id'],orig_syn_db,direction='inputs',threshold=1)
     print('premotor synpases found')
     temp = pMNs['pre_root'].value_counts(ascending=False)
-    pMN = pd.DataFrame(temp).reset_index()
-    pMN = pMN.reindex(columns = pMN.columns.tolist() + column_name[2:])
+    pMN1 = pd.DataFrame(temp).reset_index()
+    pMN = pMN1.reindex(columns = pMN1.columns.tolist() + column_name[2:])
     pMN.columns = column_name
     print('premotor neurons found')
 
