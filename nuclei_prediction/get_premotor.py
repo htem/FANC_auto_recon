@@ -59,7 +59,7 @@ if pMN_csv == None:
     print('MN table read')
 
     ## find premotor inputs
-    pMNs = connectivity_utils.get_synapses(MN_table['pt_root_id'],orig_syn_db,direction='inputs',threshold=1)
+    pMNs = connectivity_utils.get_synapses(MN_table['pt_root_id'],orig_syn_db,direction='inputs',threshold=3)
     print('premotor synpases found')
     temp = pMNs['pre_root'].value_counts(ascending=False)
     pMN1 = pd.DataFrame(temp).reset_index()
