@@ -162,3 +162,4 @@ def update_soma_table(dir, input_table_name, output_table_name, cv=None, timesta
       
   os.replace(temp, dir + '/' + output_table_name)
   return 'Complete',None 
+
