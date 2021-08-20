@@ -45,9 +45,9 @@ thres_s = 0.7 # signal threshold, > threshold to generate nuclei_seg_cv=0.2
 thres_x_min = 20 # size threshold for xyz in mip4 (68.8x68.8x45)
 thres_y_min = 20 
 thres_z_min = 40 
-thres_x_max = 33-10
-thres_y_max = 33-10 
-thres_z_max = 50-10 
+thres_x_max = None
+thres_y_max = None
+thres_z_max = None
 connectivity = 26 # number of nearby voxels to look at for calculating connective components
 
 # name
