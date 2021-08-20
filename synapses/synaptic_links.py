@@ -307,7 +307,15 @@ def update_synapse_csv(synapse_csv_fname, cv, retry=True, max_tries=10, chunksiz
     returns:
     first a temp csv file is generated, and if no failures occur, a replaced csv file with updated root IDs will be generated.'''
     
-    temp = str(random.randint(111111,999999)) + '.csv'
+    if isinstance(synapse_csv_fname,str):
+        synapse_csv_fname = Path(synapse_csv_fname)
+    elif isinstance(synapse_csv_fname, Path):
+        synapse_csv_fname = synapse_csv_fname  
+    else:
+        raise Exception('Wrong path format. Use string or pathlib.Path')
+        
+    temp = synapse_csv_fname.parent / '{}.db'.format(random.randint(111111,999999)) 
+
     header = True
     idx = 0
     for chunk in pd.read_csv(synapse_csv_fname, chunksize=chunksize):    
@@ -324,7 +332,7 @@ def update_synapse_csv(synapse_csv_fname, cv, retry=True, max_tries=10, chunksiz
                     try:
                         chunk.pre_root = rootID_lookup.get_roots(chunk.pre_SV.values, cv)
                         chunk.post_root = rootID_lookup.get_roots(chunk.post_SV.values, cv)
-                        chunk.to_csv(source_file, mode='a', index=False, header=False)
+                        chunk.to_csv(temp, mode='a', index=False, header=False)
                         tries = max_tries+1
                     except Exception as e2:
                         print(e2)
