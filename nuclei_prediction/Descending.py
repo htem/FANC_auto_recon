@@ -130,7 +130,7 @@ if getsyn == True:
         tempi = MN_df[MN_df['post_root'] == i]
         result = np.zeros(len(DAN)+1, dtype='int64')
         for j in range(len(DAN)):
-            result[j] = np.count_nonzero(tempi['pre_root'].values() == DAN[j])
+            result[j] = np.count_nonzero(tempi['pre_root'] == DAN[j])
         result[len(DAN)] = len(tempi) - result[0:len(DAN)-1].sum()
         MN_inputs.append(result)
 
@@ -149,7 +149,7 @@ if getsyn == True:
         tempi = DAN_df[DAN_df['pre_root'] == i]
         result = np.zeros(len(MN_table)+1, dtype='int64')
         for j in range(len(MN_table)):
-            result[j] = np.count_nonzero(tempi['post_root'].values() == MN_table['pt_root_id'][j])
+            result[j] = np.count_nonzero(tempi['post_root'] == MN_table['pt_root_id'][j])
         result[len(MN_table)] = len(tempi) - result[0:len(MN_table)-1].sum()
         DAN_outputs.append(result)
 
