@@ -137,7 +137,7 @@ if getsyn == True:
     MN_inputs_df = np.array(MN_inputs)
     o = pd.DataFrame(data=MN_inputs_df,
                     index=MN_table['pt_root_id'],
-                    columns=DAN + 'others')
+                    columns=np.append(DAN, 'others'))
 
     o.to_csv(outputpath + '/MNinputs.csv', index=True)
     print('inputs to MNs saved')
@@ -156,7 +156,7 @@ if getsyn == True:
     DAN_outputs_df = np.array(DAN_outputs)
     o = pd.DataFrame(data=DAN_outputs_df,
                     index=DAN,
-                    columns=MN_table['pt_root_id'] + 'others')
+                    columns=np.append(MN_table['pt_root_id'], 'others'))
 
     o.to_csv(outputpath + '/DANoutputs.csv', index=True)
     print('outputs of DA neurons saved')
