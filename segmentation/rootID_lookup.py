@@ -244,7 +244,7 @@ def segIDs_from_pts_cv(pts,
     else:
         return sv_id_full
 
-def get_roots(sv_ids,cv):
+def get_roots(sv_ids,cv,timestamp = None):
     ''' A method for dealing with 0 value supervoxel IDs. This is no longer necessary as of cloud-volume version 3.13.0
 
     args: 
@@ -254,7 +254,7 @@ def get_roots(sv_ids,cv):
     returns: 
     root ids for each supervoxel id. 
     '''
-    roots = cv.get_roots(sv_ids)
+    roots = cv.get_roots(sv_ids, timestamp = timestamp)
     # Make sure there are no zeros. .get_roots drops only the first zero, so reinsert if >0 zeros exist.
     if len(np.where(sv_ids==0)[0])>0:
         index_to_insert = np.where(sv_ids==0)[0][0]

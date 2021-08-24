@@ -39,6 +39,7 @@ orig_syn_db = '/n/groups/htem/users/skuroda/synapses.db'
 
 # other setups
 column_name = ['Seg ID','Synapses','Has soma?','Major merges fixed?','Major splits fixed?','Come back to me later','Other notes']
+thres=3
 if date != None:
     dt_date = datetime.strptime(date, '%Y-%m-%d %H:%M')
     timestamp = int(dt_date.timestamp())
@@ -48,18 +49,21 @@ else:
 # update tables
 cv = auth.get_cv()
 
-config.update_soma_table(orig_soma.rsplit('/', 1)[0], orig_soma.rsplit('/', 1)[1], updated_soma_fname, timestamp=timestamp)
+print('soma table updating...')
+# config.update_soma_table(orig_soma.rsplit('/', 1)[0], orig_soma.rsplit('/', 1)[1], updated_soma_fname, timestamp=timestamp)
 print('soma table updated')
 
 if pMN_csv == None:
-    synaptic_links.update_synapse_csv(orig_syn_csv,cv,max_tries=100000)
+    print('synapse table updating...')
+    synaptic_links.update_synapse_csv(orig_syn_csv,cv,max_tries=100000, timestamp=timestamp)
     synaptic_links.update_synapse_db(orig_syn_db,orig_syn_csv)
     print('synapse table updated')
     MN_table = pd.read_csv(MN, header=0)
     print('MN table read')
 
     ## find premotor inputs
-    pMNs = connectivity_utils.get_synapses(MN_table['pt_root_id'],orig_syn_db,direction='inputs',threshold=3)
+    print('premotor synpases looking...')
+    pMNs = connectivity_utils.get_synapses(MN_table['pt_root_id'],orig_syn_db,direction='inputs',threshold=thres)
     print('premotor synpases found')
     temp = pMNs['pre_root'].value_counts(ascending=False)
     pMN1 = pd.DataFrame(temp).reset_index()
@@ -87,10 +91,11 @@ output = pMN.fillna("")
 output.to_csv(outputpath + '/' + output_name, index=False)
 
 text_o = """\
-    as of {date}
+    as of {date}, with threshold = {thres}
     {A} objects out of {B} premotor inputs have nuclei (~{C}%)
     {D} synapses out of {E} premotor synapses have nuclei (~{F}%)\
     """.format(date=date or 'now',
+                thres=thres,
                 A=obj_with_nuclei,
                 B=len(pMN),
                 C=obj_with_nuclei*100/len(pMN),

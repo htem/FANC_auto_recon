@@ -294,7 +294,7 @@ def update_synapse_db(synapse_db,synapse_csv_fname):
 
 
     
-def update_synapse_csv(synapse_csv_fname, cv, retry=True, max_tries=10, chunksize = 100000):
+def update_synapse_csv(synapse_csv_fname, cv, retry=True, max_tries=10, chunksize = 100000, timestamp = None):
     ''' Update roots of a synapse table.
     
     args:
@@ -320,8 +320,8 @@ def update_synapse_csv(synapse_csv_fname, cv, retry=True, max_tries=10, chunksiz
     idx = 0
     for chunk in pd.read_csv(synapse_csv_fname, chunksize=chunksize):    
         try:
-            chunk.loc[:,'pre_root'] = rootID_lookup.get_roots(chunk.pre_SV.values,cv)
-            chunk.loc[:,'post_root'] = rootID_lookup.get_roots(chunk.post_SV.values,cv)
+            chunk.loc[:,'pre_root'] = rootID_lookup.get_roots(chunk.pre_SV.values,cv,timestamp = timestamp)
+            chunk.loc[:,'post_root'] = rootID_lookup.get_roots(chunk.post_SV.values,cv,timestamp = timestamp)
             chunk.to_csv(temp, mode='a',index=False,header=header)
             
         except Exception as e:
@@ -330,8 +330,8 @@ def update_synapse_csv(synapse_csv_fname, cv, retry=True, max_tries=10, chunksiz
                 tries = 0
                 while tries < max_tries:
                     try:
-                        chunk.pre_root = rootID_lookup.get_roots(chunk.pre_SV.values, cv)
-                        chunk.post_root = rootID_lookup.get_roots(chunk.post_SV.values, cv)
+                        chunk.pre_root = rootID_lookup.get_roots(chunk.pre_SV.values, cv, timestamp = timestamp)
+                        chunk.post_root = rootID_lookup.get_roots(chunk.post_SV.values, cv, timestamp = timestamp)
                         chunk.to_csv(temp, mode='a', index=False, header=False)
                         tries = max_tries+1
                     except Exception as e2:
