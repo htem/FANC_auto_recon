@@ -26,11 +26,11 @@ import config
 
 # paths and files
 outputpath = '/n/groups/htem/users/skuroda'
-updated_soma_fname = 'full_VNC_soma_20210615.csv'
+updated_soma_fname = 'full_VNC_soma_20210824.csv'
 pMN_csv = None
-date = None # '2021-06-15'
-MN = '/home/skuroda/MN.csv'
-output_name = 'Premotor_20210615.csv'
+date = '2021-08-24 02:56' # UTC
+MN = '/home/skuroda/MN202108240256.csv'
+output_name = 'Premotor_20210824.csv'
 
 # original tables
 orig_soma = '/home/skuroda/body_info_Aug2021.csv'
@@ -40,7 +40,7 @@ orig_syn_db = '/n/groups/htem/users/skuroda/synapses.db'
 # other setups
 column_name = ['Seg ID','Synapses','Has soma?','Major merges fixed?','Major splits fixed?','Come back to me later','Other notes']
 if date != None:
-    dt_date = datetime.strptime(date, '%Y-%m-%d')
+    dt_date = datetime.strptime(date, '%Y-%m-%d %H:%M')
     timestamp = int(dt_date.timestamp())
 else:
     timestamp = None
