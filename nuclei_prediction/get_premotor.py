@@ -50,7 +50,7 @@ else:
 cv = auth.get_cv()
 
 print('soma table updating...')
-# config.update_soma_table(orig_soma.rsplit('/', 1)[0], orig_soma.rsplit('/', 1)[1], updated_soma_fname, timestamp=timestamp)
+config.update_soma_table(orig_soma.rsplit('/', 1)[0], orig_soma.rsplit('/', 1)[1], updated_soma_fname, timestamp=timestamp)
 print('soma table updated')
 
 if pMN_csv == None:
