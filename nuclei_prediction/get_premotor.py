@@ -26,16 +26,16 @@ import config
 
 # paths and files
 outputpath = '/n/groups/htem/users/skuroda'
-updated_soma_fname = 'full_VNC_soma_20210824.csv'
+updated_soma_fname = 'full_VNC_soma_20210824Z.csv'
 pMN_csv = None
 date = '2021-08-24 02:56' # UTC
 MN = '/home/skuroda/MN202108240256.csv'
-output_name = 'Premotor_20210824.csv'
+output_name = 'Premotor_20210824Z.csv'
 
 # original tables
 orig_soma = '/home/skuroda/body_info_Aug2021.csv'
-orig_syn_csv = '/n/groups/htem/users/skuroda/full_VNC_synapses.csv'
-orig_syn_db = '/n/groups/htem/users/skuroda/synapses.db'
+orig_syn_csv = '/n/groups/htem/users/skuroda/full_VNC_synapsesZ.csv'
+orig_syn_db = '/n/groups/htem/users/skuroda/synapsesZ.db'
 
 # other setups
 column_name = ['Seg ID','Synapses','Has soma?','Major merges fixed?','Major splits fixed?','Come back to me later','Other notes']
@@ -47,7 +47,8 @@ else:
     timestamp = None
 
 # update tables
-cv = auth.get_cv()
+# cv = auth.get_cv()
+cv = CloudVolume(auth.get_cv_path('Zetta_seg')['url'], use_https=True)
 
 print('soma table updating...')
 # config.update_soma_table(orig_soma.rsplit('/', 1)[0], orig_soma.rsplit('/', 1)[1], updated_soma_fname, timestamp=timestamp)
