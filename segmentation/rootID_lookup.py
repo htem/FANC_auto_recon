@@ -185,7 +185,8 @@ def segIDs_from_pts_cv(pts,
                        n=100000,
                        max_tries = 3,
                        return_roots=True,
-                       progress=True):
+                       progress=True,
+                       timestamp=None):
     ''' Query cloudvolume object for root or supervoxel IDs. This method is slower than segIDs_from_pts_service, and does not need to be used for FANC_v4.
     args:
 
@@ -239,7 +240,7 @@ def segIDs_from_pts_cv(pts,
     sv_id_full = np.concatenate(sv_ids)
 
     if return_roots is True:
-        root_ids = cv.get_roots(sv_id_full) 
+        root_ids = cv.get_roots(sv_id_full, timestamp=timestamp) 
         return root_ids
     else:
         return sv_id_full
