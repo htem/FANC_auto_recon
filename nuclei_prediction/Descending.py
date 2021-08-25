@@ -108,6 +108,36 @@ if getobj == True:
     pMN_T1L.to_csv(outputpath + '/pMN_T1L.csv', index=False)
     pMN_T1R.to_csv(outputpath + '/pMN_T1R.csv', index=False)
 
+    # find D & A outputs
+    left_d = np.fromfile(outputpath + '/left_d.bin', dtype=np.int64)
+    left_a = np.fromfile(outputpath + '/left_a.bin', dtype=np.int64)
+    right_d = np.fromfile(outputpath + '/right_d.bin', dtype=np.int64)
+    right_a = np.fromfile(outputpath + '/right_a.bin', dtype=np.int64)
+
+    left_do = connectivity_utils.get_synapses(left_d,orig_syn_db,direction='outputs',threshold=2)
+    left_ao = connectivity_utils.get_synapses(left_a,orig_syn_db,direction='outputs',threshold=2)
+    right_do = connectivity_utils.get_synapses(right_d,orig_syn_db,direction='outputs',threshold=2)
+    right_ao = connectivity_utils.get_synapses(right_a,orig_syn_db,direction='outputs',threshold=2)
+    print('d and a output synpases found')
+    temp = left_do['pre_root'].value_counts()
+    left_do1 = pd.DataFrame(temp).reset_index()
+    left_do1.columns = ['root_id','synapses']
+    temp = left_ao['pre_root'].value_counts()
+    left_ao1 = pd.DataFrame(temp).reset_index()
+    left_ao1.columns = ['root_id','synapses']
+    temp = right_do['pre_root'].value_counts()
+    right_do1 = pd.DataFrame(temp).reset_index()
+    right_do1.columns = ['root_id','synapses']
+    temp = right_ao['pre_root'].value_counts()
+    right_ao1 = pd.DataFrame(temp).reset_index()
+    right_ao1.columns = ['root_id','synapses']
+    print('d and a output neurons found')
+
+    left_do1.to_csv(outputpath + '/left_dout.csv', index=False)
+    left_ao1.to_csv(outputpath + '/left_aout.csv', index=False)
+    right_do1.to_csv(outputpath + '/right_dout.csv', index=False)
+    right_ao1.to_csv(outputpath + '/right_aout.csv', index=False)
+
 
 if getsyn == True:
     # import data
