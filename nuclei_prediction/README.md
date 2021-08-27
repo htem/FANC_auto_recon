@@ -81,31 +81,22 @@ cat /proc/cpuinfo |grep processor
 topでCPU使用率
 
 
+rsync ~/MN202106070000.csv skuroda@catmaid3.hms.harvard.edu:~/
+rsync ~/MN202106070000.csv htem:~/
 
-rsync ~/body_info.csv htem:~/
-rsync ~/body_info.csv skuroda@catmaid3.hms.harvard.edu:~/
-
+LHS75200Seeds.csv
+RHS75200Seeds.csv
 
 15199
 
-rsync htem:~/body_info.csv ~/
-rsync skuroda@catmaid3.hms.harvard.edu:~/body_info.csv ~/
+rsync htem:~/full_VNC_soma_20210824.csv ~/
+rsync skuroda@catmaid3.hms.harvard.edu:~/full_VNC_soma_20210824.csv ~/
+
+rsync htem:~/Premotor_20210819.csv ~/
+rsync skuroda@catmaid3.hms.harvard.edu:~/Premotor_20210819.csv ~/
 
 
 
-
-6 screen
-
-python3.6 -c 'import cellbody2neuron3; cellbody2neuron3.create_task_queue()' -c 1000
-python3.6 -c 'import cellbody2neuron3; cellbody2neuron3.run_tasks_from_queue()'
-
-u don't have to run it again
-python3.6 -c 'import nuc2body; nuc2body.create_task_queue()' -c 1000 -i ~/missing.txt
-python3.6 -c 'import nuc2body; nuc2body.run_tasks_from_queue()'
-
-python3.6 -c 'import get_nuc; get_nuc.create_task_queue()' -c 500 -x ~/seg0.csv
-python3.6 -c 'import get_nuc; get_nuc.run_local()' -c 500 -x ~/seg0.csv
-python3.6 -c 'import get_nuc; get_nuc.run_tasks_from_queue()'
 
 python3.6 -c 'import count_sv; count_sv.run_local()'
 
@@ -117,9 +108,9 @@ cache.flush not work
 https://stackoverflow.com/questions/68191392/password-authentication-is-temporarily-disabled-as-part-of-a-brownout-please-us
 
 
-python3.6 -c "import get_nuc; get_nuc.run_local('task_get_nuc_info')" -c 10 -p 12
+python3.6 -c "import get_nuc; get_nuc.run_local('task_get_nuc_info')" -c 10 -p 20
 ./list_missing.sh 13985 block bin
-python3.6 -c "import get_nuc; get_nuc.run_local('task_get_nuc_info')" -c 10 -p 24 -i ~/missing.txt
+python3.6 -c "import get_nuc; get_nuc.run_local('task_get_nuc_info')" -c 10 -p 20 -i ~/missing.txt
 
 python3.6 -c "import get_nuc; get_nuc.run_local('task_merge_within_block', count_data=True)" -p 18
 ./list_missing.sh 13985 block2 bin
@@ -130,10 +121,49 @@ python3.6 -c "import get_nuc; get_nuc.run_local('task_apply_size_threshold')"
 
 
 
-python3.6 -c "import nuc2body; nuc2body.run_local('task_get_surrounding')" -c 100 -p 12
-./list_missing.sh 17134 nuc bin
-python3.6 -c "import nuc2body; nuc2body.run_local('task_get_surrounding')" -c 100 -p 12 -i ~/missing.txt
-python3.6 -c "import nuc2body; nuc2body.run_local('task_save_as_csv')" -c 100 -p 12
+python3.6 -c "import nuc2body; nuc2body.run_local('task_get_surrounding')" -c 200 -p 20
+./list_missing.sh 17075 nuc bin
+python3.6 -c "import nuc2body; nuc2body.run_local('task_get_surrounding')" -c 200 -p 20 -i ~/missing.txt
+python3.6 -c "import nuc2body; nuc2body.run_local('task_save')" -p 12
 
 
-check 17134 was actually one with nucID=0
+
+
+
+
+
+python3.6 -c "import get_nuc_20210809test; get_nuc_20210809test.run_local('task_get_nuc_info')" -c 10 -p 20
+./list_missing.sh 108779 block bin
+python3.6 -c "import get_nuc_20210809test; get_nuc_20210809test.run_local('task_get_nuc_info')" -c 10 -p 20 -i ~/missing.txt
+
+python3.6 -c "import get_nuc_20210809test; get_nuc_20210809test.run_local('task_merge_within_block', count_data=True)" -p 20
+./list_missing.sh 108779 block2 bin
+
+
+python3.6 -c "import get_nuc_20210809test; get_nuc_20210809test.run_local('task_merge_across_block', count_data=True)" -p 20
+python3.6 -c "import get_nuc_20210809test; get_nuc_20210809test.run_local('task_apply_size_threshold')" -p 20
+
+
+108780
+soma
+
+
+FILE_ID=1hfZNFxizSz5TFs8KLpjiyvpLZi4qNL2d
+FILE_NAME=full_VNC_synapses.csv
+curl -sc /tmp/cookie "https://drive.google.com/uc?export=download&id=${FILE_ID}" > /dev/null
+CODE="$(awk '/_warning_/ {print $NF}' /tmp/cookie)"  
+curl -Lb /tmp/cookie "https://drive.google.com/uc?export=download&confirm=${CODE}&id=${FILE_ID}" -o ${FILE_NAME}
+
+
+
+
+
+
+
+
+    arr = np.array(clist, dtype='int64').flatten()
+ValueError: setting an array element with a sequence.
+
+
+aug2021
+not random? choose from center?
