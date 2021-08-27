@@ -81,7 +81,7 @@ out4.tofile(outputpath + '/' + '{}.bin'.format('right_a'))
 
 # update synapse table
 print('updating synapse table...')
-# synaptic_links.update_synapse_csv(orig_syn_csv,cv,max_tries=100000)
+# synaptic_links.update_synapse_csv(orig_syn_csv,cv,max_tries=100000,timestamp=timestamp)
 # synaptic_links.update_synapse_db(orig_syn_db,orig_syn_csv)
 print('synapse table updated')
 
