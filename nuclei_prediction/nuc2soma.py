@@ -10,7 +10,7 @@ from cloudvolume import CloudVolume, Bbox
 import fill_voids
 from taskqueue import TaskQueue, queueable, LocalTaskQueue
 from functools import partial
-from config import *
+from lib import *
 sys.path.append(os.path.abspath("../segmentation"))
 # to import rootID_lookup and authentication_utils like below
 import rootID_lookup as IDlook
