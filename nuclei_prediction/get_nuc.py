@@ -9,15 +9,15 @@ from cloudvolume import CloudVolume, Bbox
 import cc3d
 from taskqueue import TaskQueue, queueable, LocalTaskQueue
 from functools import partial
-from config import *
-sys.path.append(os.path.abspath("../segmentation"))
-# to import rootID_lookup and authentication_utils like below
+from lib import *
 
+sys.path.append(os.path.abspath("../segmentation")) # to import rootID_lookup and authentication_utils like below
 import rootID_lookup as IDlook
 import authentication_utils as auth
 
-
-parser = argparse.ArgumentParser(description='get segIDs of cell bodies and save into csv files') 
+# -----------------------------------------------------------------------------
+# argument
+parser = argparse.ArgumentParser(description='get segIDs (= root IDs) of nuclei and save into csv files') 
 parser.add_argument('-s', '--start', help='specify starting chunk. default is 0', default=0, type=int)
 parser.add_argument('-l', '--lease', help='lease_seconds for TaskQueue.poll. specify in seconds. default is 1800sec', default=1800, type=int)
 parser.add_argument('-p', '--parallel', help='number of cpu cores for parallel processing. default is 12', default=12, type=int)
@@ -32,7 +32,7 @@ file_input=args.input
 choose=args.choose
 
 # path
-outputpath = '/n/groups/htem/users/skuroda/nuclei_output_Aug2021'
+outputpath = '/n/groups/htem/users/skuroda/aug2021-2'
 # outputpath = '../Output'
 
 # variables
@@ -40,7 +40,7 @@ np.random.seed(123)
 block_x = 256 # block size in mip4 (72x72x45)
 block_y = 256
 block_z = 256
-skip_y = block_y*288 # 73728, this will ignore y < skip_y
+skip_y = block_y*288 # 73728, this will ignore y < skip_y, choose around 75000/block_y
 thres_s = 0.7 # signal threshold, > threshold to generate nuclei_seg_cv=0.2
 thres_x_min = 20 # size threshold for xyz in mip4 (68.8x68.8x45)
 thres_y_min = 20 
@@ -73,9 +73,10 @@ nuclei_seg_cv = CloudVolume( # mip4
     bounded=False
 )
 
+# -----------------------------------------------------------------------------
 # calculate blocks in mip0
-# cv.mip_volume_size(0)
-# Vec(83968,223232,4390, dtype=int64) in mip0 (4.3x4.3x45)
+## cv.mip_volume_size(0)
+## Vec(83968,223232,4390, dtype=int64) in mip0 (4.3x4.3x45)
 
 # first centers
 start_x = block_x*2**(4-1) + cv.bounds.minpt[0] # (block width)/2 + offset
@@ -94,6 +95,8 @@ centerZ = np.append(centerZ, cv.bounds.maxpt[2]-start_z)
 
 block_centers = np.array(np.meshgrid(centerX, centerY, centerZ), dtype='int64').T.reshape(-1,3)
 len(block_centers)
+
+# -----------------------------------------------------------------------------
 
 
 def merge_bbox(array, xminpt=4, xmaxpt=7, row_saved=0):
@@ -131,17 +134,17 @@ def task_get_nuc_info(i): # use i = 7817 for test, close to [7953 118101 2584]
 
         cc_out, N = cc3d.connected_components(masked, return_N=True, connectivity=connectivity)
 
-        mylist=[]
+        ccinfo=[]
         for j in range(1, N+1):
             point_cloud = np.argwhere(cc_out == j)
             bbx = Bbox.from_points(point_cloud)
-            mylist.append(np.append([j], [bbx.center(), bbx.minpt, bbx.maxpt]))
+            ccinfo.append(np.append([j], [bbx.center(), bbx.minpt, bbx.maxpt]))
 
-        mylist.append(np.zeros(10)) # convert 1D to 2D
-        arr = np.array(mylist) # [cc id, center location, bbox min, bbox max] all in mip4
+        ccinfo.append(np.zeros(10)) # convert 1D to 2D
+        arr = np.array(ccinfo) # [cc id, center location, bbox min, bbox max] all in mip4
 
         if arr.ndim == 2:
-            arr2 = np.hstack((arr.copy().astype('int64'), np.zeros((arr.shape[0],2), dtype='int64'))) # array to store output
+            arr2 = np.hstack((arr.copy().astype('int64'), np.zeros((arr.shape[0],5), dtype='int64'))) # array to store output
             for obj in range(N):
                 center_mip0 = mip4_to_mip0_array(arr[obj,1:4], nuclei)
                 vinside = np.argwhere(cc_out == int(arr[obj,0]))
@@ -157,7 +160,7 @@ def task_get_nuc_info(i): # use i = 7817 for test, close to [7953 118101 2584]
 
                 segIDs = IDlook.segIDs_from_pts_cv(pts=lrandom_mip0, cv=seg, progress=False) # segIDs_from_pts_cv uses mip0 for pt
                 nuc_segID = find_most_frequent_ID(segIDs)
-                nuc_svID = segID_to_svID(nuc_segID, segIDs, lrandom_mip0, reverse=False)
+                nuc_svID,nuc_xyz = segID_to_svID(nuc_segID, segIDs, lrandom_mip0, reverse=False)
 
                 nucIDs_list = []
                 for k in range(len(lrandom_mip4)):
@@ -168,13 +171,14 @@ def task_get_nuc_info(i): # use i = 7817 for test, close to [7953 118101 2584]
                 arr2[obj,1:4] = center_mip0 # change xyz from mip4 to mip0
                 arr2[obj,10] = nuc_svID # insert
                 arr2[obj,11] = nucID # insert
+                arr2[obj,12:15] = nuc_xyz # insert
                 arr2[obj,0] = i # no longer need ccid
 
         else:
-            arr2 = np.zeros(12, dtype = 'int64')
+            arr2 = np.zeros(15, dtype = 'int64')
             arr2[0] = i
 
-        # arr2 has [block id, center location in mip0, bbox min, bbox max, nuc_segid, nucid] in int64
+        # arr2 has [block id, center location in mip0, bbox min, bbox max, nuc_segid, nucid, nuc_xyz in mip0] in int64
         x = arr2.astype(np.int64)
         x.tofile(outputpath + '/' + 'block_{}.bin'.format(str(i)))
     except Exception as e:
@@ -185,8 +189,8 @@ def task_get_nuc_info(i): # use i = 7817 for test, close to [7953 118101 2584]
 @queueable
 def task_merge_within_block(i, count_data, countdir):
     try:
-        y = np.fromfile(outputpath + '/' + 'block_{}.bin'.format(str(i)), dtype=np.int64) # y has [block id, center location in mip0, bbox min, bbox max, nuc_segid, nucid] in int64
-        y1 = y.reshape(int(len(y)/12),12)
+        y = np.fromfile(outputpath + '/' + 'block_{}.bin'.format(str(i)), dtype=np.int64) # y has [block id, center location in mip0, bbox min, bbox max, nuc_segid, nucid, nuc_xyz in mip0] in int64
+        y1 = y.reshape(int(len(y)/15),15)
         if y1.ndim == 1: # only one row
             c = 1
             y2 = y1
@@ -208,7 +212,7 @@ def task_merge_within_block(i, count_data, countdir):
             else:
                 y2 = y1
 
-        # y2 still has [block id, center location in mip0, bbox min, bbox max, nuc_segid, nucid] in int64
+        # y2 still has [block id, center location in mip0, bbox min, bbox max, nuc_segid, nucid, nuc_xyz in mip0] in int64
         y_out = y2.astype(np.int64)
         y_out.tofile(outputpath + '/' + 'block2_{}.bin'.format(str(i)))
         if count_data == True:
