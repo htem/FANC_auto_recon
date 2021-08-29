@@ -101,7 +101,7 @@ def task_get_surrounding(i):
     seg_nuc = nuclei_seg_cv.download_point(pt=cord_mip4, size=bbox_size, mip=[68.8,68.8,45.0]) #mip4
     
     vol_temp = seg_nuc[:,:,:]
-    vol_temp2 = np.where(vol_temp == rowi[10], 1, 0)
+    vol_temp2 = np.where(vol_temp == rowi[11], 1, 0)
     vol = np.squeeze(vol_temp2)
 
     filled = fill_voids.fill(vol, in_place=False) # fill the empty space with fill_voids. Ignore DeprecationWarning
