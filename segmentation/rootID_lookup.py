@@ -12,7 +12,7 @@ import tqdm
 from concurrent import futures
 import random
 import authentication_utils
-# from . import authentication_utils
+from . import authentication_utils
 
 
 class GSPointLoader(object):
@@ -201,11 +201,9 @@ def segIDs_from_pts_cv(pts,
     root or supervoxel ids for queried coordinates as int64
     '''
     
-    try:
-        if hasattr(cv, 'agglomerate'):
-            cv.agglomerate = False
-    except AttributeError:
-        pass
+    
+    if hasattr(cv, 'agglomerate'):
+        cv.agglomerate = False
     
     #Reshape from list entries if dataframe column is passed
     if isinstance(pts,pd.Series): 
