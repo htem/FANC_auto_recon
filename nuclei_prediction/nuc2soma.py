@@ -16,7 +16,8 @@ sys.path.append(os.path.abspath("../segmentation"))
 import rootID_lookup as IDlook
 import authentication_utils as auth
 
-
+# -----------------------------------------------------------------------------
+# argument
 parser = argparse.ArgumentParser(description='get segIDs of parent neurons from csv files') 
 parser.add_argument('-c', '--choose', help='specify the numer of pixels randomly chosen to get segID of parent neuron. default is all surroundinx pixels', type=int)
 parser.add_argument('-l', '--lease', help='lease_seconds for TaskQueue.poll. specify in seconds. default is 600sec', default=600, type=int)
@@ -30,21 +31,23 @@ parallel_cpu=args.parallel
 file_input=args.input
 
 # path
-outputpath = '/n/groups/htem/users/skuroda/nuclei_output_Aug2021body2'
+outputpath = '/n/groups/htem/users/skuroda/aug2021-2s'
 # outputpath = '../Output'
-path_to_nuc_list = '~/nuc_info.csv'
+path_to_nuc_list = '~/nuc_info_Aug2021ver2.csv'
 # path_to_nuc_list = '../Output/nuc_info.csv'
 
 # variables
 np.random.seed(123)
-window_coef = 1.5 # window size to get nuclei in mip2
-output_name = 'body_info_Aug2021'
+window_coef = 2 # window size to get nuclei in mip2
+output_name = 'soma_info_Aug2021ver2'
 
 # could-volume url setting
 seg = CloudVolume(auth.get_cv_path('FANC_production_segmentation')['url'], use_https=True, agglomerate=False, cache=True, progress=False) # mip2
 nuclei_seg_cv = CloudVolume(auth.get_cv_path('nuclei_seg_Aug2021')['url'], cache=False, progress=False, use_https=True,autocrop=True, bounded=False) # mip4
 # read csv
 df = pd.read_csv(path_to_nuc_list, header=0)
+
+# -----------------------------------------------------------------------------
 
 
 def vol_shift(input, pixel): # this is still very slow since this overuse RAM even though np.roll is fast
@@ -88,16 +91,17 @@ def argwhere_from_outside(volume, value, bbox_size):
 @queueable
 def task_get_surrounding(i):
   try:
-    # "blockID", "x", "y", "z", "nuc_segID", "nucID", "size_x_mip4", "size_y_mip4", "size_z_mip4", "vol"
+    # blockID,x,y,z,xminpt,yminpt,zminpt,xmaxpt,ymaxpt,zmaxpt,
+    # nuc_svID,nucID,x_svID,y_svID,z_svID,size_x_mip4,size_y_mip4,size_z_mip4,vol
     rowi = df.iloc[i,:].values
     cord_mip0 = rowi[1:4]
     cord_mip4 = mip0_to_mip4_array(cord_mip0)
-    bbox_size = np.array([rowi[6]*window_coef, rowi[7]*window_coef, rowi[8]*window_coef], dtype='int64')
+    bbox_size = np.array([rowi[15]*window_coef, rowi[16]*window_coef, rowi[17]*window_coef], dtype='int64')
 
     seg_nuc = nuclei_seg_cv.download_point(pt=cord_mip4, size=bbox_size, mip=[68.8,68.8,45.0]) #mip4
     
     vol_temp = seg_nuc[:,:,:]
-    vol_temp2 = np.where(vol_temp == rowi[5], 1, 0)
+    vol_temp2 = np.where(vol_temp == rowi[10], 1, 0)
     vol = np.squeeze(vol_temp2)
 
     filled = fill_voids.fill(vol, in_place=False) # fill the empty space with fill_voids. Ignore DeprecationWarning
@@ -145,15 +149,18 @@ def task_save(dir):
       arr_temp.append(xx)
   arr = np.array(arr_temp, dtype='int64')
   
-  arr2 = np.hstack((arr, np.zeros((arr.shape[0],2), dtype='int64')))
+  arr2 = np.hstack((arr, np.zeros((arr.shape[0],2), dtype='int64'))) # for root ID
 
-  df_o = pd.DataFrame(arr2, columns =["blockID", "x", "y", "z", "nuc_svID", "nucID", "size_x_mip4", "size_y_mip4", "size_z_mip4", "vol", "body_svID", "body_x", "body_y", "body_z", "nuc_rootID", "body_rootID"])
+  df_o = pd.DataFrame(arr2, columns =["blockID", "x", "y", "z", "nuc_svID", "xminpt","yminpt","zminpt","xmaxpt","ymaxpt","zmaxpt","nucID", "x_svID","y_svID","z_svID", "size_x_mip4", "size_y_mip4", "size_z_mip4", "vol", "soma_svID", "body_x", "body_y", "body_z", "nuc_rootID", "soma_rootID"])
   df_o2 = df_o.sort_values('vol')
-  df_o3 = df_o2.assign(nuc_xyz=[*zip(df_o2.x, df_o2.y, df_o2.z)])
-  df_o4 = df_o3.assign(body_xyz=[*zip(df_o3.body_x, df_o3.body_y, df_o3.body_z)])
-  df_o5 = df_o4.reindex(columns=['nuc_xyz', 'nucID', 'nuc_svID', 'nuc_rootID', 'body_xyz', 'body_svID', 'body_rootID', 'size_x_mip4', 'size_y_mip4', 'size_z_mip4', 'vol'])
+  df_o2 = df_o2.assign(center_xyz=[*zip(df_o2.x, df_o2.y, df_o2.z)])
+  df_o2 = df_o2.assign(nuc_xyz=[*zip(df_o2.x_svID, df_o2.y_svID, df_o2.z_svID)])
+  df_o2 = df_o2.assign(soma_xyz=[*zip(df_o2.body_x, df_o2.body_y, df_o2.body_z)])
+  df_o2 = df_o2.assign(bbx_min=[*zip(df_o2.xminpt, df_o2.yminpt, df_o2.zminpt)])
+  df_o2 = df_o2.assign(bbx_max=[*zip(df_o2.xmaxpt, df_o2.ymaxpt, df_o2.zmaxpt)])
+  df_o3 = df_o2.reindex(columns=['nucID', 'center_xyz', 'nuc_xyz', 'nuc_svID', 'nuc_rootID', 'soma_xyz', 'soma_svID', 'soma_rootID', 'vol', 'bbx_min', 'bbx_max'])
   # save as csv
-  df_o5.to_csv(outputpath + '/' + '{}.csv'.format(output_name), index=False)
+  df_o3.to_csv(outputpath + '/' + '{}.csv'.format(output_name), index=False)
 
   # save as db
   # write_in_db

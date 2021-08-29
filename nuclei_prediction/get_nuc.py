@@ -51,7 +51,7 @@ thres_z_max = None
 connectivity = 26 # number of nearby voxels to look at for calculating connective components
 
 # name
-final_product = 'nuc_info'
+final_product = 'nuc_info_Aug2021ver2'
 
 # could-volume url setting
 cv = CloudVolume(auth.get_cv_path('Image')['url'], use_https=True, agglomerate=False) # mip0
@@ -113,22 +113,22 @@ def merge_bbox(array, xminpt=4, xmaxpt=7, row_saved=0):
 def update_bbox_to_mip0(array, xminpt=4, xmaxpt=7):
     if array.ndim == 2:
         bbox_size = array[:,xmaxpt:xmaxpt+3] - array[:,xminpt:xminpt+3] # still mip4
-        array[:,xminpt] = block_centers[array[0]][:,xminpt] + (array[:,xminpt] - block_x/2) * 2**4
-        array[:,xminpt+1] = block_centers[array[0]][:,xminpt+1] + (array[:,xminpt+1] - block_y/2) * 2**4
-        array[:,xminpt+2] = block_centers[array[0]][:,xminpt+2] + (array[:,xminpt+2] - block_z/2)
-        array[:,xmaxpt] = block_centers[array[0]][:,xmaxpt] + (array[:,xmaxpt] - block_x/2) * 2**4
-        array[:,xmaxpt+1] = block_centers[array[0]][:,xmaxpt+1] + (array[:,xmaxpt+1] - block_y/2) * 2**4
-        array[:,xmaxpt+2] = block_centers[array[0]][:,xmaxpt+2] + (array[:,xmaxpt+2] - block_z/2)
-        array[:,1:4] = np.array([array[:,xminpt]+array[:,xmaxpt],array[:,xminpt+1]+array[:,xmaxpt+1],array[:,xminpt+2]+array[:,xmaxpt+2]]) / 2
+        array[:,xminpt] = block_centers[array[:,0]][:,0] + (array[:,xminpt] - block_x/2) * 2**4
+        array[:,xminpt+1] = block_centers[array[:,0]][:,1] + (array[:,xminpt+1] - block_y/2) * 2**4
+        array[:,xminpt+2] = block_centers[array[:,0]][:,2] + (array[:,xminpt+2] - block_z/2)
+        array[:,xmaxpt] = block_centers[array[:,0]][:,0] + (array[:,xmaxpt] - block_x/2) * 2**4
+        array[:,xmaxpt+1] = block_centers[array[:,0]][:,1] + (array[:,xmaxpt+1] - block_y/2) * 2**4
+        array[:,xmaxpt+2] = block_centers[array[:,0]][:,2] + (array[:,xmaxpt+2] - block_z/2)
+        array[:,1:4] = np.array([array[:,xminpt]+array[:,xmaxpt],array[:,xminpt+1]+array[:,xmaxpt+1],array[:,xminpt+2]+array[:,xmaxpt+2]]).T / 2
  
     else: # array.ndim == 1
         bbox_size = array[xmaxpt:xmaxpt+3] - array[xminpt:xminpt+3] # still mip4
-        array[xminpt] = block_centers[array[0]][xminpt] + (array[xminpt] - block_x/2) * 2**4
-        array[xminpt+1] = block_centers[array[0]][xminpt+1] + (array[xminpt+1] - block_y/2) * 2**4
-        array[xminpt+2] = block_centers[array[0]][xminpt+2] + (array[xminpt+2] - block_z/2)
-        array[xmaxpt] = block_centers[array[0]][xmaxpt] + (array[xmaxpt] - block_x/2) * 2**4
-        array[xmaxpt+1] = block_centers[array[0]][xmaxpt+1] + (array[xmaxpt+1] - block_y/2) * 2**4
-        array[xmaxpt+2] = block_centers[array[0]][xmaxpt+2] + (array[xmaxpt+2] - block_z/2)
+        array[xminpt] = block_centers[array[0]][0] + (array[xminpt] - block_x/2) * 2**4
+        array[xminpt+1] = block_centers[array[0]][1] + (array[xminpt+1] - block_y/2) * 2**4
+        array[xminpt+2] = block_centers[array[0]][2] + (array[xminpt+2] - block_z/2)
+        array[xmaxpt] = block_centers[array[0]][0] + (array[xmaxpt] - block_x/2) * 2**4
+        array[xmaxpt+1] = block_centers[array[0]][1] + (array[xmaxpt+1] - block_y/2) * 2**4
+        array[xmaxpt+2] = block_centers[array[0]][2] + (array[xmaxpt+2] - block_z/2)
         array[1:4] = np.array([array[xminpt]+array[xmaxpt],array[xminpt+1]+array[xmaxpt+1],array[xminpt+2]+array[xmaxpt+2]]) / 2
    
     out2 = np.hstack((array, bbox_size))
@@ -339,7 +339,7 @@ def run_local(cmd, count_data=False): # recommended
         os.makedirs(mergeddir, exist_ok=True)
         
         tq.insert( partial(func, n, r , mergeddir) for n in nucID_duplicated_across)
-        tq.insert(partial(save_merged, mergeddir, keep, 'merged')) # [block id, center location in mip0, nuc_segid, nucid, new bbox size] in int64
+        tq.insert(partial(save_merged, mergeddir, keep, 'merged'))
         if count_data == True:
             tq.insert(partial(save_count, c_across, cmd.split('_', 1)[1])) # save count_data
     else: # task_apply_size_threshold
