@@ -87,7 +87,7 @@ rsync ~/MN202106070000.csv htem:~/
 LHS75200Seeds.csv
 RHS75200Seeds.csv
 
-15199
+
 
 rsync htem:~/full_VNC_soma_20210824.csv ~/
 rsync skuroda@catmaid3.hms.harvard.edu:~/full_VNC_soma_20210824.csv ~/
