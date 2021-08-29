@@ -38,7 +38,7 @@ path_to_nuc_list = '~/nuc_info_Aug2021ver2.csv'
 
 # variables
 np.random.seed(123)
-window_coef = 2 # window size to get nuclei in mip2
+window_coef = 4 # window size to get nuclei in mip2
 output_name = 'soma_info_Aug2021ver2'
 
 # could-volume url setting
