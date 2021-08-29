@@ -151,7 +151,7 @@ def task_save(dir):
   
   arr2 = np.hstack((arr, np.zeros((arr.shape[0],2), dtype='int64'))) # for root ID
 
-  df_o = pd.DataFrame(arr2, columns =["blockID", "x", "y", "z", "nuc_svID", "xminpt","yminpt","zminpt","xmaxpt","ymaxpt","zmaxpt","nucID", "x_svID","y_svID","z_svID", "size_x_mip4", "size_y_mip4", "size_z_mip4", "vol", "soma_svID", "body_x", "body_y", "body_z", "nuc_rootID", "soma_rootID"])
+  df_o = pd.DataFrame(arr2, columns =["blockID", "x", "y", "z", "xminpt","yminpt","zminpt","xmaxpt","ymaxpt","zmaxpt","nuc_svID", "nucID", "x_svID","y_svID","z_svID", "size_x_mip4", "size_y_mip4", "size_z_mip4", "vol", "soma_svID", "body_x", "body_y", "body_z", "nuc_rootID", "soma_rootID"])
   df_o2 = df_o.sort_values('vol')
   df_o2 = df_o2.assign(center_xyz=[*zip(df_o2.x, df_o2.y, df_o2.z)])
   df_o2 = df_o2.assign(nuc_xyz=[*zip(df_o2.x_svID, df_o2.y_svID, df_o2.z_svID)])
