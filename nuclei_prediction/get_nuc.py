@@ -110,16 +110,28 @@ def merge_bbox(array, xminpt=4, xmaxpt=7, row_saved=0):
 
     return out
 
-def add_bbox_size_column(array, xminpt=4, xmaxpt=7):
-    out = array.copy()
+def update_bbox_to_mip0(array, xminpt=4, xmaxpt=7):
     if array.ndim == 2:
-        bbox_size = array[:,xmaxpt:xmaxpt+3] - array[:,xminpt:xminpt+3]
-        out = np.delete(out, [xminpt, xminpt+1, xminpt+2, xmaxpt, xmaxpt+1, xmaxpt+2], axis=1)
+        bbox_size = array[:,xmaxpt:xmaxpt+3] - array[:,xminpt:xminpt+3] # still mip4
+        array[:,xminpt] = block_centers[array[0]][:,xminpt] + (array[:,xminpt] - block_x/2) * 2**4
+        array[:,xminpt+1] = block_centers[array[0]][:,xminpt+1] + (array[:,xminpt+1] - block_y/2) * 2**4
+        array[:,xminpt+2] = block_centers[array[0]][:,xminpt+2] + (array[:,xminpt+2] - block_z/2)
+        array[:,xmaxpt] = block_centers[array[0]][:,xmaxpt] + (array[:,xmaxpt] - block_x/2) * 2**4
+        array[:,xmaxpt+1] = block_centers[array[0]][:,xmaxpt+1] + (array[:,xmaxpt+1] - block_y/2) * 2**4
+        array[:,xmaxpt+2] = block_centers[array[0]][:,xmaxpt+2] + (array[:,xmaxpt+2] - block_z/2)
+        array[:,1:4] = np.array([array[:,xminpt]+array[:,xmaxpt],array[:,xminpt+1]+array[:,xmaxpt+1],array[:,xminpt+2]+array[:,xmaxpt+2]]) / 2
+ 
     else: # array.ndim == 1
-        bbox_size = array[xmaxpt:xmaxpt+3] - array[xminpt:xminpt+3]
-        out = np.delete(out, [xminpt, xminpt+1, xminpt+2, xmaxpt, xmaxpt+1, xmaxpt+2])
-    out2 = np.hstack((out, bbox_size))
-
+        bbox_size = array[xmaxpt:xmaxpt+3] - array[xminpt:xminpt+3] # still mip4
+        array[xminpt] = block_centers[array[0]][xminpt] + (array[xminpt] - block_x/2) * 2**4
+        array[xminpt+1] = block_centers[array[0]][xminpt+1] + (array[xminpt+1] - block_y/2) * 2**4
+        array[xminpt+2] = block_centers[array[0]][xminpt+2] + (array[xminpt+2] - block_z/2)
+        array[xmaxpt] = block_centers[array[0]][xmaxpt] + (array[xmaxpt] - block_x/2) * 2**4
+        array[xmaxpt+1] = block_centers[array[0]][xmaxpt+1] + (array[xmaxpt+1] - block_y/2) * 2**4
+        array[xmaxpt+2] = block_centers[array[0]][xmaxpt+2] + (array[xmaxpt+2] - block_z/2)
+        array[1:4] = np.array([array[xminpt]+array[xmaxpt],array[xminpt+1]+array[xmaxpt+1],array[xminpt+2]+array[xmaxpt+2]]) / 2
+   
+    out2 = np.hstack((array, bbox_size))
     return out2
 
 
@@ -216,25 +228,13 @@ def task_merge_within_block(i, count_data, countdir):
         y_out = y2.astype(np.int64)
         y_out.tofile(outputpath + '/' + 'block2_{}.bin'.format(str(i)))
         if count_data == True:
-            c.tofile(countdir + '/' + '{}.bin'.format(str(i)))
+            z = np.array([u, c], dtype='int64')
+            z.tofile(countdir + '/' + '{}.bin'.format(str(i)))
         else:
             pass
     except Exception as e:
         with open(outputpath + '/' + 'within_{}.log'.format(str(i)), 'w') as logfile:
             print(e, file=logfile)
-
-
-@queueable
-def save_count_data(countdir, func, name):
-    clist = []
-    for file in glob(countdir + '/' + '*.bin'):
-        y = np.fromfile(file, dtype=np.int64)
-        clist.append(y)
-    arr = np.array(clist, dtype='int64').flatten()
-    sorted = np.sort(arr)[::-1]
-    if func == task_merge_within_block:
-        sorted = sorted[0:len(arr) - 1 - len(block_centers)] # every block stil has np.zeros(12) in task_merge_within_bbox
-    np.savetxt(outputpath + '/' + 'count_{}.txt'.format(name), sorted)
 
 
 @queueable
@@ -247,6 +247,7 @@ def save_count(count, name):
 def task_merge_across_block(i, data, mergeddir):
     try:
         extracted = data[data[:,11] == i]
+        # [block id, center location in mip0, bbox min, bbox max, nuc_segid, nucid, nuc_xyz in mip0] in int64
         dup_info = extracted[np.argsort(extracted[:, 0])] #sort
         hoge = np.where(dup_info[:,10] != 0)[0]
         
@@ -262,16 +263,14 @@ def task_merge_across_block(i, data, mergeddir):
 
         dup_info_0_new = dup_info_0.copy().astype('int64') # int to store possible negative values
         dup_info_0_new[4:7] = np.amin(new_minpts, axis=0)
-        dup_info_0_new[7:10] = np.amax(new_maxpts, axis=0) # [block id, center location in mip0, new bbox min, new bbox max, nuc_segid, nucid] in int64
-        # need to -1 from new bbox max?
+        dup_info_0_new[7:10] = np.amax(new_maxpts, axis=0) 
+        # [block id, center location in mip0, new bbox min, new bbox max, nuc_segid, nucid, nuc_xyz in mip0] in int64
 
-        [nX, nY, nZ] = np.array([dup_info_0_new[4]+dup_info_0_new[4+3],dup_info_0_new[5]+dup_info_0_new[5+3],dup_info_0_new[6]+dup_info_0_new[6+3]]) / 2
-        dup_info_0_new[1] = block_centers[dup_info_0_new[0]][0] + (nX - block_x/2) * 2**4
-        dup_info_0_new[2] = block_centers[dup_info_0_new[0]][1] + (nY - block_y/2) * 2**4
-        dup_info_0_new[3] = block_centers[dup_info_0_new[0]][2] + (nZ - block_z/2)
-        hoge = add_bbox_size_column(dup_info_0_new).astype('int64') # delete min and max info, and add bbox size column
+        # [nX, nY, nZ] = np.array([dup_info_0_new[4]+dup_info_0_new[4+3],dup_info_0_new[5]+dup_info_0_new[5+3],dup_info_0_new[6]+dup_info_0_new[6+3]]) / 2
+        # [nX, nY, nZ] = np.array([dup_info_0_new[4]+dup_info_0_new[4+3],dup_info_0_new[5]+dup_info_0_new[5+3],dup_info_0_new[6]+dup_info_0_new[6+3]]) / 2
+        hoge = update_bbox_to_mip0(dup_info_0_new).astype('int64')
         
-        hoge.tofile(mergeddir + '/' + 'nucid_{}.bin'.format(str(i)))
+        hoge.tofile(mergeddir + '/' + 'block3_{}.bin'.format(str(i)))
       
     except Exception as e:
         with open(outputpath + '/' + 'across_{}.log'.format(str(i)), 'w') as logfile:
@@ -281,14 +280,14 @@ def task_merge_across_block(i, data, mergeddir):
 @queueable
 def save_merged(mergeddir, array_nochange, name): 
     array_withchange = []
-    for file in glob(mergeddir + '/' + 'nucid_*.bin'):
+    for file in glob(mergeddir + '/' + 'block3_*.bin'):
         xx = np.fromfile(file, dtype=np.int64)
         array_withchange.append(xx)
     arr = np.array(array_withchange, dtype='int64')
 
     stacked  = np.vstack([arr, array_nochange])
-    df = pd.DataFrame(stacked, columns =["blockID", "x", "y", "z", "nuc_svID", "nucID", "size_x_mip4", "size_y_mip4", "size_z_mip4"])
-    df.to_csv(outputpath + '/' + '{}.csv'.format(name), index=False) #header?
+    df = pd.DataFrame(stacked, columns =["blockID", "x", "y", "z", "xminpt", "yminpt", "zminpt", "xmaxpt", "ymaxpt", "zmaxpt", "nuc_svID", "nucID", "x_svID", "y_svID", "z_svID", "size_x_mip4", "size_y_mip4", "size_z_mip4"])
+    df.to_csv(outputpath + '/' + '{}.csv'.format(name), index=False)
 
 
 @queueable
@@ -299,7 +298,7 @@ def task_apply_size_threshold(df):
     df_o = df_1.sort_values('vol') # sort based on vol column
     df_o = df_o[df_o['nucID'] != 0]
     df_o.to_csv(outputpath + '/' + '{}.csv'.format(final_product), index=False)
-    # "blockID", "x", "y", "z", "nuc_segID", "nucID", "size_x_mip4", "size_y_mip4", "size_z_mip4", "vol"
+    # "blockID", "x", "y", "z", "xminpt", "yminpt", "zminpt", "xmaxpt", "ymaxpt", "zmaxpt", "nuc_svID", "nucID", "x_svID", "y_svID", "z_svID", "size_x_mip4", "size_y_mip4", "size_z_mip4", "vol"
 
 
 def run_local(cmd, count_data=False): # recommended
@@ -321,20 +320,20 @@ def run_local(cmd, count_data=False): # recommended
             countdir = outputpath + '/' + 'count_{}'.format(cmd.split('_', 1)[1])
             os.makedirs(countdir, exist_ok=True)
             tq.insert(( partial(func, i, count_data, countdir) for i in range(start, len(block_centers)) ))
-            tq.insert(partial(save_count_data, countdir, func, cmd.split('_', 1)[1]))
         else:
             tq.insert(( partial(func, i, count_data) for i in range(start, len(block_centers)) ))
     elif func == task_merge_across_block:
         nuc_data = [] # store input
         for ii in range(len(block_centers)):
-            z = np.fromfile(outputpath + '/' + 'block2_{}.bin'.format(str(ii)), dtype=np.int64) # z has [block id, center location in mip0, bbox min, bbox max, nuc_segid, nucid] in int64
-            nuc_data.append(z.reshape(int(len(z)/12),12))
+            z = np.fromfile(outputpath + '/' + 'block2_{}.bin'.format(str(ii)), dtype=np.int64) 
+            # z has [block id, center location in mip0, bbox min, bbox max, nuc_segid, nucid, nuc_xyz in mip0] in int64
+            nuc_data.append(z.reshape(int(len(z)/15),15))
         r = np.concatenate(nuc_data)
         r2 = r[~np.all(r == 0, axis=1)] # reomve all zero rows
         u_across, c_across = np.unique(r2[:,11], return_counts=True)
         nucID_duplicated_across = u_across[c_across > 1]
         row_nochange = r[np.isin(r[:,11], u_across[c_across == 1])]
-        keep = add_bbox_size_column(row_nochange).astype('int64')
+        keep = update_bbox_to_mip0(row_nochange).astype('int64')
 
         mergeddir = outputpath + '/' + 'merged_across_block'
         os.makedirs(mergeddir, exist_ok=True)
