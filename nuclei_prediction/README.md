@@ -20,12 +20,12 @@ docker
 python3 -V # check version
 python3 -m venv nuclei
 . nuclei/bin/activate
-(fanc) vscode ➜ ~ $ pip install -r requirements.txt
-(fanc) vscode ➜ ~ $ ipython kernel install --user --name=nuclei
+(nuclei) vscode ➜ ~ $ pip install -r requirements.txt
+(nuclei) vscode ➜ ~ $ ipython kernel install --user --name=nuclei
 '''
 
 '''sh
-(fanc) vscode ➜ ~ $ deactivate
+(nuclei) vscode ➜ ~ $ deactivate
 '''
 
 3. auth
