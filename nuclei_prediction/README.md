@@ -112,58 +112,23 @@ python3.6 -c "import get_nuc; get_nuc.run_local('task_get_nuc_info')" -c 10 -p 2
 ./list_missing.sh 13985 block bin
 python3.6 -c "import get_nuc; get_nuc.run_local('task_get_nuc_info')" -c 10 -p 20 -i ~/missing.txt
 
-python3.6 -c "import get_nuc; get_nuc.run_local('task_merge_within_block', count_data=True)" -p 18
-./list_missing.sh 13985 block2 bin
-
-
-python3.6 -c "import get_nuc; get_nuc.run_local('task_merge_across_block', count_data=True)" -p 18
+python3.6 -c "import get_nuc; get_nuc.run_local('task_merge_within_block', count_data=True)" -p 20
+python3.6 -c "import get_nuc; get_nuc.run_local('task_merge_across_block', count_data=True)" -p 20
 python3.6 -c "import get_nuc; get_nuc.run_local('task_apply_size_threshold')"
 
 
 
-python3.6 -c "import nuc2body; nuc2body.run_local('task_get_surrounding')" -c 200 -p 20
+python3.6 -c "import nuc2soma; nuc2soma.run_local('task_get_surrounding')" -c 200 -p 20
 ./list_missing.sh 17075 nuc bin
-python3.6 -c "import nuc2body; nuc2body.run_local('task_get_surrounding')" -c 200 -p 20 -i ~/missing.txt
-python3.6 -c "import nuc2body; nuc2body.run_local('task_save')" -p 12
+python3.6 -c "import nuc2soma; nuc2soma.run_local('task_get_surrounding')" -c 200 -p 20 -i ~/missing.txt
+python3.6 -c "import nuc2soma; nuc2soma.run_local('task_save')" -p 12
 
 
 
-
-
-
-
-python3.6 -c "import get_nuc_20210809test; get_nuc_20210809test.run_local('task_get_nuc_info')" -c 10 -p 20
-./list_missing.sh 108779 block bin
-python3.6 -c "import get_nuc_20210809test; get_nuc_20210809test.run_local('task_get_nuc_info')" -c 10 -p 20 -i ~/missing.txt
-
-python3.6 -c "import get_nuc_20210809test; get_nuc_20210809test.run_local('task_merge_within_block', count_data=True)" -p 20
-./list_missing.sh 108779 block2 bin
-
-
-python3.6 -c "import get_nuc_20210809test; get_nuc_20210809test.run_local('task_merge_across_block', count_data=True)" -p 20
-python3.6 -c "import get_nuc_20210809test; get_nuc_20210809test.run_local('task_apply_size_threshold')" -p 20
-
-
-108780
-soma
-
-
-FILE_ID=1hfZNFxizSz5TFs8KLpjiyvpLZi4qNL2d
-FILE_NAME=full_VNC_synapses.csv
-curl -sc /tmp/cookie "https://drive.google.com/uc?export=download&id=${FILE_ID}" > /dev/null
-CODE="$(awk '/_warning_/ {print $NF}' /tmp/cookie)"  
-curl -Lb /tmp/cookie "https://drive.google.com/uc?export=download&confirm=${CODE}&id=${FILE_ID}" -o ${FILE_NAME}
-
-
-
-
-
-
-
-
-    arr = np.array(clist, dtype='int64').flatten()
-ValueError: setting an array element with a sequence.
 
 
 aug2021
 not random? choose from center?
+
+
+cat nuc_info_Aug2021ver2.csv | awk -F, '$12 == 72341062282117473 {print $0}'
