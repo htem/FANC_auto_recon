@@ -60,12 +60,12 @@ def vol_shift(input, pixel): # this is still very slow since this overuse RAM ev
   y_p = np.roll(input, pixel, axis=1)
   y_p[:,:pixel,:] = 0
   y_n = np.roll(input, -pixel, axis=1)
-  y_n[:,-pixel,:] = 0
+  y_n[:,-pixel:,:] = 0
   # z plane
   z_p = np.roll(input, pixel, axis=2)
   z_p[:,:,:pixel] = 0
   z_n = np.roll(input, -pixel, axis=2)
-  z_n[:,:,-pixel] = 0
+  z_n[:,:,-pixel:] = 0
 
   sum = x_p + x_n + y_p + y_n + z_p + z_n
   result = sum - input*6
@@ -126,11 +126,23 @@ def task_get_surrounding(i):
           if body_segID != 0:
             break
 
+        if body_segID == 0: # try again, with two pixels
+          shifted = vol_shift(filled, pixel=2)
+          location_one = argwhere_from_outside(shifted, value=1, bbox_size=bbox_size)
+          p = int(len(location_one) // choose)
+          for pi in range(p+1):
+            lchosen = location_one[pi*choose:min((pi+1)*choose-1,len(location_one)),:]
+            lchosen_mip0 = np.apply_along_axis(mip4_to_mip0_array, 1, lchosen, seg_nuc)
+            surrounding_IDs = IDlook.segIDs_from_pts_cv(pts=lchosen_mip0, cv=seg, progress=False) #mip0
+            body_segID = find_most_frequent_ID(surrounding_IDs)
+            if body_segID != 0:
+              break
+
       body_svID,body_xyz = segID_to_svID(body_segID, surrounding_IDs, lchosen_mip0, reverse=True) # look up from inner voxels
       
     else:
       body_svID = int(0) # proofread
-      body_xyz = int(0)
+      body_xyz = np.zeros(3)
 
     x = np.hstack((rowi, np.array(body_svID, dtype='int64'),np.array(body_xyz, dtype='int64'),np.array(voxel_size, dtype='int64')))
     x1 = x.astype(np.int64)
