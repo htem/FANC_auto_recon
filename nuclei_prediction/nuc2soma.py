@@ -31,7 +31,7 @@ parallel_cpu=args.parallel
 file_input=args.input
 
 # path
-outputpath = '/n/groups/htem/users/skuroda/aug2021-2s'
+outputpath = '/n/groups/htem/users/skuroda/aug2021-4svol'
 # outputpath = '../Output'
 path_to_nuc_list = '~/nuc_info_Aug2021ver2.csv'
 # path_to_nuc_list = '../Output/nuc_info.csv'
@@ -39,7 +39,7 @@ path_to_nuc_list = '~/nuc_info_Aug2021ver2.csv'
 # variables
 np.random.seed(123)
 window_coef = 4 # window size to get nuclei in mip2
-output_name = 'soma_info_Aug2021ver2'
+output_name = 'soma_info_Aug2021ver4vol'
 
 # could-volume url setting
 seg = CloudVolume(auth.get_cv_path('FANC_production_segmentation')['url'], use_https=True, agglomerate=False, cache=True, progress=False) # mip2
