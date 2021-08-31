@@ -103,6 +103,7 @@ def task_get_surrounding(i):
     vol_temp = seg_nuc[:,:,:]
     vol_temp2 = np.where(vol_temp == rowi[11], 1, 0)
     vol = np.squeeze(vol_temp2)
+    voxel_size = np.count_nonzero(vol == 1)
 
     filled = fill_voids.fill(vol, in_place=False) # fill the empty space with fill_voids. Ignore DeprecationWarning
     shifted = vol_shift(filled, pixel=1) # shift the volume one pixel
@@ -131,7 +132,7 @@ def task_get_surrounding(i):
       body_svID = int(0) # proofread
       body_xyz = int(0)
 
-    x = np.hstack((rowi, np.array(body_svID, dtype='int64'),np.array(body_xyz, dtype='int64')))
+    x = np.hstack((rowi, np.array(body_svID, dtype='int64'),np.array(body_xyz, dtype='int64'),np.array(voxel_size, dtype='int64')))
     x1 = x.astype(np.int64)
     x1.tofile(outputpath + '/' + 'nuc_{}.bin'.format(str(i)))
 
@@ -151,14 +152,14 @@ def task_save(dir):
   
   arr2 = np.hstack((arr, np.zeros((arr.shape[0],2), dtype='int64'))) # for root ID
 
-  df_o = pd.DataFrame(arr2, columns =["blockID", "x", "y", "z", "xminpt","yminpt","zminpt","xmaxpt","ymaxpt","zmaxpt","nuc_svID", "nucID", "x_svID","y_svID","z_svID", "size_x_mip4", "size_y_mip4", "size_z_mip4", "vol", "soma_svID", "body_x", "body_y", "body_z", "nuc_rootID", "soma_rootID"])
+  df_o = pd.DataFrame(arr2, columns =["blockID", "x", "y", "z", "xminpt","yminpt","zminpt","xmaxpt","ymaxpt","zmaxpt","nuc_svID", "nucID", "x_svID","y_svID","z_svID", "size_x_mip4", "size_y_mip4", "size_z_mip4", "vol", "soma_svID", "body_x", "body_y", "body_z", "voxel_size", "nuc_rootID", "soma_rootID"])
   df_o2 = df_o.sort_values('vol')
   df_o2 = df_o2.assign(center_xyz=[*zip(df_o2.x, df_o2.y, df_o2.z)])
   df_o2 = df_o2.assign(nuc_xyz=[*zip(df_o2.x_svID, df_o2.y_svID, df_o2.z_svID)])
   df_o2 = df_o2.assign(soma_xyz=[*zip(df_o2.body_x, df_o2.body_y, df_o2.body_z)])
   df_o2 = df_o2.assign(bbx_min=[*zip(df_o2.xminpt, df_o2.yminpt, df_o2.zminpt)])
   df_o2 = df_o2.assign(bbx_max=[*zip(df_o2.xmaxpt, df_o2.ymaxpt, df_o2.zmaxpt)])
-  df_o3 = df_o2.reindex(columns=['nucID', 'center_xyz', 'nuc_xyz', 'nuc_svID', 'nuc_rootID', 'soma_xyz', 'soma_svID', 'soma_rootID', 'vol', 'bbx_min', 'bbx_max'])
+  df_o3 = df_o2.reindex(columns=['nucID', 'center_xyz', 'nuc_xyz', 'nuc_svID', 'nuc_rootID', 'soma_xyz', 'soma_svID', 'soma_rootID', 'vol', 'voxel_size', 'bbx_min', 'bbx_max'])
   # save as csv
   df_o3.to_csv(outputpath + '/' + '{}.csv'.format(output_name), index=False)
 
