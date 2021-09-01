@@ -105,24 +105,33 @@ def find_most_frequent_ID(array):
 def segID_to_svID(segID, ID_array, location_array_mip0, cv, reverse=False):
     indices = np.where(ID_array == segID)[0]
     pts = location_array_mip0[indices]
+    # if reverse == False:
+    #   for j in range(len(pts)):
+    #       ptsj = pts[j]
+    #       svID = IDlook.segIDs_from_pts_service(ptsj, return_roots=False)
+    #       svID = IDlook.segIDs_from_pts_cv(pts=pts, cv=cv, return_roots=False, progress=False)
+    #       if svID is None:
+    #         svID = [0]
+    #       if (svID[0] > 0) & (segID != 0):
+    #           break
+    # else: # reverse == True
+    #   for j in reversed(range(len(pts))):
+    #       ptsj = pts[j]
+    #       svID = IDlook.segIDs_from_pts_service(ptsj, return_roots=False)
+    #       svID = IDlook.segIDs_from_pts_cv(pts=ptsj, cv=cv, return_roots=False, progress=False)
+    #       if svID is None:
+    #         svID = [0]
+    #       if (svID[0] > 0) & (segID != 0):
+    #           break
+
     if reverse == False:
-      for j in range(len(pts)):
-          ptsj = pts[j]
-          # svID = IDlook.segIDs_from_pts_service(ptsj, return_roots=False)
-          svID = IDlook.segIDs_from_pts_cv(pts=ptsj, cv=cv, return_roots=False, progress=False)
-          if svID is None:
-            svID = [0]
-          if (svID[0] > 0) & (segID != 0):
-              break
-    else: # reverse == True
-      for j in reversed(range(len(pts))):
-          ptsj = pts[j]
-          # svID = IDlook.segIDs_from_pts_service(ptsj, return_roots=False)
-          svID = IDlook.segIDs_from_pts_cv(pts=ptsj, cv=cv, return_roots=False, progress=False)
-          if svID is None:
-            svID = [0]
-          if (svID[0] > 0) & (segID != 0):
-              break
+      pts = location_array_mip0[indices]
+      svID = IDlook.segIDs_from_pts_cv(pts=pts, cv=cv, return_roots=False, progress=False)
+      ptsj = pts[0]
+    else:
+      pts = location_array_mip0[-indices]
+      svID = IDlook.segIDs_from_pts_cv(pts=pts, cv=cv, return_roots=False, progress=False)
+      ptsj = pts[0]
 
     return svID[0],ptsj
 
