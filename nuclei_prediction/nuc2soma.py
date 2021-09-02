@@ -81,7 +81,7 @@ def argwhere_from_outside(volume, value, bbox_size):
   ind = np.argwhere(volume == value)
   center = bbox_size/2
 
-  distance = np.linalg.norm(ind-center)
+  distance = np.apply_along_axis(np.linalg.norm, 1, ind-center)
   sorted_indice = np.argsort(-distance)
   result = ind[sorted_indice]
   
