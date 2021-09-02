@@ -89,8 +89,8 @@ RHS75200Seeds.csv
 
 
 
-rsync htem:~/full_VNC_soma_20210824.csv ~/
-rsync skuroda@catmaid3.hms.harvard.edu:~/full_VNC_soma_20210824.csv ~/
+rsync htem:~/soma_info_Aug2021ver2.csv ~/
+rsync skuroda@catmaid3.hms.harvard.edu:~/soma_info_Aug2021ver2.csv ~/
 
 rsync htem:~/Premotor_20210819.csv ~/
 rsync skuroda@catmaid3.hms.harvard.edu:~/Premotor_20210819.csv ~/
@@ -121,14 +121,7 @@ python3.6 -c "import get_nuc; get_nuc.run_local('task_apply_size_threshold')"
 python3.6 -c "import nuc2soma; nuc2soma.run_local('task_get_surrounding')" -c 200 -p 20
 ./list_missing.sh 17075 nuc bin
 python3.6 -c "import nuc2soma; nuc2soma.run_local('task_get_surrounding')" -c 200 -p 20 -i ~/missing.txt
-python3.6 -c "import nuc2soma; nuc2soma.run_local('task_save')" -p 12
-
-
-
-
-
-aug2021
-not random? choose from center?
+python3.6 -c "import nuc2soma; nuc2soma.run_local('task_save')" -p 20
 
 
 cat nuc_info_Aug2021ver2.csv | awk -F, '$12 == 72341062282117473 {print $0}'
