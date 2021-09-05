@@ -74,10 +74,14 @@ def warp_points_FANC_to_template(points,
 
     points = np.array(points, dtype=np.float64)
     if len(points.shape) == 1:
-        return warp_points_FANC_to_template(np.expand_dims(points, 0),
-                                            input_units=input_units,
-                                            output_units=output_units,
-                                            reflect=reflect)[0]
+        result = warp_points_FANC_to_template(np.expand_dims(points, 0),
+                                              input_units=input_units,
+                                              output_units=output_units,
+                                              reflect=reflect)
+        if result is None:
+            return result
+        else:
+            return result[0]
 
     if input_units in ['nm', 'nanometer', 'nanometers']:
         input_units = 'nanometers'
@@ -197,10 +201,14 @@ def warp_points_template_to_FANC(points,
 
     points = np.array(points)
     if len(points.shape) == 1:
-        return warp_points_template_to_FANC(np.expand_dims(points, 0),
-                                            input_units=input_units,
-                                            output_units=output_units,
-                                            reflect=reflect)[0]
+        result = warp_points_template_to_FANC(np.expand_dims(points, 0),
+                                             input_units=input_units,
+                                             output_units=output_units,
+                                             reflect=reflect)
+        if result is None:
+            return result
+        else:
+            return result[0]
 
     if input_units in ['nm', 'nanometer', 'nanometers']:
         input_units = 'nanometers'
