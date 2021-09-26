@@ -18,27 +18,25 @@ def show_help():
 
 
 def main():
-    if len(sys.argv) == 1:
+    # Argument validation
+    if len(sys.argv) < 3:
         show_help()
         return
-
-    # Argument validation
     try:
         input_filename = sys.argv[1]
         if not os.path.exists(input_filename):
-            print(show_help)
             raise FileNotFoundError(input_filename)
+
+        if not input_filename.endswith('.stl'):
+            raise NotImplementedError('Currently I only know how to open .stl format meshes')
 
         output_folder = sys.argv[2]
         if not os.path.exists(output_folder):
-            print(show_help)
             raise FileNotFoundError(output_folder)
     except:
         show_help()
         raise
 
-    if not input_filename.endswith('.stl'):
-        raise NotImplementedError('Currently I only know how to open .stl format meshes')
 
     # Load
     mesh = stl.mesh.Mesh.from_file(input_filename)
