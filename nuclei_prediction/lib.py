@@ -136,7 +136,7 @@ def segID_to_svID(segID, ID_array, location_array_mip0, cv, reverse=False):
     return svID[0],ptsj
 
     
-def update_soma_table(dir, input_table_name, output_table_name, cv=None, timestamp=None, retry=True, max_tries=10, chunksize = 20000):
+def update_soma_table(dir, input_table_name, output_table_name, cv=None, timestamp=None, retry=True, max_tries=1000, chunksize = 20000):
   if cv is None:
     cv = auth.get_cv()
 
@@ -146,7 +146,7 @@ def update_soma_table(dir, input_table_name, output_table_name, cv=None, timesta
   for chunk in pd.read_csv(dir + '/' + input_table_name, chunksize=chunksize): 
     try:
       chunk.loc[:,'nuc_rootID'] = cv.get_roots(chunk.nuc_svID.values, timestamp=timestamp)
-      chunk.loc[:,'body_rootID'] = cv.get_roots(chunk.body_svID.values, timestamp=timestamp)
+      chunk.loc[:,'soma_rootID'] = cv.get_roots(chunk.body_svID.values, timestamp=timestamp)
       chunk.to_csv(temp, mode='a', index=False, header=header)
       
     except Exception as e:
@@ -156,7 +156,7 @@ def update_soma_table(dir, input_table_name, output_table_name, cv=None, timesta
         while tries < max_tries:
           try:
             chunk.loc[:,'nuc_rootID'] = cv.get_roots(chunk.nuc_svID.values, timestamp=timestamp)
-            chunk.loc[:,'body_rootID'] = cv.get_roots(chunk.body_svID.values, timestamp=timestamp)
+            chunk.loc[:,'soma_rootID'] = cv.get_roots(chunk.body_svID.values, timestamp=timestamp)
             chunk.to_csv(temp, mode='a', index=False, header=False)
             tries = max_tries+1
           except Exception as e2:
