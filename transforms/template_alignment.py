@@ -246,7 +246,7 @@ def warp_points_template_to_FANC(points,
     if input_units == 'nanometers':
         points /= 1000  # Convert nm to microns
     elif input_units == 'voxels':
-        points *= (4.3, 4.3, 45) / 1000  # Convert voxels to microns
+        points = points * 0.4 # Convert voxels to microns
 
     if not reflect:  # The z flip below will cause a reflection, so un-reflect
         points[:, 0] = template_plane_of_symmetry_x_microns * 2 - points[:, 0]
