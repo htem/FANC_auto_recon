@@ -9,6 +9,7 @@ Folder descriptions:
 - `annotations` : Code for interacting with the annotation framework.
 - `example_notebooks`: Examples of how to use the code in this repo. `FANC_Connectomics_General_Intro.ipynb` is a good place to start.
 - `images`: Code and info related to the EM image data.
+- `lm_em_comparisons`: Code for comparing EM reconstructions with light microscopy data, e.g. color-depth MIP mask searching.
 - `segmentation`: Code for interacting with chunkedgraph to access the neuron segmentation data.
 - `skeletonization`: Code related to skeletonization.
 - `synapses`: Code related to connectivity.

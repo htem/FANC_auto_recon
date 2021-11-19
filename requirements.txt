@@ -7,3 +7,4 @@ meshparty
 navis
 nglui
 pyperclip
+git+https://github.com/jasper-tms/npimage
