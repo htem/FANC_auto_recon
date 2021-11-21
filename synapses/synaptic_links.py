@@ -311,7 +311,7 @@ def update_synapse_csv(synapse_csv_fname, cv, retry=True, max_tries=10, chunksiz
     else:
         raise Exception('Wrong path format. Use string or pathlib.Path')
         
-    temp = synapse_csv_fname.parent / '{}.db'.format(random.randint(111111,999999)) 
+    temp = synapse_csv_fname.parent / '{}.csv'.format(random.randint(111111,999999)) 
 
     header = True
     idx = 0
