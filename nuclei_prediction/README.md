@@ -51,27 +51,24 @@ We first segmented nuclei from the dataset using a convolutional neural network.
 ### 0. Prepare the Data
 Make sure you have the access to `FANCv4`. The voxel size of `FANCv4` was `[4.3, 4.3, 45]`nm^3. We mostly used areas around `[7953, 118101, 2584]` to validate my code (which belongs to the block `i = 7817`), but any areas with a lot of nuclei will be useful. For example, the image below displays a different area around `[52268, 84179, 2117]`.
 
-<img src="./img/raw2d.png" width="300"> <img src="./img/empty3d.png" width="300">
+<img src="./img/raw2d.png" width="400"> <img src="./img/empty3d.png" width="400">
 
 [Neuroglancer](https://neuromancer-seung-import.appspot.com/?json_url=https://global.daf-apis.com/nglstate/api/v1/4666330909245440)
-
-![https://neuromancer-seung-import.appspot.com/?json_url=https://global.daf-apis.com/nglstate/api/v1/4666330909245440](./img/raw2d.png)  |  ![https://neuromancer-seung-import.appspot.com/?json_url=https://global.daf-apis.com/nglstate/api/v1/4666330909245440](./img/empty3d.png)
 
 
 ### 1. Nuclei Segmentation
 We used the results of Ran's nuclei segmentaion from August 2021. Ran uploaded the intensity map to `auth.get_cv_path('nuclei_map_Aug2021')['url']` and the connected components to `auth.get_cv_path('nuclei_seg_Aug2021')['url']`.
 
-            2D             |             3D
-:-------------------------:|:-------------------------:
-![https://neuromancer-seung-import.appspot.com/?json_url=https://global.daf-apis.com/nglstate/api/v1/5232435516145664](./img/segmented.png)  |  ![https://neuromancer-seung-import.appspot.com/?json_url=https://global.daf-apis.com/nglstate/api/v1/5232435516145664](./img/empty3d.png)
+<img src="./img/segmented.png" width="400"> <img src="./img/empty3d.png" width="400">
 
+[Neuroglancer](https://neuromancer-seung-import.appspot.com/?json_url=https://global.daf-apis.com/nglstate/api/v1/5232435516145664)
 
 ### 2-1. Split into Blocks
 We then split the entire volume into separate blocks (or chunks). Each block has a size of [`256, 256, 256`] in `mip4`, which ended up covering `FANCv4` with `13985` blocks in total. This process is included in `task_get_nuc_info()` of `get_nuc.py`, so no need to run separate commands beforehand.
 
-            2D             |             3D
-:-------------------------:|:-------------------------:
-![https://neuromancer-seung-import.appspot.com/?json_url=https://global.daf-apis.com/nglstate/api/v1/5152111641755648](./img/splitted.png)  |  ![https://neuromancer-seung-import.appspot.com/?json_url=https://global.daf-apis.com/nglstate/api/v1/5152111641755648](./img/splitted3d.png)
+<img src="./img/splitted.png" width="400"> <img src="./img/splitted3d.png" width="400">
+
+[Neuroglancer](https://neuromancer-seung-import.appspot.com/?json_url=https://global.daf-apis.com/nglstate/api/v1/5152111641755648)
 
 
 ### 2-2. Extract Nucleus pt for each Block
@@ -81,32 +78,33 @@ We then split the entire volume into separate blocks (or chunks). Each block has
 
 The results were saved in a csv file.
 
-            2D             |             3D
-:-------------------------:|:-------------------------:
-![https://neuromancer-seung-import.appspot.com/?json_url=https://global.daf-apis.com/nglstate/api/v1/6638334461870080](./img/nucextracted.png)  |  ![https://neuromancer-seung-import.appspot.com/?json_url=https://global.daf-apis.com/nglstate/api/v1/6638334461870080](./img/nucextracted3d.png)
+<img src="./img/nucextracted.png" width="400"> <img src="./img/nucextracted3d.png" width="400">
+
+[Neuroglancer](https://neuromancer-seung-import.appspot.com/?json_url=https://global.daf-apis.com/nglstate/api/v1/6638334461870080)
 
 
 ### (2-3). Retrieve pt_root_id of Nuclei
 `rootID_lookup.py` can retrieve `pt_root_id` of all nuclei.
 
-            2D             |             3D
-:-------------------------:|:-------------------------:
-![https://neuromancer-seung-import.appspot.com/?json_url=https://global.daf-apis.com/nglstate/api/v1/6638334461870080](./img/nucpreview.png)  |  ![https://neuromancer-seung-import.appspot.com/?json_url=https://global.daf-apis.com/nglstate/api/v1/6638334461870080](./img/nucpreview3d.png)
+<img src="./img/nucpreview.png" width="400"> <img src="./img/nucpreview3d.png" width="400">
+
+[Neuroglancer](https://neuromancer-seung-import.appspot.com/?json_url=https://global.daf-apis.com/nglstate/api/v1/6638334461870080)
 
 
 ### 3-1. Extract Soma pt for each Nucleus
 We then extracted soma `pt` with `nuc2soma.py`. `task_get_surrounding()` downloaded a segmentation mask for every nucleus `pt` in the previous csv file. Then, this function shifted the volume of the nuclei by one voxels in every direction. In theory, the voxel shift difference should cover some soma `pt`. Therefore, we extracted `pt` with the most frequent `root_id` and most distant from nuclus center as soma `pt`. `task_save` saved the results in a csv file with a proper format.
 
-            2D             |             3D
-:-------------------------:|:-------------------------:
-![https://neuromancer-seung-import.appspot.com/?json_url=https://global.daf-apis.com/nglstate/api/v1/4597640880717824](./img/somaextracted.png)  |  ![https://neuromancer-seung-import.appspot.com/?json_url=https://global.daf-apis.com/nglstate/api/v1/4597640880717824](./img/somaextracted3d.png)
+<img src="./img/somaextracted.png" width="400"> <img src="./img/somaextracted3d.png" width="400">
+
+[Neuroglancer](https://neuromancer-seung-import.appspot.com/?json_url=https://global.daf-apis.com/nglstate/api/v1/4597640880717824)
+
 
 ### 3-2. Retrieve pt_root_id of Somas
 `rootID_lookup.py` can retrieve `pt_root_id` of all somas. Please note that we have already started merging nuclei and their partner somas. 
 
-            2D             |             3D
-:-------------------------:|:-------------------------:
-![https://neuromancer-seung-import.appspot.com/?json_url=https://global.daf-apis.com/nglstate/api/v1/5362887786758144](./img/somapreview2d.png)  |  ![https://neuromancer-seung-import.appspot.com/?json_url=https://global.daf-apis.com/nglstate/api/v1/5362887786758144](./img/somapreview3d.png)
+<img src="./img/somapreview2d.png" width="400"> <img src="./img/somapreview3d.png" width="400">
+
+[Neuroglancer](https://neuromancer-seung-import.appspot.com/?json_url=https://global.daf-apis.com/nglstate/api/v1/5362887786758144)
 
 
 ## Other resources
