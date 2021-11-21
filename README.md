@@ -1,6 +1,7 @@
 # FANC_auto_recon
 - `annotations` : For code related to interacting with the annotation framework.
 - `images`: For code related to image upload/download.
+- `nuclei_prediction`: For code related to detecting neuron nuclei/somas.
 - `segmentation`: For code related to interacting with/authenticating chunkedgraphs.
 - `skeletonization`: For code related to skeletonization.
 - `synapses`: For code related to connectivity.
