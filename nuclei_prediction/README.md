@@ -51,8 +51,10 @@ We first segmented nuclei from the dataset using a convolutional neural network.
 ### 0. Prepare the Data
 Make sure you have the access to `FANCv4`. The voxel size of `FANCv4` was `[4.3, 4.3, 45]`nm^3. We mostly used areas around `[7953, 118101, 2584]` to validate my code (which belongs to the block `i = 7817`), but any areas with a lot of nuclei will be useful. For example, the image below displays a different area around `[52268, 84179, 2117]`.
 
-            2D             |             3D
-:-------------------------:|:-------------------------:
+<img src="./img/raw2d.png" width="300"> <img src="./img/empty3d.png" width="300">
+
+[Neuroglancer](https://neuromancer-seung-import.appspot.com/?json_url=https://global.daf-apis.com/nglstate/api/v1/4666330909245440)
+
 ![https://neuromancer-seung-import.appspot.com/?json_url=https://global.daf-apis.com/nglstate/api/v1/4666330909245440](./img/raw2d.png)  |  ![https://neuromancer-seung-import.appspot.com/?json_url=https://global.daf-apis.com/nglstate/api/v1/4666330909245440](./img/empty3d.png)
 
 
