@@ -291,11 +291,11 @@ def update_synapse_db(synapse_db,synapse_csv_fname):
 
 
     
-def update_synapse_csv(synapse_csv_fname, cv, retry=True, max_tries=10, chunksize = 100000, timestamp = None):
+def update_synapse_csv(source_file, cv, retry=True, max_tries=10, chunksize = 100000, timestamp = None):
     ''' Update roots of a synapse table.
     
     args:
-    synapse_csv_fname: str, path to csv file containing synapses.
+    source_file: str, path to csv file containing synapses.
     cv:         CloudVolume object
     retry:      bool, If errors occur duriong lookup, retry failed chunk. Default = True
     max_tries:  int, number of tries for a given chunk before failing
@@ -304,18 +304,18 @@ def update_synapse_csv(synapse_csv_fname, cv, retry=True, max_tries=10, chunksiz
     returns:
     first a temp csv file is generated, and if no failures occur, a replaced csv file with updated root IDs will be generated.'''
     
-    if isinstance(synapse_csv_fname,str):
-        synapse_csv_fname = Path(synapse_csv_fname)
-    elif isinstance(synapse_csv_fname, Path):
-        synapse_csv_fname = synapse_csv_fname  
+    if isinstance(source_file,str):
+        source_file = Path(source_file)
+    elif isinstance(source_file, Path):
+        source_file = source_file  
     else:
         raise Exception('Wrong path format. Use string or pathlib.Path')
         
-    temp = synapse_csv_fname.parent / '{}.csv'.format(random.randint(111111,999999)) 
+    temp = source_file.parent / '{}.csv'.format(random.randint(111111,999999)) 
 
     header = True
     idx = 0
-    for chunk in pd.read_csv(synapse_csv_fname, chunksize=chunksize):    
+    for chunk in pd.read_csv(source_file, chunksize=chunksize):    
         try:
             chunk.loc[:,'pre_root'] = rootID_lookup.get_roots(chunk.pre_SV.values,cv,timestamp = timestamp)
             chunk.loc[:,'post_root'] = rootID_lookup.get_roots(chunk.post_SV.values,cv,timestamp = timestamp)
@@ -343,7 +343,7 @@ def update_synapse_csv(synapse_csv_fname, cv, retry=True, max_tries=10, chunksiz
         
         header = False
         
-    os.replace(temp,synapse_csv_fname)
+    os.replace(temp,source_file)
     return 'Complete',None 
 
 
