@@ -11,8 +11,7 @@ import requests
 import tqdm
 from concurrent import futures
 import random
-import authentication_utils
-# from . import authentication_utils
+from . import authentication_utils
 
 
 class GSPointLoader(object):

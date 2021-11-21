@@ -7,12 +7,9 @@ import os
 import pandas as pd
 from pathlib import Path
 import random
-import sys
 import sqlite3
 import csv
-sys.path.append(os.path.abspath("/home/skuroda/FANC_auto_recon/segmentation"))
-import rootID_lookup
-import authentication_utils
+from ..segmentation import rootID_lookup, authentication_utils
 
 
 def flip_xyz_zyx_convention(array, inplace=True):
