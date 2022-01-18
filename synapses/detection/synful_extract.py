@@ -246,7 +246,7 @@ def find_targets(source_locs, dirvectors,
     for loc in source_locs:
         loc_voxel = loc.astype(np.uint32)
         dirvector = dirvectors[loc_voxel[0], loc_voxel[1], loc_voxel[2], :]
-        target_loc = loc + dirvector / voxel_size
+        target_loc = loc + dirvector[::-1] / voxel_size
         target_locs.append(target_loc)
         dist = np.linalg.norm(np.array(list(loc)) - np.array(list(target_loc)))
         distances.append(dist)
