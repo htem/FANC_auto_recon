@@ -1,5 +1,6 @@
 numpy
 matplotlib
+ipykernel
 cloud-volume
 python-catmaid
 skeletor
@@ -8,3 +9,11 @@ navis
 nglui
 pyperclip
 git+https://github.com/jasper-tms/npimage
+pandas
+connected-components-3d
+jupyter
+fill_voids
+argparse
+task-queue
+glob2
+caveclient

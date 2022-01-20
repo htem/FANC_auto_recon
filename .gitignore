@@ -2,4 +2,15 @@
 **/.ipynb_checkpoints/
 .DS_Store
 .DS_Store?
+.gitattributes
+
+# Environments
+nuclei/
+
+# Test directory
+Output/ 
 **/Tests
+
+# Visual Studio
+.vs/
+.vscode/

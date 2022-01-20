@@ -149,8 +149,9 @@ def segIDs_from_pts_service(pts,
                          cv = None):
         
         #Reshape from list entries if dataframe column is passed
-        if len(pts.shape) == 1:
-            pts = np.concatenate(pts).reshape(-1,3)
+        if pts.shape != (3,):
+            if len(pts.shape) == 1:
+                pts = np.concatenate(pts).reshape(-1,3)
             
         service_url = service_url.format(scale)
         pts = np.array(pts, dtype=np.uint32)
@@ -181,12 +182,16 @@ def segIDs_from_pts_service(pts,
 def segIDs_from_pts_cv(pts,
                        cv,
                        n=100000,
-                       max_tries = 3,return_roots=True):
+                       max_tries = 3,
+                       return_roots=True,
+                       max_workers=4,
+                       progress=True,
+                       timestamp=None):
     ''' Query cloudvolume object for root or supervoxel IDs. This method is slower than segIDs_from_pts_service, and does not need to be used for FANC_v4.
     args:
-    
+
+    pts: nx3 array, mip0 coordinates to query.
     cv:     cloudvolume object
-    coords: nx3 array, mip0 coordinates to query.
     n:      int, number of coordinates to query in a single batch. Default is 100000, which seems to prevent server errors.
     max_tries: int, number of attempts per batch. Default is 3. Usually if it fails 3 times, something is wrong and more attempts won't work. 
     return_roots: bool, If true, will look up root ids from supervoxel ids. Otherwise, supervoxel ids will be returned. Default is True.
@@ -196,7 +201,8 @@ def segIDs_from_pts_cv(pts,
     root or supervoxel ids for queried coordinates as int64
     '''
     
-    if cv.agglomerate is True:
+    
+    if hasattr(cv, 'agglomerate'):
         cv.agglomerate = False
     
     #Reshape from list entries if dataframe column is passed
@@ -212,14 +218,14 @@ def segIDs_from_pts_cv(pts,
         pt_loader = GSPointLoader(cv)
         pt_loader.add_points(pts[i])
         try:
-            chunk_ids = pt_loader.load_all()[1].reshape(len(pts[i]),)
+            chunk_ids = pt_loader.load_all(max_workers=max_workers, progress=progress)[1].reshape(len(pts[i]),)
             sv_ids.append(chunk_ids)
         except:
             print('Failed, retrying')
             fail_check = 1
             while fail_check < max_tries:
                 try:
-                    chunk_ids = pt_loader.load_all()[1].reshape(len(pts[i]),)
+                    chunk_ids = pt_loader.load_all(max_workers=max_workers, progress=progress)[1].reshape(len(pts[i]),)
                     sv_ids.append(chunk_ids)
                     fail_check = max_tries + 1
                 except:
@@ -232,12 +238,12 @@ def segIDs_from_pts_cv(pts,
     sv_id_full = np.concatenate(sv_ids)
 
     if return_roots is True:
-        root_ids = get_roots(sv_id_full,cv) 
+        root_ids = cv.get_roots(sv_id_full, timestamp=timestamp) 
         return root_ids
     else:
         return sv_id_full
 
-def get_roots(sv_ids,cv):
+def get_roots(sv_ids,cv,timestamp = None):
     ''' A method for dealing with 0 value supervoxel IDs. This is no longer necessary as of cloud-volume version 3.13.0
 
     args: 
@@ -247,7 +253,7 @@ def get_roots(sv_ids,cv):
     returns: 
     root ids for each supervoxel id. 
     '''
-    roots = cv.get_roots(sv_ids)
+    roots = cv.get_roots(sv_ids, timestamp = timestamp)
     # Make sure there are no zeros. .get_roots drops only the first zero, so reinsert if >0 zeros exist.
     if len(np.where(sv_ids==0)[0])>0:
         index_to_insert = np.where(sv_ids==0)[0][0]

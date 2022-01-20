@@ -5,7 +5,10 @@ from secrets import token_hex
 import numpy as np
 import os
 import pandas as pd
+from pathlib import Path
 import random
+import sqlite3
+import csv
 from ..segmentation import rootID_lookup, authentication_utils
 
 
@@ -255,7 +258,8 @@ def update_synapse_tables(csv_path=None, db_path=None, cv=None):
     if db_path is not None and csv_path is not None:
         update_synapse_db(db_path,csv_path)
 
-def update_synapse_db(synapse_db_fname,synapse_csv_fname):
+
+def update_synapse_db(synapse_db, synapse_csv_fname):
     
     if isinstance(synapse_db,str):
         synapse_db = Path(synapse_db)
@@ -266,7 +270,7 @@ def update_synapse_db(synapse_db_fname,synapse_csv_fname):
         
     temp_file = synapse_db.parent / '{}.db'.format(random.randint(111111,999999)) 
     
-    con = sqlite3.connect(temp_file)
+    con = sqlite3.connect(str(temp_file))
     cur = con.cursor()
 
     # Create table
@@ -284,15 +288,14 @@ def update_synapse_db(synapse_db_fname,synapse_csv_fname):
     con.commit()
     con.close()
     
-    os.replace(temp_file,synapse_db_fname)
-
+    os.replace(temp_file,synapse_db)
 
     
-def update_synapse_csv(synapse_csv_fname, cv, retry=True, max_tries=10, chunksize = 100000):
+def update_synapse_csv(source_file, cv, retry=True, max_tries=10, chunksize = 100000, timestamp = None):
     ''' Update roots of a synapse table.
     
     args:
-    synapse_csv_fname: str, path to csv file containing synapses.
+    source_file: str, path to csv file containing synapses.
     cv:         CloudVolume object
     retry:      bool, If errors occur duriong lookup, retry failed chunk. Default = True
     max_tries:  int, number of tries for a given chunk before failing
@@ -301,13 +304,21 @@ def update_synapse_csv(synapse_csv_fname, cv, retry=True, max_tries=10, chunksiz
     returns:
     first a temp csv file is generated, and if no failures occur, a replaced csv file with updated root IDs will be generated.'''
     
-    temp = str(random.randint(111111,999999)) + '.csv'
+    if isinstance(source_file,str):
+        source_file = Path(source_file)
+    elif isinstance(source_file, Path):
+        source_file = source_file  
+    else:
+        raise Exception('Wrong path format. Use string or pathlib.Path')
+        
+    temp = source_file.parent / '{}.csv'.format(random.randint(111111,999999)) 
+
     header = True
     idx = 0
-    for chunk in pd.read_csv(synapse_csv_fname, chunksize=chunksize):    
+    for chunk in pd.read_csv(source_file, chunksize=chunksize):    
         try:
-            chunk.loc[:,'pre_root'] = rootID_lookup.get_roots(chunk.pre_SV.values,cv)
-            chunk.loc[:,'post_root'] = rootID_lookup.get_roots(chunk.post_SV.values,cv)
+            chunk.loc[:,'pre_root'] = rootID_lookup.get_roots(chunk.pre_SV.values,cv,timestamp = timestamp)
+            chunk.loc[:,'post_root'] = rootID_lookup.get_roots(chunk.post_SV.values,cv,timestamp = timestamp)
             chunk.to_csv(temp, mode='a',index=False,header=header)
             
         except Exception as e:
@@ -316,9 +327,9 @@ def update_synapse_csv(synapse_csv_fname, cv, retry=True, max_tries=10, chunksiz
                 tries = 0
                 while tries < max_tries:
                     try:
-                        chunk.pre_root = rootID_lookup.get_roots(chunk.pre_SV.values, cv)
-                        chunk.post_root = rootID_lookup.get_roots(chunk.post_SV.values, cv)
-                        chunk.to_csv(source_file, mode='a', index=False, header=False)
+                        chunk.pre_root = rootID_lookup.get_roots(chunk.pre_SV.values, cv, timestamp = timestamp)
+                        chunk.post_root = rootID_lookup.get_roots(chunk.post_SV.values, cv, timestamp = timestamp)
+                        chunk.to_csv(temp, mode='a', index=False, header=False)
                         tries = max_tries+1
                     except Exception as e2:
                         print(e2)
@@ -332,7 +343,7 @@ def update_synapse_csv(synapse_csv_fname, cv, retry=True, max_tries=10, chunksiz
         
         header = False
         
-    os.replace(temp,synapse_csv_fname)
+    os.replace(temp, source_file)
     return 'Complete',None 
 
 
