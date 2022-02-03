@@ -1,65 +1,57 @@
 import numpy as np
 import pandas as pd
 from scipy.spatial import distance
-from meshparty import skeleton as mps
-from meshparty import trimesh_io, meshwork,mesh_filters,trimesh_vtk
+from meshparty import trimesh_io, meshwork, mesh_filters
 import navis
-from cloudvolume import CloudVolume
-from . import skeletonization
+
 
 ## DEFAULTS FOR SKELETONIZATION
 
-skeletonization.contraction_defaults = {'epsilon': 1e-05,'iter_lim': 8, 'precision': 1e-5, 'SL': 2, 'WH0': .05,'WL0':'auto'}
+contraction_defaults = {'epsilon': 1e-05, 'iter_lim': 8, 'precision': 1e-5, 'SL': 2, 'WH0': .05, 'WL0': 'auto'}
 
+skeletonization_defaults = {'voxel_resolution': np.array([4.3, 4.3, 45]),
+                            'merge_size_threshold': 100,
+                            'merge_max_dist': 1000,
+                            'merge_distance_step': 500,
+                            'soma_radius': 7500,
+                            'invalidation_distance': 8500,
+                            'merge_collapse_soma': True}
 
-
-skeletonization.skeletonization_defaults = {'voxel_resolution': np.array([4.3,4.3,45]),
-                                              'merge_size_threshold': 100,
-                                              'merge_max_dist':1000,
-                                              'merge_distance_step':500,
-                                              'soma_radius':7500,
-                                              'invalidation_distance':8500,
-                                              'merge_collapse_soma':True}
-
-skeletonization.diameter_smoothing_defaults = {'smooth_method':'smooth',
-                                               'smooth_bandwidth':1000}
-
+diameter_smoothing_defaults = {'smooth_method': 'smooth',
+                               'smooth_bandwidth': 1000}
 
 
 def skeletonize_neuron(seg_id,
                        soma_pt,
                        cloudvolume,
                        output='meshwork',
-                       voxel_resolution =skeletonization_defaults['voxel_resolution']):
+                       voxel_resolution=skeletonization_defaults['voxel_resolution']):
+    mesh = cloudvolume.mesh.get(seg_id, use_byte_offsets=True)[seg_id]
 
-    mesh = cloudvolume.mesh.get(seg_id,use_byte_offsets=True)[seg_id]
-
-
-    mp_mesh = trimesh_io.Mesh(mesh.vertices,mesh.faces)
+    mp_mesh = trimesh_io.Mesh(mesh.vertices, mesh.faces)
 
     mp_mesh.merge_large_components(size_threshold=skeletonization_defaults['merge_size_threshold'],
-                                        max_dist=skeletonization_defaults['merge_max_dist'],
-                                        dist_step=skeletonization_defaults['merge_distance_step'])
+                                   max_dist=skeletonization_defaults['merge_max_dist'],
+                                   dist_step=skeletonization_defaults['merge_distance_step'])
     in_comp = mesh_filters.filter_largest_component(mp_mesh)
     mesh_anchor = mp_mesh.apply_mask(in_comp)
 
-    neuron = meshwork.Meshwork(mesh_anchor, seg_id=seg_id,voxel_resolution=voxel_resolution)
-    neuron.skeletonize_mesh(soma_pt=soma_pt*voxel_resolution,invalidation_distance=skeletonization_defaults['invalidation_distance'])
+    neuron = meshwork.Meshwork(mesh_anchor, seg_id=seg_id, voxel_resolution=voxel_resolution)
+    neuron.skeletonize_mesh(soma_pt=soma_pt * voxel_resolution,
+                            invalidation_distance=skeletonization_defaults['invalidation_distance'])
 
-    
     if output == 'meshwork':
-        return(neuron)
+        return neuron
     elif output == 'navis':
-        neuron = mp_to_navis(neuron.skeleton)  
-        neuron = set_soma(neuron,soma_pt)
+        neuron = mp_to_navis(neuron.skeleton)
+        neuron = set_soma(neuron, soma_pt)
         neuron = diameter_smoothing(neuron)
-        neuron.nodes.loc[neuron.soma,'radius'] = skeletonization_defaults['soma_radius']
+        neuron.nodes.loc[neuron.soma, 'radius'] = skeletonization_defaults['soma_radius']
 
-        return(neuron)
-        
-    
+        return neuron
 
-def mp_to_navis(meshparty_skel,node_labels=None, xyz_scaling=1):
+
+def mp_to_navis(meshparty_skel, node_labels=None, xyz_scaling=1):
     '''
     Convert a meshparty skeleton into a dataframe for navis/catmaid import.
     Args
@@ -76,86 +68,81 @@ def mp_to_navis(meshparty_skel,node_labels=None, xyz_scaling=1):
     order_old = np.argsort(ds)
     new_ids = np.arange(len(ds))
     order_map = dict(zip(order_old, new_ids))
-    
-    
+
     if node_labels is None:
-        node_labels = new_ids    
+        node_labels = new_ids
     else:
         node_labels = np.array(node_labels)[order_old]
-        
+
     xyz = meshparty_skel.vertices[order_old]
     par_ids = np.array([order_map.get(nid, -1)
                         for nid in meshparty_skel._rooted._parent_node_array[order_old]])
-    
+
     data = {'node_id': node_labels,
-         'parent_id': par_ids,
-         'x': xyz[:,0]/xyz_scaling,
-         'y': xyz[:,1]/xyz_scaling,
-         'z': xyz[:,2]/xyz_scaling,
-         'radius':meshparty_skel.radius}
+            'parent_id': par_ids,
+            'x': xyz[:, 0] / xyz_scaling,
+            'y': xyz[:, 1] / xyz_scaling,
+            'z': xyz[:, 2] / xyz_scaling,
+            'radius': meshparty_skel.radius}
     df = pd.DataFrame(data=data)
-    
+
     df['label'] = np.ones(len(df))
-    
 
     neuron = navis.TreeNeuron(df)
 
-    
     return neuron
 
-def set_soma(neuron,soma_coord):
 
-    dists = [distance.euclidean(soma_coord,i) for i in np.array(neuron.nodes[['x','y','z']])]
+def set_soma(neuron, soma_coord):
+    dists = [distance.euclidean(soma_coord, i) for i in np.array(neuron.nodes[['x', 'y', 'z']])]
     neuron.soma = neuron.nodes['node_id'][dists.index(min(dists))]
-    navis.reroot_neuron(neuron,neuron.soma,inplace=True)
+    navis.reroot_neuron(neuron, neuron.soma, inplace=True)
     neuron.nodes.parent_id = neuron.nodes.parent_id.where(pd.notnull(neuron.nodes.parent_id), None)
-    
-    return(neuron)
+
+    return (neuron)
 
 
-
-def diameter_smoothing(neuron,smooth_method='smooth',smooth_bandwidth=1000):
-    
-    
-    ''' This will smooth out the node diameters by either setting every node of a similar strahler order to the mean radius of every node with that     strahler order, or apply a smoothing function by setting the radius of a node to the mean of every node within a given bandwidth.  For the latter case, it will also make sure that the nodes radii being averaged are from the same strahler order. 
+def diameter_smoothing(neuron, smooth_method='smooth', smooth_bandwidth=1000):
+    ''' This will smooth out the node diameters by either setting every node of a similar strahler order to the mean radius of every node with that     strahler order, or apply a smoothing function by setting the radius of a node to the mean of every node within a given bandwidth.  For the latter case, it will also make sure that the nodes radii being averaged are from the same strahler order.
 
         Parameters
         ----------
         neuron :           A navis neuron.
 
-        method:            Either 'strahler' or 'smooth'. Default is 'strahler' as it is much faster, and gave good results for motor neurons.  This determines the method of smoothing.  See above for the difference.  
+        smooth_method:            Either 'strahler' or 'smooth'. Default is 'strahler' as it is much faster, and gave good results for motor neurons.  This determines the method of smoothing.  See above for the difference.
 
-        bandwidth:         If 'smooth' is chosen, this is the distance threshold (in nm) whose radii will be averaged to determine a given nodes radius.
+        smooth_bandwidth:         If 'smooth' is chosen, this is the distance threshold (in nm) whose radii will be averaged to determine a given nodes radius.
                            Default is 1000nm.
 
         Returns
         -------
         neuron:            a pymaid neuron'''
-    
-    
+
     gm = navis.geodesic_matrix(neuron)
-    
+
     if 'strahler_index' not in neuron.nodes:
-            navis.strahler_index(neuron)
-    
+        navis.strahler_index(neuron)
+
     if 'strahler' in smooth_method:
-        for i in range(max(neuron.nodes.strahler_index)+1):            
-            radius = np.mean(neuron.nodes.loc[(neuron.nodes.strahler_index==i) & (neuron.nodes.node_id != neuron.soma),'radius'])
-            neuron.nodes.loc[(neuron.nodes.strahler_index==i) & (neuron.nodes.node_id != neuron.soma),'radius'] = radius
-            print(i,radius)
+        for i in range(max(neuron.nodes.strahler_index) + 1):
+            radius = np.mean(
+                neuron.nodes.loc[(neuron.nodes.strahler_index == i) & (neuron.nodes.node_id != neuron.soma), 'radius'])
+            neuron.nodes.loc[
+                (neuron.nodes.strahler_index == i) & (neuron.nodes.node_id != neuron.soma), 'radius'] = radius
+            print(i, radius)
     elif 'smooth' in smooth_method:
-        smooth_r =[]
+        smooth_r = []
         for i in range(len(neuron.nodes)):
-            smooth_r.append(np.mean(neuron.nodes.loc[np.array(gm.iloc[i,:]<smooth_bandwidth) & np.array(neuron.nodes.loc[:,'strahler_index'] == neuron.nodes.loc[i,'strahler_index']) & (neuron.nodes.node_id != neuron.soma),'radius']))
-        
+            smooth_r.append(np.mean(neuron.nodes.loc[np.array(gm.iloc[i, :] < smooth_bandwidth) & np.array(
+                neuron.nodes.loc[:, 'strahler_index'] == neuron.nodes.loc[i, 'strahler_index']) & (
+                                                                 neuron.nodes.node_id != neuron.soma), 'radius']))
+
         neuron.nodes.radius = smooth_r
-        
-    return(neuron)
 
-def downsample_neuron(neuron,downsample_factor=4):
-    
-    downsampled = navis.resample.downsample_neuron(neuron,downsample_factor,inplace=False)
-    
-    return(downsampled)
+    return (neuron)
 
 
+def downsample_neuron(neuron, downsample_factor=4):
+    downsampled = navis.resample.downsample_neuron(neuron, downsample_factor, inplace=False)
+
+    return (downsampled)
