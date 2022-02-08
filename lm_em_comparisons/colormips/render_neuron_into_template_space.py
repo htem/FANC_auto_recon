@@ -12,28 +12,37 @@ from FANC_auto_recon.transforms.template_alignment import warp_points_FANC_to_te
 import npimage # pip install git+https://github.com/jasper-tms/npimage
 import npimage.graphics
 
-
-def show_help():
-    m = ('Render a neuron that has been reconstructed in FANC into an image'
-         ' stack aligned to the JRC2018_VNC_FEMALE template.\n'
-         'The rendered neuron stack can be used for a number of things,'
-         ' including generation of a depth-colored MIP for use in mask'
-         ' searching.\n'
-         'Example usage:\n'
-         './render_segid_in_template_space.py 648518346494405175\n'
-         'Output would be named 648518346494405175.nrrd\n'
-         'WARNING: Meshes often have millions of faces, so this can take a few'
-         ' minutes per neuron.')
-    print(m)
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # Make sure template_spaces' folder is on path
+from template_spaces import template_info
 
 
+show_help = """\
+    Render a neuron that has been reconstructed in FANC into an image stack aligned to a VNC template.
+    The rendered neuron stack can be used for generation of a depth-colored MIP for use in mask searching.
 
-def main():
-    if len(sys.argv) == 1:
-        show_help()
-        return
+    Usage:
+      ./render_neuron_into_template_space.py seg_id [name_of_template_space]
 
-    seg_id = int(sys.argv[1])
+    seg_id must be a segment ID from the FANC production segmentation.
+    name_of_template_space must be the name of a template space. The options
+      for this can be found in FANC_auto_recon/lm_em_comparisons/template_spaces.py
+      If omitted, a default of 'JRC2018_VNC_FEMALE_461' will be used.
+
+    Example usage:
+      ./render_neuron_into_template_space.py 648518346494405175
+    Output file will be named segid648518346494405175_in_JRC2018_VNC_FEMALE_461.nrrd
+
+    WARNING: This script can take 10+ minutes to run on large neurons, as
+      large neurons can have meshes with many millions of faces.
+"""
+
+
+def render_mesh_into_template_space(seg_id: int, target_space: str, header_pixels=0):
+    if target_space not in template_info.keys():
+        raise ValueError(
+            'target_space was {} but must be one of: '
+            '{}'.format(target_space, list(template_info.keys()))
+        )
 
     # Setup
     client = CAVEclient('fanc_production_mar2021')
@@ -60,38 +69,55 @@ def main():
                               invert=True).all(axis=1)
     my_mesh.faces = my_mesh.faces[in_bounds_faces]
 
-    print('Warping to template')
+    print('Warping into alignment with JRC2018_VNC_FEMALE')
     my_mesh.vertices = warp_points_FANC_to_template(my_mesh.vertices, input_units='nanometers', output_units='microns')
 
+    # TODO TODO TODO
+    # If the user requests rendering into a Male or Unisex space, warp the
+    # points into that space. Probably use navis for this.
+    if not target_space.startswith('JRC2018_VNC_FEMALE'):
+        raise NotImplementedError('Only alignment to JRC2018_VNC_FEMALE has been implemented')
 
-    # Render into template-sized numpy array
+    target_info = template_info[target_space]
 
-    # JRC2018_VNC_FEMALE.nrrd is 660x1342x358  (in xyz order) at 0.4 micron
-    # voxel size>
+    # Convert from microns to pixels in the target space
+    my_mesh.vertices = my_mesh.vertices / target_info['voxel size']  # TODO make sure this works
 
-    # TODO figure out the image size, voxel size, and offset used in the images
-    # made available in the Janelia MCFO collections, and render with those
-    # settings.
-
+    # Render into a target-space-sized numpy array
     print('Rendering mesh faces')
-    template_vol = np.zeros((660, 1342,  358), dtype=np.uint8)
-    voxel_size = 0.4  # 0.4 microns
-    my_mesh.vertices = my_mesh.vertices / voxel_size
-    n = my_mesh.n_faces
-    #for i, face in enumerate(my_mesh.faces)):
+    rendered_image = np.zeros(target_info['stack dimensions'], dtype=np.uint8)
     for face in tqdm.tqdm(my_mesh.faces):
-        #print(i, '/', n)
         npimage.graphics.drawtriangle(
-            template_vol,
+            rendered_image,
             my_mesh.vertices[face[0]],
             my_mesh.vertices[face[1]],
             my_mesh.vertices[face[2]],
             255,
             fill_value=255
-            #voxel_size=0.4)
         )
 
-    npimage.save(template_vol, '{}.nrrd'.format(seg_id), dim_order='xyz')
+    if header_pixels:
+        dims = rendered_image.shape
+        header = np.zeros((dims[0], header_pixels, dims[2]), dtype=np.uint8)
+        rendered_image = np.concatenate((header, rendered_image), axis=1)
+
+    npimage.save(rendered_image, 'segid{}_in_{}.nrrd'.format(seg_id, target_space), dim_order='xyz')
+
+
+def main():
+    if len(sys.argv) == 1:
+        print(show_help)
+        return
+
+    seg_id = int(sys.argv[1])
+
+    if len(sys.argv) >= 3:
+        template_space_name = sys.argv[2]
+    else:
+        template_space_name = 'JRC2018_VNC_FEMALE_461'
+
+    render_mesh_into_template_space(seg_id, template_space_name)
+
 
 if __name__ == '__main__':
     main()
