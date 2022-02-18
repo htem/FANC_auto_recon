@@ -8,6 +8,11 @@ from taskqueue import RegisteredTask
 
 
 class PerformMergeTask(RegisteredTask):
+    """
+    CAUTION: Large scale merging operation massively affects materialization of CAVE tables. 
+             Contact Cave team before running this code.
+    This code is adapted from Forrest Collman's work.
+    """
 
     def __init__(
         self,
