@@ -17,3 +17,5 @@ argparse
 task-queue
 glob2
 caveclient
+cloud-files
+urllib3
