@@ -1,50 +1,59 @@
-import requests
+import os
+from caveclient import CAVEclient
 from cloudvolume import CloudVolume
-import numpy as np
-from concurrent import futures
-from pathlib import Path
 import json
-from annotationframeworkclient import FrameworkClient
+from pathlib import Path
+
+CAVE_DATASETS = {'production': 'fanc_production_mar2021',
+                 'sandbox': 'fanc_sandbox'}
 
 
-def setup_credentials(tokens=None,segmentations=None,overwrite=False):
-    ''' Setup the api keys and segmentation links in ~/cloudvolume. 
-    Args:
-        token: str, auth token for chunk graph. 
-        segmentations: dict, segmentation paths and respective resolutions. Format is {'segmentation_name':{'url':'path_to_segmentation','resolution':'[x,y,z]'}}' '''
-
-    tokens = {'token':tokens}
-    
-    BASE = Path.home() / '.cloudvolume'
+#def set_fafbseg_datasets(production='fanc_production_mar2021', sandbox='fanc_sandbox'):
+#    utils.CAVE_DATASETS['production'] = production
+#   utils.CAVE_DATASETS['sandbox'] = sandbox
 
 
-    if Path.exists(BASE / 'secrets') and tokens is not None:
-        if Path.exists(BASE / 'secrets' / 'chunkedgraph-secret.json') and overwrite is False:
-            print('credentials exist')
-        else:
-            with open(BASE / 'secrets'/'chunkedgraph-secret.json',mode='w') as f:
-                json.dump(tokens,f)
-            print('credentials created')
+def set_cave_credentials(token, datastack_name, overwrite=False):
+    client = CAVEclient()
+    client.auth.save_token(token, token_key=datastack_name, overwrite=overwrite)
 
-    else: 
-        Path.mkdir(BASE / 'secrets', parents=True)
-        with open(Path.home() / 'cloudvolume' / 'secrets'/'chunkedgraph-secret.json',mode='w') as f:
-                json.dump(tokens,f)
-        print('credentials created')
-
-    if not Path.exists(BASE / 'segmentations.json'):
-        with open(BASE / 'segmentations.json',mode='w') as f:
-            json.dump(segmentations,f)
-    elif segmentations is not None and overwrite is True:
-        
-        add_path(BASE / 'segmentations.json',segmentations)
-        
-        print('setup complete')
+    return f'Token succesfully stored at: ~/.cloudvolume/secrets/cave-secret.json under key {datastack_name}'
 
 
-def add_path(path_name,path):
+def get_caveclient(dataset='production'):
+    datastack_name = CAVE_DATASETS[dataset]
+    return CAVEclient(datastack_name, auth_token_key=datastack_name)
+
+
+def get_chunkedgraph_secret(domain='fanc_production_mar2021'):
+    return utils.get_chunkedgraph_secret(domain)
+
+
+def get_cloudvolume(client=None, dataset='production'):
+    datastack=CAVE_DATASETS[dataset]
+    if client is None:
+        client = CAVEclient(datastack)
+
+    return CloudVolume(client.info.get_datastack_info()['segmentation_source'], use_https=True,
+                       secrets=client.auth.token)
+
+
+# PRE CAVE CLIENT CODE.
+# Setting up your environment this way is no longer necessary with the release of CAVEclient.
+def get_cv_path(version=None):
+    fname = Path.home() / '.cloudvolume' / 'segmentations.json'
+    with open(fname) as f:
+        paths = json.load(f)
+
+    if version is None:
+        return (paths)
+    else:
+        return (paths[version])
+
+
+def add_path(path_name, path):
     ''' Add a path to ./cloudvolume/segmentations.json
-    
+
     args:
         path:   dict, dict of path info in form {'path_name':{'url': 'graphene://https://segmentation_path','resolution':[4.3,4.3,45]}}
         '''
@@ -52,75 +61,44 @@ def add_path(path_name,path):
     if Path.exists(segmentation_file):
         with open(segmentation_file, 'r+') as f:
             segmentations = json.load(f)
-        
+
         segmentations[path_name] = path
-        json.dump(segmentations,segmentation_file)
+        json.dump(segmentations, segmentation_file)
     else:
         return '.cloudvolume/segmentations.json does not exist. Set up credentials first.'
-    
+
     return 'Segmentation list updated'
 
 
-def get_client(server_address = "https://api.zetta.ai/wclee", datastack_name = 'vnc_v0'):
-    ''' Establish an ngl client for interacting with the annotation framework. 
-    Returns: 
-        client, FrameworkClient object
-        token, str, graphene server token'''
-    
-    token = get_token()    
-    datastack_name = datastack_name
+def setup_credentials(tokens=None, segmentations=None, overwrite=False):
+    ''' Setup the api keys and segmentation links in ~/cloudvolume.
+    Args:
+        token: str, auth token for chunk graph.
+        segmentations: dict, segmentation paths and respective resolutions. Format is {'segmentation_name':{'url':'path_to_segmentation','resolution':'[x,y,z]'}}' '''
 
-    client = FrameworkClient(
-        datastack_name,
-        server_address = server_address,
-        auth_token = token
-    )
-    return(client,token)
+    tokens = {'token': tokens}
 
+    BASE = Path.home() / '.cloudvolume'
 
-def get_token(SECRET_PATH=None):
-    
-    if SECRET_PATH is None:
-        SECRET_PATH = Path.home() / '.cloudvolume' / 'secrets'/'chunkedgraph-secret.json'
-    
-    if Path.exists(SECRET_PATH):
-        with open(SECRET_PATH) as f:
-                token = json.load(f)['token']
+    if Path.exists(BASE / 'secrets') and tokens is not None:
+        if Path.exists(BASE / 'secrets' / 'chunkedgraph-secret.json') and overwrite is False:
+            print('credentials exist')
+        else:
+            with open(BASE / 'secrets' / 'chunkedgraph-secret.json', mode='w') as f:
+                json.dump(tokens, f)
+            print('credentials created')
+
     else:
-        raise ValueError('{} does not exist.'.format(SECRET_PATH))
-    
-    return(token)
+        Path.mkdir(BASE / 'secrets', parents=True)
+        with open(Path.home() / 'cloudvolume' / 'secrets' / 'chunkedgraph-secret.json', mode='w') as f:
+            json.dump(tokens, f)
+        print('credentials created')
 
-def update_token(token,SECRET_PATH=None):
-    
-    if isinstance(token,str):
-        token = {'token':token}
-        
-    if SECRET_PATH is None:
-        SECRET_PATH = Path.home() / '.cloudvolume' / 'secrets'/'chunkedgraph-secret.json'
-    
-    if Path.exists(SECRET_PATH):
-        with open(SECRET_PATH,mode='w') as f:
-                json.dump(token,f)
-    else:
-        raise ValueError('{} does not exist.'.format(SECRET_PATH))
-    
-    return('token updated')
+    if not Path.exists(BASE / 'segmentations.json'):
+        with open(BASE / 'segmentations.json', mode='w') as f:
+            json.dump(segmentations, f)
+    elif segmentations is not None and overwrite is True:
 
-def get_cv_path(version=None):
-    fname = Path.home() / '.cloudvolume' / 'segmentations.json'
-    with open(fname) as f:
-        paths = json.load(f)
-    
-    if version is None:
-        return(paths)
-    else:
-        return(paths[version])
-    
-def get_cv(segmentation = 'FANC_production_segmentation',
-           use_https=True,
-           agglomerate=False):
-    
-    return CloudVolume(get_cv_path(segmentation)['url'],use_https=True,agglomerate=agglomerate)
+        add_path(BASE / 'segmentations.json', segmentations)
 
-    
+        print('setup complete')
