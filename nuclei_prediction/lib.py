@@ -86,6 +86,11 @@ def mip4_to_mip0_array(array, img):
     return result
 
 
+def Bbox2cloud(bbox):
+    cloud = [bbox.minpt.x, bbox.minpt.y, bbox.minpt.z, bbox.maxpt.x, bbox.maxpt.y, bbox.maxpt.z]
+    return cloud
+    
+
 # function - seg/svID
 
 
