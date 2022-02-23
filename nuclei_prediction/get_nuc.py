@@ -146,14 +146,16 @@ def task_get_nuc_info(i): # use i = 7817 for test, close to [7953 118101 2584]
 
         cc_out, N = cc3d.connected_components(masked, return_N=True, connectivity=connectivity)
 
-        ccinfo=[]
-        for j in range(1, N+1):
-            point_cloud = np.argwhere(cc_out == j)
-            bbx = Bbox.from_points(point_cloud)
-            ccinfo.append(np.append([j], [bbx.center(), bbx.minpt, bbx.maxpt]))
+        stats = cc3d.statistics(cc_out)
+        ccid = np.arange(1, N+1)
+        centroids = stats["centroids"][1:N+1]
+        bbx = stats["bounding_boxes"][1:N+1]
 
-        ccinfo.append(np.zeros(10)) # convert 1D to 2D
-        arr = np.array(ccinfo) # [cc id, center location, bbox min, bbox max] all in mip4
+        bbx_pt = np.apply_along_axis(lambda x: Bbox.from_slices(x), 1, bbx)
+        bbx_cloud = list(map(lambda x: Bbox2cloud(x), bbx_pt))
+
+        arr = np.column_stack([ccid,centroids, bbx_cloud]) # [cc id, center location, bbox min, bbox max] all in mip4
+        arr = np.vstack([arr, np.zeros(10)]) # convert 1D to 2D
 
         if arr.ndim == 2:
             arr2 = np.hstack((arr.copy().astype('int64'), np.zeros((arr.shape[0],5), dtype='int64'))) # array to store output
