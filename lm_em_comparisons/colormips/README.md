@@ -6,6 +6,13 @@
 
 Download and install the Color-MIP Generator Fiji plugin by following the instructions in [this README](https://github.com/JaneliaSciComp/ColorMIP_Mask_Search/tree/master/ColorDepthMIP_Generator).
 
+Download VNC template transforms by launching python using an environment with `navis-flybrains` installed (`pip install flybrains` if needed) and running
+
+    import flybrains
+    flybrains.download_jrc_vnc_transforms()
+
+Then check that you now have two `.h5` files located at `~/flybrain-data`.
+
 ---
 
 ##### Make a color MIP for a specific neuron

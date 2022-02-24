@@ -30,7 +30,7 @@ template_info = {
         'stack dimensions': (573, 1164, 205),
         'voxel size': (0.461122, 0.461122, 0.7)
     },
-    'JRC2018_VNC__MALE_461': {
+    'JRC2018_VNC_MALE_461': {
         'stack dimensions': (572, 1164, 229),
         'voxel size': (0.461122, 0.461122, 0.7)
     },
@@ -39,3 +39,15 @@ template_info = {
         'voxel size': (0.461122, 0.461122, 0.7)
     }
 }
+
+def get_nrrd_metadata(template_space):
+    voxel_size = template_info[template_space]['voxel size']
+    return {
+        'space dimension': 3,
+        'space units': ['microns', 'microns', 'microns'],
+        'space directions' : [
+            [voxel_size[0], 0, 0],
+            [0, voxel_size[1], 0],
+            [0, 0, voxel_size[2]]
+        ]
+    }
