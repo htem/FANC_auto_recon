@@ -195,7 +195,7 @@ def plot_neurons(segment_ids, cv=None,
                  cmap='Blues', opacity=1,
                  plot_type='mesh',
                  plot_synapses=False,
-                 soma=None,
+                 soma=False,
                  synapse_type='all',
                  synapse_threshold=3,
                  synapse_table_path=None,
@@ -225,12 +225,10 @@ def plot_neurons(segment_ids, cv=None,
 
         neuron = meshwork.Meshwork(mp_mesh, seg_id=j[1], voxel_resolution=[4.3, 4.3, 45])
 
-        if soma is not None:
-            if isinstance(soma, pd.DataFrame):
-                neuron.add_annotations('soma_pt', soma.query('pt_root_id == @seg_id').copy(),
-                                       point_column='pt_position', anchored=False)
-            elif isinstance(soma, np.array) or isinstance(soma, list):
-                neuron.add_annotations('soma_pt', soma, point_array=True)
+        if soma == True:
+            soma_df = client.materialize.query_table(client.info.get_datastack_info()['soma_table'],
+                                                     filter_equal_dict={'pt_root_id': j[1]})
+            neuron.add_annotations('soma_pt', soma_df, point_column='pt_position', anchored=False)
 
         # get synapses
         if plot_synapses is True:
