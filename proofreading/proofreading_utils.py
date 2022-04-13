@@ -198,6 +198,7 @@ def plot_neurons(segment_ids, cv=None,
                  soma=False,
                  synapse_type='all',
                  synapse_threshold=3,
+                 client=None,
                  camera=None,
                  save=False,
                  save_path=None):
@@ -210,8 +211,10 @@ def plot_neurons(segment_ids, cv=None,
     if cv is None:
         cv = authentication_utils.get_cloudvolume()
 
+    if client is None:
+        client, _ = authentication_utils.get_caveclient()
+
     if isinstance(camera, int):
-        client, _ = authentication_utils.get_client()
         state = client.state.get_state_json(camera)
         camera = trimesh_vtk.camera_from_ngl_state(state)
 
@@ -241,7 +244,7 @@ def plot_neurons(segment_ids, cv=None,
 
             elif synapse_type is 'outputs':
                 input_table = None
-                output_table = connectivity_utils.get_synapsesv2(j[1]
+                output_table = connectivity_utils.get_synapsesv2(j[1],
                                                                  direction='outputs',
                                                                  threshold=synapse_threshold)
             elif synapse_type is 'all':
