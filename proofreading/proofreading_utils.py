@@ -93,6 +93,7 @@ def render_scene(neurons=None,
                  seg_source=None,
                  state_server=None,
                  annotations=None,
+                 perspectiveViewBackgroundColor="",
                  client=None,
                  return_as='url'):
     ''' render a neuroglancer scene with an arbitrary number of annotation layers
@@ -115,9 +116,8 @@ def render_scene(neurons=None,
         client, token = authentication_utils.get_caveclient()
 
     if neurons is None:
-        neurons = pd.DataFrame(columns=['segment_id', 'xyz', 'color'])
+        neurons_df = pd.DataFrame(columns=['segment_id', 'xyz', 'color'])
     elif isinstance(neurons, list):
-
         cmap = cm.get_cmap('Set1', len(neurons))
         neurons_df = pd.DataFrame(columns=['segment_id', 'xyz', 'color'])
         neurons_df['segment_id'] = neurons
@@ -142,7 +142,10 @@ def render_scene(neurons=None,
                                         fixed_ids=None,
                                         active=False)
 
-    standard_state = StateBuilder(layers=[img_layer, seg_layer], resolution=[4.3, 4.3, 45])
+    view_options = {"layout": "xy"}
+    standard_state = StateBuilder(layers=[img_layer, seg_layer], 
+                                  resolution=[4.3, 4.3, 45],
+                                  view_kws=view_options)
 
     # Data Layer(s)
 
@@ -160,8 +163,17 @@ def render_scene(neurons=None,
             annotation_data.append(i['data'])
 
     chained_sb = ChainedStateBuilder([standard_state] + annotation_states)
-    state = json.loads(chained_sb.render_state([neurons] + annotation_data, return_as='json'))
+    state = json.loads(chained_sb.render_state([neurons_df] + annotation_data, return_as='json'))
 
+    memory_options = {"gpuMemoryLimit": 4000000000,
+                      "systemMemoryLimit": 8000000000,
+                      "concurrentDownloads": 64,
+                      "jsonStateServer": "{}".format(paths['json_server']['url'])}
+    state.update(memory_options)
+    if perspectiveViewBackgroundColor != "":
+        bg_color_options = {"perspectiveViewBackgroundColor": perspectiveViewBackgroundColor}
+        state.update(bg_color_options)
+    
     # Add brain regions
     state['layers'].append({"type": "segmentation",
                             "mesh": paths['volumes']['url'],
@@ -184,9 +196,9 @@ def render_scene(neurons=None,
                             })
 
     if return_as is 'url':
-        return paths['neuroglancer_base']['url'] + '?json_url={path}{state_id}'.format(path=paths['json_server']['url'],
-                                                                                       state_id=client.state.upload_state_json(
-                                                                                           state))
+        jsn_id = client.state.upload_state_json(state)
+        return client.state.build_neuroglancer_url(jsn_id, 
+                                                   authentication_utils.get_cv_path('neuroglancer_base')['url']) # client.info.viewer_site()
     else:
         return state
 
