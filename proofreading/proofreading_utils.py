@@ -93,6 +93,9 @@ def render_scene(neurons=None,
                  seg_source=None,
                  state_server=None,
                  annotations=None,
+                 gpuMemoryLimit=4000000000,
+                 systemMemoryLimit=8000000000,
+                 concurrentDownloads=64,
                  perspectiveViewBackgroundColor="",
                  client=None,
                  return_as='url'):
@@ -165,9 +168,9 @@ def render_scene(neurons=None,
     chained_sb = ChainedStateBuilder([standard_state] + annotation_states)
     state = json.loads(chained_sb.render_state([neurons_df] + annotation_data, return_as='json'))
 
-    memory_options = {"gpuMemoryLimit": 4000000000,
-                      "systemMemoryLimit": 8000000000,
-                      "concurrentDownloads": 64,
+    memory_options = {"gpuMemoryLimit": gpuMemoryLimit,
+                      "systemMemoryLimit": systemMemoryLimit,
+                      "concurrentDownloads": concurrentDownloads,
                       "jsonStateServer": "{}".format(paths['json_server']['url'])}
     state.update(memory_options)
     if perspectiveViewBackgroundColor != "":
