@@ -202,10 +202,11 @@ def plot_neurons(segment_ids, cv=None,
                  camera=None,
                  save=False,
                  save_path=None):
-    colormap = cm.get_cmap(cmap, len(segment_ids))
 
     if isinstance(segment_ids, int):
         segment_ids = [segment_ids]
+
+    colormap = cm.get_cmap(cmap, len(segment_ids))
 
     if cv is None:
         cv = authentication_utils.get_cloudvolume()
