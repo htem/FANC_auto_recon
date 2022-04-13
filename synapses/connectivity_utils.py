@@ -3,6 +3,56 @@ import numpy as np
 import json
 import re
 import sqlite3
+import warnings
+from ..segmentation import authentication_utils
+
+def get_synapsesv2(seg_ids,
+                   direction = 'outputs',
+                   threshold=3,
+                   drop_duplicates=True,
+                   client=None):
+    '''Primary function for synapse table lookup. Will default to looking for a sql database, but can query either a .csv of a .db.
+    args:
+    seg_ids:          list, int root ids to query
+    direction:        str, inputs or outputs
+    threshold:        int, synapse threshold to use. default is 3
+    drop_duplicates:  bool, whether to drop links between the same supervoxel pair 
+    client:           frameworkclient.CAVEclientFull, CAVEclient
+    
+    returns:
+    a pd.DataFrame of synapse information from CAVE, 
+    '''
+    if isinstance(seg_ids, int):
+        seg_ids = [seg_ids]
+
+    if direction == 'inputs':
+        to_find = 'post'
+        to_threshold = 'pre'
+        
+    elif direction == 'outputs':
+        to_find = 'pre'   
+        to_threshold = 'post'
+
+    if client is None:
+        client, _ = authentication_utils.get_caveclient()
+
+    result = []                                  
+    for i in range(len(seg_ids)):
+        syn_i = client.materialize.query_table(client.info.get_datastack_info()['synapse_table'],
+                                               filter_equal_dict = {'{}_pt_root_id'.format(to_find): seg_ids[i]})
+        if len(syn_i) >= 200000:
+            warnings.warn('query is maxed out')
+        result.append(syn_i)
+    
+    result_c = pd.concat(result)
+    counts = result_c['{}_pt_root_id'.format(to_threshold)].value_counts()
+    t_idx = counts >= threshold
+    syn_table = result_c[result_c['{}_pt_root_id'.format(to_threshold)].isin(set(t_idx.index[t_idx==1]))]
+
+    if drop_duplicates is True:
+        syn_table2 = syn_table.drop_duplicates(subset=['pre_pt_supervoxel_id', 'post_pt_supervoxel_id'], inplace=False)
+
+    return syn_table2
 
 def get_synapses(seg_ids,
                  synapse_table='synapses.db',

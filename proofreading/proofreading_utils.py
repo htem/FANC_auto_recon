@@ -93,6 +93,10 @@ def render_scene(neurons=None,
                  seg_source=None,
                  state_server=None,
                  annotations=None,
+                 gpuMemoryLimit=4000000000,
+                 systemMemoryLimit=8000000000,
+                 concurrentDownloads=64,
+                 perspectiveViewBackgroundColor="",
                  client=None,
                  return_as='url'):
     ''' render a neuroglancer scene with an arbitrary number of annotation layers
@@ -112,12 +116,11 @@ def render_scene(neurons=None,
     
     '''
     if client is None:
-        client, token = authentication_utils.get_client()
+        client, token = authentication_utils.get_caveclient()
 
     if neurons is None:
-        neurons = pd.DataFrame(columns=['segment_id', 'xyz', 'color'])
+        neurons_df = pd.DataFrame(columns=['segment_id', 'xyz', 'color'])
     elif isinstance(neurons, list):
-
         cmap = cm.get_cmap('Set1', len(neurons))
         neurons_df = pd.DataFrame(columns=['segment_id', 'xyz', 'color'])
         neurons_df['segment_id'] = neurons
@@ -126,9 +129,9 @@ def render_scene(neurons=None,
     paths = authentication_utils.get_cv_path()
 
     if img_source is None:
-        img_source = paths['Image']['url']
+        img_source = client.info.image_source()
     if seg_source is None:
-        seg_source = paths['FANC_production_segmentation']['url']
+        seg_source = client.info.segmentation_source()
     if state_server is None:
         state_server = paths['json_server']['url']
 
@@ -142,7 +145,10 @@ def render_scene(neurons=None,
                                         fixed_ids=None,
                                         active=False)
 
-    standard_state = StateBuilder(layers=[img_layer, seg_layer], resolution=[4.3, 4.3, 45])
+    view_options = {"layout": "xy"}
+    standard_state = StateBuilder(layers=[img_layer, seg_layer], 
+                                  resolution=[4.3, 4.3, 45],
+                                  view_kws=view_options)
 
     # Data Layer(s)
 
@@ -160,8 +166,17 @@ def render_scene(neurons=None,
             annotation_data.append(i['data'])
 
     chained_sb = ChainedStateBuilder([standard_state] + annotation_states)
-    state = json.loads(chained_sb.render_state([neurons] + annotation_data, return_as='json'))
+    state = json.loads(chained_sb.render_state([neurons_df] + annotation_data, return_as='json'))
 
+    memory_options = {"gpuMemoryLimit": gpuMemoryLimit,
+                      "systemMemoryLimit": systemMemoryLimit,
+                      "concurrentDownloads": concurrentDownloads,
+                      "jsonStateServer": "{}".format(paths['json_server']['url'])}
+    state.update(memory_options)
+    if perspectiveViewBackgroundColor != "":
+        bg_color_options = {"perspectiveViewBackgroundColor": perspectiveViewBackgroundColor}
+        state.update(bg_color_options)
+    
     # Add brain regions
     state['layers'].append({"type": "segmentation",
                             "mesh": paths['volumes']['url'],
@@ -184,9 +199,9 @@ def render_scene(neurons=None,
                             })
 
     if return_as is 'url':
-        return paths['neuroglancer_base']['url'] + '?json_url={path}{state_id}'.format(path=paths['json_server']['url'],
-                                                                                       state_id=client.state.upload_state_json(
-                                                                                           state))
+        jsn_id = client.state.upload_state_json(state)
+        return client.state.build_neuroglancer_url(jsn_id, 
+                                                   authentication_utils.get_cv_path('neuroglancer_base')['url']) # client.info.viewer_site()
     else:
         return state
 
@@ -195,23 +210,26 @@ def plot_neurons(segment_ids, cv=None,
                  cmap='Blues', opacity=1,
                  plot_type='mesh',
                  plot_synapses=False,
-                 soma=None,
+                 soma=False,
                  synapse_type='all',
                  synapse_threshold=3,
-                 synapse_table_path=None,
+                 client=None,
                  camera=None,
                  save=False,
                  save_path=None):
-    colormap = cm.get_cmap(cmap, len(segment_ids))
 
     if isinstance(segment_ids, int):
         segment_ids = [segment_ids]
 
+    colormap = cm.get_cmap(cmap, len(segment_ids))
+
     if cv is None:
-        cv = authentication_utils.get_cv()
+        cv = authentication_utils.get_cloudvolume()
+
+    if client is None:
+        client, _ = authentication_utils.get_caveclient()
 
     if isinstance(camera, int):
-        client, _ = authentication_utils.get_client()
         state = client.state.get_state_json(camera)
         camera = trimesh_vtk.camera_from_ngl_state(state)
 
@@ -224,40 +242,34 @@ def plot_neurons(segment_ids, cv=None,
 
         neuron = meshwork.Meshwork(mp_mesh, seg_id=j[1], voxel_resolution=[4.3, 4.3, 45])
 
-        if soma is not None:
-            if isinstance(soma, pd.DataFrame):
-                neuron.add_annotations('soma_pt', soma.query('pt_root_id == @seg_id').copy(),
-                                       point_column='pt_position', anchored=False)
-            elif isinstance(soma, np.array) or isinstance(soma, list):
-                neuron.add_annotations('soma_pt', soma, point_array=True)
+        if soma == True:
+            soma_df = client.materialize.query_table(client.info.get_datastack_info()['soma_table'],
+                                                     filter_equal_dict={'pt_root_id': j[1]})
+            neuron.add_annotations('soma_pt', soma_df, point_column='pt_position', anchored=False)
 
         # get synapses
         if plot_synapses is True:
             if synapse_type is 'inputs':
-                input_table = connectivity_utils.get_synapses(j[1],
-                                                              synapse_table=synapse_table_path,
-                                                              direction='inputs',
-                                                              threshold=synapse_threshold)
+                input_table = connectivity_utils.get_synapsesv2(j[1],
+                                                                direction='inputs',
+                                                                threshold=synapse_threshold)
 
                 neuron.add_annotations('syn_in', input_table, point_column='post_pt')
 
 
             elif synapse_type is 'outputs':
                 input_table = None
-                output_table = connectivity_utils.get_synapses(j[1],
-                                                               synapse_table=synapse_table_path,
-                                                               direction='outputs',
-                                                               threshold=synapse_threshold)
+                output_table = connectivity_utils.get_synapsesv2(j[1],
+                                                                 direction='outputs',
+                                                                 threshold=synapse_threshold)
             elif synapse_type is 'all':
-                input_table = connectivity_utils.get_synapses(j[1],
-                                                              synapse_table=synapse_table_path,
-                                                              direction='inputs',
-                                                              threshold=synapse_threshold)
+                input_table = connectivity_utils.get_synapsesv2(j[1],
+                                                                direction='inputs',
+                                                                threshold=synapse_threshold)
 
-                output_table = connectivity_utils.get_synapses(j[1],
-                                                               synapse_table=synapse_table_path,
-                                                               direction='outputs',
-                                                               threshold=synapse_threshold)
+                output_table = connectivity_utils.get_synapsesv2(j[1],
+                                                                 direction='outputs',
+                                                                 threshold=synapse_threshold)
 
                 neuron.add_annotations('syn_in', input_table, point_column='post_pt')
                 neuron.add_annotations('syn_out', output_table, point_column='pre_pt')

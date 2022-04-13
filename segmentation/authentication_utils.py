@@ -20,9 +20,12 @@ def set_cave_credentials(token, datastack_name, overwrite=False):
     return f'Token succesfully stored at: ~/.cloudvolume/secrets/cave-secret.json under key {datastack_name}'
 
 
-def get_caveclient(dataset='production'):
+def get_caveclient(dataset='production', auth_token_key=True):
     datastack_name = CAVE_DATASETS[dataset]
-    return CAVEclient(datastack_name, auth_token_key=datastack_name)
+    if auth_token_key==True:
+        return CAVEclient(datastack_name, auth_token_key=datastack_name)
+    else:
+        return CAVEclient(datastack_name)
 
 
 def get_chunkedgraph_secret(domain='fanc_production_mar2021'):
