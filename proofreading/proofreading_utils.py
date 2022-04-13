@@ -126,9 +126,9 @@ def render_scene(neurons=None,
     paths = authentication_utils.get_cv_path()
 
     if img_source is None:
-        img_source = paths['Image']['url']
+        img_source = client.info.image_source()
     if seg_source is None:
-        seg_source = paths['FANC_production_segmentation']['url']
+        seg_source = client.info.segmentation_source()
     if state_server is None:
         state_server = paths['json_server']['url']
 
