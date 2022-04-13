@@ -112,7 +112,7 @@ def render_scene(neurons=None,
     
     '''
     if client is None:
-        client, token = authentication_utils.get_client()
+        client, token = authentication_utils.get_caveclient()
 
     if neurons is None:
         neurons = pd.DataFrame(columns=['segment_id', 'xyz', 'color'])
@@ -208,7 +208,7 @@ def plot_neurons(segment_ids, cv=None,
         segment_ids = [segment_ids]
 
     if cv is None:
-        cv = authentication_utils.get_cv()
+        cv = authentication_utils.get_cloudvolume()
 
     if isinstance(camera, int):
         client, _ = authentication_utils.get_client()
