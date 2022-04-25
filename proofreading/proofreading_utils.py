@@ -12,6 +12,7 @@ import json
 from matplotlib import cm, colors
 from meshparty import trimesh_vtk, trimesh_io, meshwork
 import vtk
+import os
 from cloudvolume import CloudVolume
 from cloudvolume.frontends.precomputed import CloudVolumePrecomputed
 try:
@@ -365,7 +366,8 @@ def plot_neurons(segment_ids, cv=None,
 
     if plot_outlines == True:
         outlines_actors = []
-        mesh_outer = read_mesh_stl('./tissueoutline_aug2019.stl')
+        base = os.path.dirname(os.path.abspath(__file__))
+        mesh_outer = read_mesh_stl(os.path.normpath(os.path.join(base, 'tissueoutline_aug2019.stl')))
         mp_mesh = trimesh_io.Mesh(mesh_outer[0], mesh_outer[1])
         outlines_outer = meshwork.Meshwork(mp_mesh, seg_id=[1], voxel_resolution=[4.3, 4.3, 45])
         outlines_actors.append(trimesh_vtk.mesh_actor(outlines_outer.mesh, color=(191/255,191/255,191/255), opacity=0.1))
@@ -377,7 +379,7 @@ def plot_neurons(segment_ids, cv=None,
         # outlines_outer = meshwork.Meshwork(mp_mesh, seg_id=[1], voxel_resolution=[4.3, 4.3, 45])
         # outlines_actors.append(trimesh_vtk.mesh_actor(outlines_outer.mesh, color=(191/255,191/255,191/255), opacity=0.1))
 
-        mesh_inner = read_mesh_stl('./VNC_template_Aug2020.stl')
+        mesh_inner = read_mesh_stl(os.path.normpath(os.path.join(base, 'VNC_template_Aug2020.stl')))
         mp_mesh = trimesh_io.Mesh(mesh_inner[0], mesh_inner[1])
         outlines_inner = meshwork.Meshwork(mp_mesh, seg_id=[2], voxel_resolution=[4.3, 4.3, 45])
         outlines_actors.append(trimesh_vtk.mesh_actor(outlines_inner.mesh, color=(211/255,67/255,214/255), opacity=0.1))
@@ -408,11 +410,11 @@ def plot_neurons(segment_ids, cv=None,
     else:
         trimesh_vtk.render_actors(all_actors, camera=camera, do_save=save, 
                                   filename=save_path, 
-                                  scale=1, video_width=width*4, video_height=height*4)
+                                  scale=1, video_width=width, video_height=height)
         if save_path is not None:
             trimesh_vtk.render_actors((all_actors + [scale_bar_actor]), camera=camera, do_save=save, 
                                        filename=(save_path.rsplit('.', 1)[0] + '_scalebar.' + save_path.rsplit('.', 1)[1]), 
-                                       scale=1, video_width=width*4, video_height=height*4)
+                                       scale=1, video_width=width, video_height=height)
 
 
 def scale_bar_actor_2D(center, camera, view='X', length=10000, color=(0, 0, 0), linewidth=5, font_size=20):
