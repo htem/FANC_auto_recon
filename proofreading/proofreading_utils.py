@@ -13,6 +13,7 @@ from matplotlib import cm, colors
 from meshparty import trimesh_vtk, trimesh_io, meshwork
 import vtk
 from cloudvolume import CloudVolume
+from cloudvolume.frontends.precomputed import CloudVolumePrecomputed
 try:
     from trimesh import exchange
 except ImportError:
@@ -255,7 +256,10 @@ def plot_neurons(segment_ids, cv=None,
     # outline_actor = []
     for j in enumerate(segment_ids):
         # Get mesh
-        mesh = cv.mesh.get(j[1], use_byte_offsets=True)[j[1]]
+        if isinstance(cv, CloudVolumePrecomputed):
+            mesh = cv.mesh.get(j[1])
+        else:
+            mesh = cv.mesh.get(j[1], use_byte_offsets=True)[j[1]]
         mp_mesh = trimesh_io.Mesh(mesh.vertices, mesh.faces)
 
         neuron = meshwork.Meshwork(mp_mesh, seg_id=j[1], voxel_resolution=[4.3, 4.3, 45])
