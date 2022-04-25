@@ -216,24 +216,62 @@ def render_scene(neurons=None,
 def plot_neurons(segment_ids, cv=None,
                  cmap='Blues', opacity=1,
                  plot_type='mesh',
+                 resolution=[4.3,4.3,45],
+                 camera=None,
+                 zoom_factor=300,
+                 client=None,
                  plot_synapses=False,
+                 synapse_type='all',
+                 synapse_threshold=3,
                  plot_soma=False,
                  plot_outlines=False,
                  plot_scale_bar_3D=None,
                  plot_scale_bar_2D=None,
                  view='X',
                  scale_bar_length=10000,
-                 synapse_type='all',
-                 synapse_threshold=3,
-                 client=None,
-                 resolution=[4.3,4.3,45],
-                 camera=None,
-                 zoom_factor=300,
                  save=False,
                  save_path=None,
                  width=1080,
                  height=720):
     """
+    Visualize neurons in 3d meshes, optionally saving high-resolution png images.
+
+    Parameters
+    ----------
+    segment_ids :  list
+        list of segment IDs of neurons
+    cv : cloudvolume.frontends.precomputed.CloudVolumePrecomputed
+        cloud-volume that segment IDs exist
+    camera :  int
+        json state id of neuroglancer scene. required to plot scale bar
+    client : caveclient.frameworkclient.CAVEclientFull
+        CAVEclient to retrieve tables for visualizing synapses and soma
+    plot_synapses :  bool
+        visualize synapses
+    plot_soma : bool
+        visualize soma
+    plot_outlines :  bool
+        visualize volume outlines
+    plot_scale_bar_3D : list
+        specify an origin of a 3D scale bar that users want to place in xyz
+    plot_scale_bar_2D :  list
+        specify an origin of a 2D scale bar that users want to place in xyz
+    view : str
+        'X', 'Y', or 'Z' to specify which plane you want your 2D scale bar to appear
+    scale_bar_length :  int
+        length of a scale bar in nm
+    save : bool
+        write png image to disk, if false will open interactive window (default False)
+    save_path : str
+        filepath to save png image
+
+    Returns
+    -------
+    vtk.vtkRenderer
+        renderer when code was finished
+    png
+        output png image 
+        (generate two images with/without scale bar if you specify to plot it)
     """
 
     if isinstance(segment_ids, int):
