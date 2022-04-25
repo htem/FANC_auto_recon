@@ -12,6 +12,11 @@ import json
 from matplotlib import cm, colors
 from meshparty import trimesh_vtk, trimesh_io, meshwork
 import vtk
+from cloudvolume import CloudVolume
+try:
+    from trimesh import exchange
+except ImportError:
+    from trimesh import io as exchange
 
 
 def skel2scene(skid, project=13, segment_threshold=10, node_threshold=None, return_as='url', dataset='production'):
@@ -212,7 +217,7 @@ def plot_neurons(segment_ids, cv=None,
                  plot_type='mesh',
                  plot_synapses=False,
                  plot_soma=False,
-                 plot_outline=False,
+                 plot_outlines=False,
                  plot_scale_bar_3D=None,
                  plot_scale_bar_2D=None,
                  view='X',
@@ -316,6 +321,32 @@ def plot_neurons(segment_ids, cv=None,
 
     all_actors = neuron_actors + annotation_actors
 
+    if plot_outlines == True:
+        outlines_actors = []
+        mesh_outer = read_mesh_stl('./tissueoutline_aug2019.stl')
+        mp_mesh = trimesh_io.Mesh(mesh_outer[0], mesh_outer[1])
+        outlines_outer = meshwork.Meshwork(mp_mesh, seg_id=[1], voxel_resolution=[4.3, 4.3, 45])
+        outlines_actors.append(trimesh_vtk.mesh_actor(outlines_outer.mesh, color=(191/255,191/255,191/255), opacity=0.1))
+
+        # paths = authentication_utils.get_cv_path()
+        # volume_outlines_cv = CloudVolume(paths['volumes']['url'], use_https=True)
+        # mesh_outer = volume_outlines_cv.mesh.get([1], use_byte_offsets=True)[1]
+        # mp_mesh = trimesh_io.Mesh(mesh_outer.vertices, mesh_outer.faces)
+        # outlines_outer = meshwork.Meshwork(mp_mesh, seg_id=[1], voxel_resolution=[4.3, 4.3, 45])
+        # outlines_actors.append(trimesh_vtk.mesh_actor(outlines_outer.mesh, color=(191/255,191/255,191/255), opacity=0.1))
+
+        mesh_inner = read_mesh_stl('./VNC_template_Aug2020.stl')
+        mp_mesh = trimesh_io.Mesh(mesh_inner[0], mesh_inner[1])
+        outlines_inner = meshwork.Meshwork(mp_mesh, seg_id=[2], voxel_resolution=[4.3, 4.3, 45])
+        outlines_actors.append(trimesh_vtk.mesh_actor(outlines_inner.mesh, color=(211/255,67/255,214/255), opacity=0.1))
+
+        # mesh_inner = volume_outlines_cv.mesh.get([2], use_byte_offsets=True)[2]
+        # mp_mesh = trimesh_io.Mesh(mesh_inner.vertices, mesh_inner.faces)
+        # outlines_inner = meshwork.Meshwork(mp_mesh, seg_id=[2], voxel_resolution=[4.3, 4.3, 45])
+        # outlines_actors.append(trimesh_vtk.mesh_actor(outlines_inner.mesh, color=(211/255,67/255,214/255), opacity=0.1))
+
+        all_actors = all_actors + outlines_actors
+
     # add actor for scale bar
     if (plot_scale_bar_3D is not None) or (plot_scale_bar_2D is not None):
         if camera is not None:
@@ -387,3 +418,14 @@ def scale_bar_actor_2D(center, camera, view='X', length=10000, color=(0, 0, 0), 
     axes_actor.SetAxisLabelTextProperty(tprop)
 
     return axes_actor
+
+
+def read_mesh_stl(filename):
+    with open(filename, 'r') as fp:
+        mesh_d = exchange.stl.load_stl(fp)
+    vertices = mesh_d['vertices']
+    faces = mesh_d['faces']
+    normals = mesh_d.get('normals', None)
+    link_edges = None
+    node_mask = None
+    return vertices, faces, normals, link_edges, node_mask
