@@ -18,10 +18,10 @@ Folder descriptions:
 - `volume_meshes`: Neuropil compartment mesh files (work in progress).
 
 
-Generate an API key via [https://api.zetta.ai/auth/google/login](https://api.zetta.ai/auth/google/login), then create a text file that contains:
+Generate an API key by visiting [https://global.daf-apis.com/auth/api/v1/create_token](https://global.daf-apis.com/auth/api/v1/create_token) and logging in with your FANC-authorized google account. Copy the key that is displayed, then create a text file that contains:
 
     {
-      "token": "YOUR API KEY"
+      "token": "THE API KEY YOU COPIED"
     }
 
 and save that file to `~/.cloudvolume/secrets/cave-secret.json`
