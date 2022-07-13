@@ -2,6 +2,6 @@ I downloaded the VNC neuropil region meshes and tract meshes in `.obj` format fr
 
 (Unfortunately, these are aligned to the unisex template, not the female template. I'm asking Rob at VFB to try to get ones aligned to the female template.)
 
-Once downloaded, I opened the .obj file in meshlab, deleted any connected components that weren't attached to the main mesh, scaled things up by 1000x to go from microns to nm, then saved as an .stl with binary encoding. (I only know how to open .stl files in python, via the numpy-stl package, but if you know of ways to open other types, feel free to work with a format you're most familiar with.) Then, I warped the mesh from `JRC2018_VNC_UNISEX` space to FANC space by running:
+Once downloaded, I opened the .obj file in meshlab, inverted faces (`Filters > Normals, Curvatures and Orientation > Invert Faces Orientation`), deleted any small connected components that weren't attached to the main mesh, then saved as an `.stl` with binary encoding. (I only know how to open .stl files in python, via the numpy-stl package, but if you know of ways to open other types, feel free to work with a format you're most familiar with.) Then, I warped the mesh from `JRC2018_VNC_UNISEX` space to FANC space by running:
 
-    ./warp_mesh_to_FANC.py "JRC2018_VNC_UNISEX/VFB_00104653 wing tectulum_cleaned_1000x.stl" JRC2018_VNC_UNISEX_to_FANC
+    ./warp_mesh_to_FANC.py "JRC2018_VNC_UNISEX/VFB_00104652 prothoracic neuromeres_cleaned.stl" JRC2018_VNC_UNISEX_to_FANC

@@ -8,9 +8,8 @@ import os
 
 import stl  # pip install numpy-stl
 
-# Modify the line below if you keep your repositories on a different path
-sys.path.append(os.path.expanduser('~/repos/FANC_auto_recon/transforms'))
-from template_alignment import warp_points_template_to_FANC
+import navis
+import flybrains
 
 
 def show_help():
@@ -41,15 +40,9 @@ def main():
     # Load
     mesh = stl.mesh.Mesh.from_file(input_filename)
     # Do the warping
-    mesh.v0 = warp_points_template_to_FANC(mesh.v0,
-                                           input_units='nm',
-                                           output_units='nm')
-    mesh.v1 = warp_points_template_to_FANC(mesh.v1,
-                                           input_units='nm',
-                                           output_units='nm')
-    mesh.v2 = warp_points_template_to_FANC(mesh.v2,
-                                           input_units='nm',
-                                           output_units='nm')
+    mesh.v0 = navis.xform_brain(mesh.v0, source='JRCVNC2018U', target='FANC')
+    mesh.v1 = navis.xform_brain(mesh.v1, source='JRCVNC2018U', target='FANC')
+    mesh.v2 = navis.xform_brain(mesh.v2, source='JRCVNC2018U', target='FANC')
     # Save
     mesh.save(output_folder + '/' + os.path.basename(input_filename))
 
