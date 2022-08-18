@@ -366,7 +366,7 @@ def plot_neurons(segment_ids, cv=None,
 
     if plot_outlines == True:
         outlines_actors = []
-        base = os.path.dirname(os.path.abspath(__file__))
+        base = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'volume_meshes')
         mesh_outer = read_mesh_stl(os.path.normpath(os.path.join(base, 'tissueoutline_aug2019.stl')))
         mp_mesh = trimesh_io.Mesh(mesh_outer[0], mesh_outer[1])
         outlines_outer = meshwork.Meshwork(mp_mesh, seg_id=[1], voxel_resolution=[4.3, 4.3, 45])
@@ -379,7 +379,7 @@ def plot_neurons(segment_ids, cv=None,
         # outlines_outer = meshwork.Meshwork(mp_mesh, seg_id=[1], voxel_resolution=[4.3, 4.3, 45])
         # outlines_actors.append(trimesh_vtk.mesh_actor(outlines_outer.mesh, color=(191/255,191/255,191/255), opacity=0.1))
 
-        mesh_inner = read_mesh_stl(os.path.normpath(os.path.join(base, 'VNC_template_Aug2020.stl')))
+        mesh_inner = read_mesh_stl(os.path.normpath(os.path.join(base, 'JRC2018_VNC_FEMALE_to_FANC', 'VNC_template_Aug2020.stl')))
         mp_mesh = trimesh_io.Mesh(mesh_inner[0], mesh_inner[1])
         outlines_inner = meshwork.Meshwork(mp_mesh, seg_id=[2], voxel_resolution=[4.3, 4.3, 45])
         outlines_actors.append(trimesh_vtk.mesh_actor(outlines_inner.mesh, color=(211/255,67/255,214/255), opacity=0.1))
