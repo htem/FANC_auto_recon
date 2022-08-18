@@ -284,7 +284,7 @@ def plot_neurons(segment_ids, cv=None,
         cv = authentication_utils.get_cloudvolume()
 
     if client is None:
-        client, _ = authentication_utils.get_caveclient()
+        client = authentication_utils.get_caveclient()
 
     if isinstance(camera, int):
         state = client.state.get_state_json(camera)
@@ -296,7 +296,7 @@ def plot_neurons(segment_ids, cv=None,
     for j in enumerate(segment_ids):
         # Get mesh
         if isinstance(cv, CloudVolumePrecomputed):
-            mesh = cv.mesh.get(j[1])
+            mesh = cv.mesh.get(j[1])[j[1]]
         else:
             mesh = cv.mesh.get(j[1], use_byte_offsets=True)[j[1]]
         mp_mesh = trimesh_io.Mesh(mesh.vertices, mesh.faces)
