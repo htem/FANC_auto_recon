@@ -226,8 +226,8 @@ def plot_neurons(segment_ids, cv=None,
                  synapse_threshold=3,
                  plot_soma=False,
                  plot_outlines=False,
-                 plot_scale_bar_3D=None,
-                 plot_scale_bar_2D=None,
+                 scale_bar_orig_3D=None,
+                 scale_bar_orig_2D=None,
                  view='X',
                  scale_bar_length=10000,
                  save=False,
@@ -253,9 +253,9 @@ def plot_neurons(segment_ids, cv=None,
         visualize soma
     plot_outlines :  bool
         visualize volume outlines
-    plot_scale_bar_3D : list
+    scale_bar_orig_3D : list
         specify an origin of a 3D scale bar that users want to place in xyz
-    plot_scale_bar_2D :  list
+    scale_bar_orig_2D :  list
         specify an origin of a 2D scale bar that users want to place in xyz
     view : str
         'X', 'Y', or 'Z' to specify which plane you want your 2D scale bar to appear
@@ -392,29 +392,32 @@ def plot_neurons(segment_ids, cv=None,
         all_actors = all_actors + outlines_actors
 
     # add actor for scale bar
-    if (plot_scale_bar_3D is not None) or (plot_scale_bar_2D is not None):
+    if (scale_bar_orig_3D is not None) or (scale_bar_orig_2D is not None):
         if camera is not None:
-            if plot_scale_bar_3D is not None:
-                scale_bar_ctr = np.array(plot_scale_bar_3D)*np.array(resolution) - np.array([0,scale_bar_length,0])
+            if scale_bar_orig_3D is not None:
+                scale_bar_ctr = np.array(scale_bar_orig_3D)*np.array(resolution) # - np.array([0,scale_bar_length,0])
                 scale_bar_actor = trimesh_vtk.scale_bar_actor(scale_bar_ctr,camera=camera,length=scale_bar_length,linewidth=1)
             else:
-                scale_bar_ctr = np.array(plot_scale_bar_2D)*np.array(resolution) - np.array([0,scale_bar_length,0])
+                scale_bar_ctr = np.array(scale_bar_orig_2D)*np.array(resolution) - np.array([0,scale_bar_length,0])
                 scale_bar_actor = scale_bar_actor_2D(scale_bar_ctr,view=view,camera=camera,length=scale_bar_length,linewidth=1)
         else:
             raise Exception('Need camera to set up scale bar')
 
-    if (plot_scale_bar_3D is None) and (plot_scale_bar_2D is None):
+    if (scale_bar_orig_3D is None) and (scale_bar_orig_2D is None):
         trimesh_vtk.render_actors(all_actors, camera=camera, do_save=save, 
+                                  filename=save_path, 
+                                  scale=4, video_width=width, video_height=height)
+    elif save_path is None:
+        trimesh_vtk.render_actors((all_actors + [scale_bar_actor]), camera=camera, do_save=save, 
                                   filename=save_path, 
                                   scale=4, video_width=width, video_height=height)
     else:
         trimesh_vtk.render_actors(all_actors, camera=camera, do_save=save, 
                                   filename=save_path, 
                                   scale=1, video_width=width, video_height=height)
-        if save_path is not None:
-            trimesh_vtk.render_actors((all_actors + [scale_bar_actor]), camera=camera, do_save=save, 
-                                       filename=(save_path.rsplit('.', 1)[0] + '_scalebar.' + save_path.rsplit('.', 1)[1]), 
-                                       scale=1, video_width=width, video_height=height)
+        trimesh_vtk.render_actors((all_actors + [scale_bar_actor]), camera=camera, do_save=save, 
+                                    filename=(save_path.rsplit('.', 1)[0] + '_scalebar.' + save_path.rsplit('.', 1)[1]), 
+                                    scale=1, video_width=width, video_height=height)
 
 
 def scale_bar_actor_2D(center, camera, view='X', length=10000, color=(0, 0, 0), linewidth=5, font_size=20):
