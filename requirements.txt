@@ -8,7 +8,7 @@ meshparty
 navis
 nglui
 pyperclip
-git+https://github.com/jasper-tms/npimage
+numpyimage
 pandas
 connected-components-3d
 jupyter
