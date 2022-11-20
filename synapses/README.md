@@ -26,7 +26,7 @@ Similar to the section above, sometimes a single dendritic twig will be connecte
 
 ## Final Nov2022 synapse dataset
 The final set of 45,055,925 synapses is available:
-- as a csv file on google cloud storage at `gs://lee-lab_female-adult-nerve-cord/alignmentV4/synapses/synapses_Nov2022/`. [Link to view files through browser](https://console.cloud.google.com/storage/browser/lee-lab_female-adult-nerve-cord/alignmentV4/synapses/synapses_Nov2022)).
+- as a csv file on google cloud storage at `gs://lee-lab_female-adult-nerve-cord/alignmentV4/synapses/synapses_Nov2022/`. [Link to view files through browser](https://console.cloud.google.com/storage/browser/lee-lab_female-adult-nerve-cord/alignmentV4/synapses/synapses_Nov2022).
 - through a [CAVE](https://caveclient.readthedocs.io/en/latest/) table named `synapses_nov2022`. [Link to view table through browser](https://cave.fanc-fly.com/annotation/views/aligned_volume/fanc_v4/table/synapses_nov2022).
 
 The `score` column is the `sum_score` provided by `synful`, converted from float to int.
