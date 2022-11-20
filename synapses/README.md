@@ -18,9 +18,16 @@ The `synful` package provides a score for each predicted synaptic link. We found
 ### Exclude autapses
 Any synaptic link that connects a given supervoxel to itself was excluded. This removed 798,050 synapses (~1%), bringing the number of remaining synapses from 56,514,601 to 55,716,551.
 
-### Exclude duplicates
-Sometimes a single pair of supervoxels will be connected by two (or more) different synaptic links. This occurs due to limitations in the `synful` approach – in the large majority of the cases, these supervoxels should only be connected a single time. In these cases, we removed any duplicates, leaving only the single link with the largest score to connect any given pair of supervoxels. This removed 5,724,380 synapses (~7%), bringing the number of remaining synapses from 55,716,551 to 49,992,171.
+### Exclude clear duplicates
+Sometimes a single pair of supervoxels will be connected by two (or more) different synaptic links. This occurs due to limitations in the `synful` approach – in essentially all of these cases, the pair of supervoxels should only be connected a single time. In these cases, we removed any duplicates, leaving only the single link with the largest score to connect any given pair of supervoxels. This removed 5,724,380 synapses (~7%), bringing the number of remaining synapses from 55,716,551 to 49,992,171.
 
-## Final synapse dataset
-The remaining set of 49,992,171 synapses is available through a CAVEclient in a table named [synapses_nov2022](https://cave.fanc-fly.com/annotation/views/aligned_volume/fanc_v4/table/synapses_nov2022).
+### Exclude likely duplicates
+Similar to the section above, sometimes a single dendritic twig will be connected to the same presynaptic neuron by multiple links, but without having the same exact pair of supervoxels connected. We removed duplicate links that connect the same two segIDs if the links' presynaptic locations are within 150nm of one another. We examined the some of the cases identified by this approach and indeed all the instances we examined were duplicates that deserved to be removed. Here's a [neuroglancer link to 5 examples](https://neuromancer-seung-import.appspot.com/?json_url=https://global.daf-apis.com/nglstate/api/v1/5050799377874944). Thanks to Sven Dorkenwald for providing code for this step, which was also applied to the FAFB/FlyWire synapse table. This step removed 4,936,246 synapes (5.9%), bringing the number of remaining synapses from 49,992,171 to 45,055,925.
+
+## Final Nov2022 synapse dataset
+The final set of 45,055,925 synapses is available:
+- as a csv file on google cloud storage at `gs://lee-lab_female-adult-nerve-cord/alignmentV4/synapses/synapses_Nov2022/`. [Link to view files through browser](https://console.cloud.google.com/storage/browser/lee-lab_female-adult-nerve-cord/alignmentV4/synapses/synapses_Nov2022)).
+- through a [CAVE](https://caveclient.readthedocs.io/en/latest/) table named `synapses_nov2022`. [Link to view table through browser](https://cave.fanc-fly.com/annotation/views/aligned_volume/fanc_v4/table/synapses_nov2022).
+
+The `score` column is the `sum_score` provided by `synful`, converted from float to int.
 
