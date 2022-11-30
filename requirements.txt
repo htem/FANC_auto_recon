@@ -1,6 +1,5 @@
 numpy
 matplotlib
-ipykernel
 cloud-volume
 python-catmaid
 meshparty
@@ -10,11 +9,8 @@ pyperclip
 numpyimage
 pandas
 connected-components-3d
-jupyter
 fill_voids
-argparse
 task-queue
-glob2
 caveclient
 cloud-files
 urllib3
