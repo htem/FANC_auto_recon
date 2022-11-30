@@ -59,10 +59,6 @@ def mp_to_navis(meshparty_skel, node_labels=None, xyz_scaling=1):
     skel:        meshparty skeleton
     node_labels: list , list of node labels, default is None and will generate new ones.
     xyz_scaling: int, scale factor for coordinates
-    recalculate_radius: bool, If true, will use the skeletor method of radius calculate, and will require a mesh input
-    mesh: mesh, required only if recalculating radius
- 
-    
     '''
     ds = meshparty_skel.distance_to_root
     order_old = np.argsort(ds)

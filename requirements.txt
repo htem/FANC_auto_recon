@@ -3,7 +3,6 @@ matplotlib
 ipykernel
 cloud-volume
 python-catmaid
-skeletor
 meshparty
 navis
 nglui
