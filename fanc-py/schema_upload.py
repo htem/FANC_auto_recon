@@ -1,7 +1,9 @@
+#!/usr/bin/env python3
+
 import sys
+
 import numpy as np
 import pandas as pd
-from annotationframeworkclient import FrameworkClient
 import nglui
 
 
@@ -25,7 +27,7 @@ def soma_table_entries(state,layer_name = 'cells',description=None):
             entry = {'tag': description,
                      'pt': {'position': i['point']}}
         entries.append(entry)
-    return(entries)
+    return entries
         
 
 def upload_cells(client,cell_entries,table_name,description=None):
@@ -53,7 +55,6 @@ def upload_cells(client,cell_entries,table_name,description=None):
             print('Fail',entry)
 
 
-
 def get_synapses(state,synapse_layer='synapses'):
     ''' Get the synapse coordinates from a json state and return pre,post,center.
     Args:
@@ -71,7 +72,7 @@ def get_synapses(state,synapse_layer='synapses'):
         pre_pt = syns[0]
         post_pt = syns[1]
         ctr_pt = (np.array(pre_pt) + np.array(post_pt)) / 2
-    return(pre_pt,post_pt,np.ndarray.tolist(ctr_pt))
+    return pre_pt, post_pt, np.ndarray.tolist(ctr_pt)
 
 
 def format_synapse(pre,post,ctr):
@@ -90,7 +91,8 @@ def format_synapse(pre,post,ctr):
     'ctr_pt': {'position': ctr}
 
 }
-    return(data)
+    return data
+
 
 def upload_synapses(client,synapse_coordinates,table_name,description=None):
     ''' Add synapses to a synapse table.

@@ -1,31 +1,35 @@
+#!/usr/bin/env python3
+
 import sys
-import numpy as np
-import pymaid
-import pandas as pd
-from cloudvolume import CloudVolume
-import json
-from annotationframeworkclient import FrameworkClient
-import nglui
-from concurrent import futures
 from pathlib import Path
-from ..segmentation import authentication_utils,rootID_lookup
+import json
+from concurrent import futures
+
+import numpy as np
+import pandas as pd
+import pymaid
+from cloudvolume import CloudVolume
+import nglui
+
+from . import auth
+from .segmentation import rootID_lookup
 
 
 def download_annotation_table(client,table_name,get_deleted=False):
     ''' Download annotation tables from the annotation portal. This is a workaround until we have a working materialization engine. 
     Args:
-        client: FrameworkClient object
+        client: CAVEClient object
         table_name: str, name of the table to download.
         get_deleted: bool, return tables that have been deleted. Default = False.
     Returns:
         annotation_table: DataFrame, Unmaterialized annotation table with spatial points necessary for materialization. ''' 
     if table_name not in client.annotation.get_tables():
-        return('Table does not exist')
+        return 'Table does not exist'
     
     meta_data = client.annotation.get_table_metadata(table_name)
     if meta_data['deleted'] is not None:
         if get_deleted is False:
-            return(None)
+            return None
     annotation_table = pd.DataFrame(columns=['deleted','valid','schema_type','reference_table','user_id','created','table_name','id','flat_segmentation_source','description'])
     table_size = client.annotation.get_annotation_count(table_name)+1
     bins = np.array_split(np.arange(1,table_size),np.ceil(table_size/100))
@@ -34,7 +38,7 @@ def download_annotation_table(client,table_name,get_deleted=False):
 
     annotation_table.table_name = table_name
     annotation_table.reset_index(inplace=True)
-    return(annotation_table)
+    return annotation_table
 
 
 
@@ -77,8 +81,7 @@ def generate_soma_table(annotation_table,
     soma_table.soma_y_nm = np.array([i[1] for i in annotation_table.pt_position]) * resolution[1]
     soma_table.soma_z_nm = np.array([i[2] for i in annotation_table.pt_position]) * resolution[2]
     
-    return(soma_table)
-
+    return soma_table
 
 
 def generate_synapse_table(annotation_table,
@@ -127,12 +130,12 @@ def generate_synapse_table(annotation_table,
     synapse_table.post_pos_y_vx = np.array([i[1] for i in annotation_table.post_pt_position]) 
     synapse_table.post_pos_z_vx = np.array([i[2] for i in annotation_table.post_pt_position]) 
     
-    return(synapse_table)
+    return synapse_table
     
     
 def find_neurons(tag, client=None, segmentation_version='FANC_production_segmentation', return_IDs = False, partial_match = True, search_deleted = False):
     if client is None:
-        client,token = authentication_utils.get_client()
+        client,token = auth.get_client()
         
     tables = client.annotation.get_tables()
     annotations = pd.DataFrame(columns=['deleted', 'valid', 'schema_type', 'reference_table', 'user_id',
@@ -156,10 +159,10 @@ def find_neurons(tag, client=None, segmentation_version='FANC_production_segment
         queried_annotations.reset_index(inplace=True)
         materialized_annotations = generate_soma_table(queried_annotations,segmentation_version=segmentation_version)
     else:
-        return('No neurons matching this query')
+        return 'No neurons matching this query'
     
     materialized_annotations['table_name'] = queried_annotations.table_name
     if return_IDs:
-        return(materialized_annotations.pt_root_id.values)
+        return materialized_annotations.pt_root_id.values
 
-    return(materialized_annotations)
+    return materialized_annotations

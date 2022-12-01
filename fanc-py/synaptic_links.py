@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
 
-import json
-from secrets import token_hex
-import numpy as np
 import os
-import pandas as pd
 from pathlib import Path
+import json
+import csv
+from secrets import token_hex
 import random
 import sqlite3
-import csv
-from ..segmentation import rootID_lookup, authentication_utils
+
+import numpy as np
+import pandas as pd
+
+from . import auth
+from .segmentation import rootID_lookup
 
 
 def flip_xyz_zyx_convention(array, inplace=True):
@@ -250,7 +253,7 @@ def to_ng_annotations(links, input_order='xyz', input_units=(1, 1, 1),
 def update_synapse_tables(csv_path=None, db_path=None, cv=None):
     
     if cv is None:
-        cv = authentication_utils.get_cv()
+        cv = auth.get_cloudvolume()
     
     if csv_path is not None:
         update_synapse_csv(csv_path,cv)

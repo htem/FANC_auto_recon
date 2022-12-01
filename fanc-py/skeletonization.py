@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import numpy as np
 import pandas as pd
 from scipy.spatial import distance
@@ -95,7 +97,7 @@ def set_soma(neuron, soma_coord):
     navis.reroot_neuron(neuron, neuron.soma, inplace=True)
     neuron.nodes.parent_id = neuron.nodes.parent_id.where(pd.notnull(neuron.nodes.parent_id), None)
 
-    return (neuron)
+    return neuron
 
 
 def diameter_smoothing(neuron, smooth_method='smooth', smooth_bandwidth=1000):
@@ -135,10 +137,10 @@ def diameter_smoothing(neuron, smooth_method='smooth', smooth_bandwidth=1000):
 
         neuron.nodes.radius = smooth_r
 
-    return (neuron)
+    return neuron
 
 
 def downsample_neuron(neuron, downsample_factor=4):
     downsampled = navis.resample.downsample_neuron(neuron, downsample_factor, inplace=False)
 
-    return (downsampled)
+    return downsampled

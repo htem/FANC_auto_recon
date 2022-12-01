@@ -1,8 +1,11 @@
+#!/usr/bin/env python3
+
 import os
+from pathlib import Path
+import json
+
 from caveclient import CAVEclient
 from cloudvolume import CloudVolume
-import json
-from pathlib import Path
 
 CAVE_DATASETS = {'production': 'fanc_production_mar2021',
                  'sandbox': 'fanc_sandbox'}

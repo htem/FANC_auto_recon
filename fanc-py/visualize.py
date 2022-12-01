@@ -12,7 +12,7 @@ try:
 except ImportError:
     from trimesh import io as exchange
 
-from .segmentation import authentication_utils
+from . import auth
 
 
 def plot_neurons(segment_ids, cv=None,
@@ -82,10 +82,10 @@ def plot_neurons(segment_ids, cv=None,
     colormap = cm.get_cmap(cmap, len(segment_ids))
 
     if cv is None:
-        cv = authentication_utils.get_cloudvolume()
+        cv = auth.get_cloudvolume()
 
     if client is None:
-        client = authentication_utils.get_caveclient()
+        client = auth.get_caveclient()
 
     if isinstance(camera, int):
         state = client.state.get_state_json(camera)
@@ -173,22 +173,11 @@ def plot_neurons(segment_ids, cv=None,
         outlines_outer = meshwork.Meshwork(mp_mesh, seg_id=[1], voxel_resolution=[4.3, 4.3, 45])
         outlines_actors.append(trimesh_vtk.mesh_actor(outlines_outer.mesh, color=(191/255,191/255,191/255), opacity=0.1))
 
-        # paths = authentication_utils.get_cv_path()
-        # volume_outlines_cv = CloudVolume(paths['volumes']['url'], use_https=True)
-        # mesh_outer = volume_outlines_cv.mesh.get([1], use_byte_offsets=True)[1]
-        # mp_mesh = trimesh_io.Mesh(mesh_outer.vertices, mesh_outer.faces)
-        # outlines_outer = meshwork.Meshwork(mp_mesh, seg_id=[1], voxel_resolution=[4.3, 4.3, 45])
-        # outlines_actors.append(trimesh_vtk.mesh_actor(outlines_outer.mesh, color=(191/255,191/255,191/255), opacity=0.1))
 
         mesh_inner = read_mesh_stl(os.path.normpath(os.path.join(base, 'JRC2018_VNC_FEMALE_to_FANC', 'VNC_template_Aug2020.stl')))
         mp_mesh = trimesh_io.Mesh(mesh_inner[0], mesh_inner[1])
         outlines_inner = meshwork.Meshwork(mp_mesh, seg_id=[2], voxel_resolution=[4.3, 4.3, 45])
         outlines_actors.append(trimesh_vtk.mesh_actor(outlines_inner.mesh, color=(211/255,67/255,214/255), opacity=0.1))
-
-        # mesh_inner = volume_outlines_cv.mesh.get([2], use_byte_offsets=True)[2]
-        # mp_mesh = trimesh_io.Mesh(mesh_inner.vertices, mesh_inner.faces)
-        # outlines_inner = meshwork.Meshwork(mp_mesh, seg_id=[2], voxel_resolution=[4.3, 4.3, 45])
-        # outlines_actors.append(trimesh_vtk.mesh_actor(outlines_inner.mesh, color=(211/255,67/255,214/255), opacity=0.1))
 
         all_actors = all_actors + outlines_actors
 

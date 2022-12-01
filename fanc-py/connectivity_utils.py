@@ -1,13 +1,18 @@
-import pandas as pd
-import numpy as np
+#!/usr/bin/env python3
+
 import json
 import re
-import sqlite3
 import warnings
-from ..segmentation import authentication_utils
+import sqlite3
+
+import pandas as pd
+import numpy as np
+
+from . import auth
+
 
 def get_synapsesv2(seg_ids,
-                   direction = 'outputs',
+                   direction='outputs',
                    threshold=3,
                    drop_duplicates=True,
                    client=None):
@@ -34,7 +39,7 @@ def get_synapsesv2(seg_ids,
         to_threshold = 'post'
 
     if client is None:
-        client, _ = authentication_utils.get_caveclient()
+        client, _ = auth.get_caveclient()
 
     result = []                                  
     for i in range(len(seg_ids)):
@@ -91,7 +96,7 @@ def get_synapses(seg_ids,
     if drop_duplicates is True:
         syn_table.drop_duplicates(subset=['pre_SV', 'post_SV'], inplace=True)
     
-    return(syn_table)
+    return syn_table
 
 
 def get_adj(pre_ids,post_ids,symmetric = False):
@@ -108,7 +113,7 @@ def get_adj(pre_ids,post_ids,symmetric = False):
         for j in range(len(partners)):
             adj.loc[i,partners[j]] = synapses[j]
     
-    return(adj)
+    return adj
 
 
 def get_partner_synapses_csv(root_id, 

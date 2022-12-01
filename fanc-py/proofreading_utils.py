@@ -1,24 +1,25 @@
 #!/usr/bin/env python3
 
-from ..transforms import realignment
-from ..segmentation import authentication_utils, rootID_lookup
-from ..skeletonization import catmaid_utilities
-from ..synapses import connectivity_utils
-from nglui.statebuilder import *
+import os
+import json
+
 import numpy as np
 import pandas as pd
-import pymaid
-import json
 from matplotlib import cm, colors
-from meshparty import trimesh_vtk, trimesh_io, meshwork
 import vtk
-import os
-from cloudvolume import CloudVolume
-from cloudvolume.frontends.precomputed import CloudVolumePrecomputed
+from meshparty import trimesh_vtk, trimesh_io, meshwork
 try:
     from trimesh import exchange
 except ImportError:
     from trimesh import io as exchange
+import pymaid
+from cloudvolume import CloudVolume
+from cloudvolume.frontends.precomputed import CloudVolumePrecomputed
+from nglui.statebuilder import *
+
+from . import auth, ngl_info, catmaid_utilities
+from .transforms import realignment
+from .segmentation import rootID_lookup
 
 
 def skel2scene(skid, project=13, segment_threshold=10, node_threshold=None, return_as='url', dataset='production'):
@@ -30,7 +31,7 @@ def skel2scene(skid, project=13, segment_threshold=10, node_threshold=None, retu
 
     n.downsample(inplace=True)
 
-    target_volume = authentication_utils.get_cloudvolume(dataset=dataset)
+    target_volume = auth.get_cloudvolume(dataset=dataset)
     seg_ids, points = skel2seg(n, target_volume, transform=True)
 
     neuron_df, skeleton_df = fragment_dataframes(seg_ids,
@@ -124,7 +125,7 @@ def render_scene(neurons=None,
     
     '''
     if client is None:
-        client, token = authentication_utils.get_caveclient()
+        client, token = auth.get_caveclient()
 
     if neurons is None:
         neurons_df = pd.DataFrame(columns=['segment_id', 'xyz', 'color'])
@@ -134,7 +135,8 @@ def render_scene(neurons=None,
         neurons_df['segment_id'] = neurons
         neurons_df['color'] = [colors.rgb2hex(cmap(i)) for i in range(cmap.N)]
 
-    paths = authentication_utils.get_cv_path()
+    # TODO update this to use ngl_info
+    paths = auth.get_cv_path()
 
     if img_source is None:
         img_source = client.info.image_source()
@@ -208,9 +210,6 @@ def render_scene(neurons=None,
 
     if return_as is 'url':
         jsn_id = client.state.upload_state_json(state)
-        return client.state.build_neuroglancer_url(jsn_id, 
-                                                   authentication_utils.get_cv_path('neuroglancer_base')['url']) # client.info.viewer_site()
+        return client.state.build_neuroglancer_url(jsn_id, ngl_info.ngl_app_url)
     else:
         return state
-
-
