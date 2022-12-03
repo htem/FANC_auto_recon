@@ -17,12 +17,12 @@ from cloudvolume import CloudVolume
 from cloudvolume.frontends.precomputed import CloudVolumePrecomputed
 from nglui.statebuilder import *
 
-from . import auth, ngl_info, catmaid_utilities, rootID_lookup
+from . import auth, ngl_info, catmaid, rootID_lookup
 from .transforms import realignment
 
 
 def skel2scene(skid, project=13, segment_threshold=10, node_threshold=None, return_as='url', dataset='production'):
-    CI = catmaid_utilities.catmaid_login('FANC', project)
+    CI = catmaid.catmaid_login('FANC', project)
     try:
         n = pymaid.get_neurons(skid)
     except:
