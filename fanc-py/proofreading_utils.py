@@ -17,9 +17,8 @@ from cloudvolume import CloudVolume
 from cloudvolume.frontends.precomputed import CloudVolumePrecomputed
 from nglui.statebuilder import *
 
-from . import auth, ngl_info, catmaid_utilities
+from . import auth, ngl_info, catmaid_utilities, rootID_lookup
 from .transforms import realignment
-from .segmentation import rootID_lookup
 
 
 def skel2scene(skid, project=13, segment_threshold=10, node_threshold=None, return_as='url', dataset='production'):

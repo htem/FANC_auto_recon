@@ -11,8 +11,7 @@ import pymaid
 from cloudvolume import CloudVolume
 import nglui
 
-from . import auth
-from .segmentation import rootID_lookup
+from . import auth, rootID_lookup
 
 
 def download_annotation_table(client,table_name,get_deleted=False):
