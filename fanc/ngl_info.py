@@ -6,8 +6,6 @@ Contains paths and settings relevant to building neuroglancer states
 from caveclient import CAVEclient
 
 
-ngl_app_url = 'https://neuromancer-seung-import.appspot.com/'
-
 client = CAVEclient('fanc_production_mar2021')
 info = client.info.get_datastack_info()
 
