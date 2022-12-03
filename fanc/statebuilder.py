@@ -166,7 +166,7 @@ def render_scene(neurons=None,
     if annotations is not None:
         for i in annotations:
 
-            if i['type'] is 'points':
+            if i['type'] == 'points':
                 anno_mapper = PointMapper(point_column='xyz')
 
             anno_layer = AnnotationLayerConfig(name=i['name'], mapping_rules=anno_mapper)
@@ -207,7 +207,7 @@ def render_scene(neurons=None,
                             "name": "volume outlines"
                             })
 
-    if return_as is 'url':
+    if return_as == 'url':
         jsn_id = client.state.upload_state_json(state)
         return client.state.build_neuroglancer_url(jsn_id, ngl_info.ngl_app_url)
     else:

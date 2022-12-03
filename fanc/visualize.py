@@ -111,7 +111,7 @@ def plot_neurons(segment_ids, cv=None,
 
         # get synapses
         if plot_synapses is True:
-            if synapse_type is 'inputs':
+            if synapse_type == 'inputs':
                 input_table = connectivity.get_synapsesv2(j[1],
                                                           direction='inputs',
                                                           threshold=synapse_threshold)
@@ -119,12 +119,12 @@ def plot_neurons(segment_ids, cv=None,
                 neuron.add_annotations('syn_in', input_table, point_column='post_pt')
 
 
-            elif synapse_type is 'outputs':
+            elif synapse_type == 'outputs':
                 input_table = None
                 output_table = connectivity.get_synapsesv2(j[1],
                                                            direction='outputs',
                                                            threshold=synapse_threshold)
-            elif synapse_type is 'all':
+            elif synapse_type == 'all':
                 input_table = connectivity.get_synapsesv2(j[1],
                                                           direction='inputs',
                                                           threshold=synapse_threshold)
