@@ -12,7 +12,7 @@ try:
 except ImportError:
     from trimesh import io as exchange
 
-from . import auth
+from . import auth, connectivity
 
 
 def plot_neurons(segment_ids, cv=None,
@@ -112,26 +112,26 @@ def plot_neurons(segment_ids, cv=None,
         # get synapses
         if plot_synapses is True:
             if synapse_type is 'inputs':
-                input_table = connectivity_utils.get_synapsesv2(j[1],
-                                                                direction='inputs',
-                                                                threshold=synapse_threshold)
+                input_table = connectivity.get_synapsesv2(j[1],
+                                                          direction='inputs',
+                                                          threshold=synapse_threshold)
 
                 neuron.add_annotations('syn_in', input_table, point_column='post_pt')
 
 
             elif synapse_type is 'outputs':
                 input_table = None
-                output_table = connectivity_utils.get_synapsesv2(j[1],
-                                                                 direction='outputs',
-                                                                 threshold=synapse_threshold)
+                output_table = connectivity.get_synapsesv2(j[1],
+                                                           direction='outputs',
+                                                           threshold=synapse_threshold)
             elif synapse_type is 'all':
-                input_table = connectivity_utils.get_synapsesv2(j[1],
-                                                                direction='inputs',
-                                                                threshold=synapse_threshold)
+                input_table = connectivity.get_synapsesv2(j[1],
+                                                          direction='inputs',
+                                                          threshold=synapse_threshold)
 
-                output_table = connectivity_utils.get_synapsesv2(j[1],
-                                                                 direction='outputs',
-                                                                 threshold=synapse_threshold)
+                output_table = connectivity.get_synapsesv2(j[1],
+                                                           direction='outputs',
+                                                           threshold=synapse_threshold)
 
                 neuron.add_annotations('syn_in', input_table, point_column='post_pt')
                 neuron.add_annotations('syn_out', output_table, point_column='pre_pt')

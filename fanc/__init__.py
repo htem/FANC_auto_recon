@@ -2,13 +2,13 @@
 
 __all__ = [
     'auth',
-    'catmaid_utilities',
-    'connectivity_utils',
+    'catmaid',
+    'connectivity',
     'ngl_info',
     'rootID_lookup',
     'schema_download',
     'schema_upload',
-    'skeletonization',
+    'skeletonize',
     'statebuilder',
     'statemanager',
     'synaptic_links',
