@@ -4,6 +4,8 @@ cloud-volume
 python-catmaid
 meshparty
 navis
+flybrains
+transformix @ git+https://github.com/jasper-tms/pytransformix.git
 nglui
 pyperclip
 numpyimage

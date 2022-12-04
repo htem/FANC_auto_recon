@@ -5,6 +5,7 @@ __all__ = [
     'catmaid',
     'connectivity',
     'ngl_info',
+    'render_neurons',
     'rootID_lookup',
     'schema_download',
     'schema_upload',
@@ -12,6 +13,7 @@ __all__ = [
     'statebuilder',
     'statemanager',
     'synaptic_links',
+    'template_spaces',
     'transforms',
     'visualize'
 ]
