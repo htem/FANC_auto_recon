@@ -216,7 +216,7 @@ def to_ng_annotations(links, input_order='xyz', input_units=(1, 1, 1),
     if isinstance(links, str):
         links = load(links)
 
-    if input_units is not (1, 1, 1):
+    if tuple(input_units) != (1, 1, 1):
         links = downscale(links.astype(float), input_units, inplace=False)
         # Now links are in units of voxels
 

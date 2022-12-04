@@ -112,7 +112,7 @@ def fanc3_to_4(*pts, mode='descent', precision=1, verbose=False):
     pts = np.array(pts, dtype=np.float64)
     ndims = len(pts.shape)
 
-    if mode is 'descent':
+    if mode == 'descent':
         # Use this mode if the v3 to v4 alignment
         # field hasn't been calculated yet.
 
@@ -201,7 +201,7 @@ def fanc3_to_4(*pts, mode='descent', precision=1, verbose=False):
             #return np.apply_along_axis(find_inverse_by_descent, 1, pts, precision)  # Serial (slow)
             return find_inverse_by_descent_parallel(pts, precision)  # Parallel (fast)
 
-    elif mode is 'inversefield':
+    elif mode == 'inversefield':
         # Use if the inverse field (v3->v4) has been calculated.
         # (This has not been done yet as of Apr 21, 2021)
         raise NotImplementedError
