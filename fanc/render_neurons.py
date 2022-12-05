@@ -16,7 +16,23 @@ from .transforms.template_alignment import warp_points_FANC_to_template
 from .template_spaces import template_info, get_nrrd_metadata
 
 
-def render_mesh_into_template_space(seg_id: int, target_space: str, header_pixels=0):
+def render_neuron_into_template_space(seg_id: int, target_space: str,
+                                      header_pixels=0, skeletonize=False):
+    """
+    1. Create an image canvas aligned to a VNC template space (target_space)
+    2. Render a template-aligned version of a neuron onto that canvas
+    3. Save the resulting image volume as a .nrrd file
+
+    seg_id :  The segment ID to render
+    target_space :  See template_spaces.py
+    header_pixels :  Add this many empty rows to the top of the image
+
+    If skeletonize is False, the neuron's mesh will be rendered. This is slow
+    (may involve rendering many millions of triangles) but gives the most
+    accurate rendering.
+    If skeletonize is True, the neuron's mesh will be skeletonized and then the
+    skeleton will be rendered.
+    """
     if target_space not in template_info.keys():
         raise ValueError(
             'target_space was {} but must be one of: '
