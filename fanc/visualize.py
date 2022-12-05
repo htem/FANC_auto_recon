@@ -167,7 +167,10 @@ def plot_neurons(segment_ids, cv=None,
 
     if plot_outlines == True:
         outlines_actors = []
-        base = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'volume_meshes')
+        base = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            'data', 'volume_meshes'
+        )
         mesh_outer = read_mesh_stl(os.path.normpath(os.path.join(base, 'tissueoutline_aug2019.stl')))
         mp_mesh = trimesh_io.Mesh(mesh_outer[0], mesh_outer[1])
         outlines_outer = meshwork.Meshwork(mp_mesh, seg_id=[1], voxel_resolution=[4.3, 4.3, 45])
