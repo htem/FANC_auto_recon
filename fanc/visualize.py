@@ -46,7 +46,7 @@ def plot_neurons(segment_ids, cv=None,
         cloud-volume that segment IDs exist
     camera :  int
         json state id of neuroglancer scene. required to plot scale bar
-    client : caveclient.frameworkclient.CAVEclientFull
+    client : caveclient.CAVEclient
         CAVEclient to retrieve tables for visualizing synapses and soma
     plot_synapses :  bool
         visualize synapses

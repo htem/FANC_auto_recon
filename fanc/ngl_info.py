@@ -3,10 +3,9 @@
 Contains paths and settings relevant to building neuroglancer states
 """
 
-from caveclient import CAVEclient
+from . import auth
 
-
-client = CAVEclient('fanc_production_mar2021')
+client = auth.get_caveclient()
 info = client.info.get_datastack_info()
 
 im = {'name': 'FANCv4',

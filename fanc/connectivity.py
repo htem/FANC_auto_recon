@@ -22,7 +22,7 @@ def get_synapsesv2(seg_ids,
     direction:        str, inputs or outputs
     threshold:        int, synapse threshold to use. default is 3
     drop_duplicates:  bool, whether to drop links between the same supervoxel pair 
-    client:           frameworkclient.CAVEclientFull, CAVEclient
+    client:           caveclient.CAVEclient or None
     
     returns:
     a pd.DataFrame of synapse information from CAVE, 
@@ -39,7 +39,7 @@ def get_synapsesv2(seg_ids,
         to_threshold = 'post'
 
     if client is None:
-        client, _ = auth.get_caveclient()
+        client = auth.get_caveclient()
 
     result = []                                  
     for i in range(len(seg_ids)):

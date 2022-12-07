@@ -17,7 +17,7 @@ from cloudvolume import CloudVolume
 from cloudvolume.frontends.precomputed import CloudVolumePrecomputed
 from nglui.statebuilder import *
 
-from . import auth, ngl_info, catmaid, rootID_lookup
+from . import auth, catmaid, rootID_lookup
 from .transforms import realignment
 
 
@@ -123,8 +123,12 @@ def render_scene(neurons=None,
     state/neuroglancer link
     
     '''
+    # This import is delayed because it triggers creation of a CAVEclient,
+    # which I don't want to do until it's needed
+    from . import ngl_info
+
     if client is None:
-        client, token = auth.get_caveclient()
+        client = auth.get_caveclient()
 
     if neurons is None:
         neurons_df = pd.DataFrame(columns=['segment_id', 'xyz', 'color'])
