@@ -8,6 +8,11 @@ from . import auth
 client = auth.get_caveclient()
 info = client.info.get_datastack_info()
 
+ngl_app_url = info['viewer_site']
+voxel_size = (info['viewer_resolution_x'],
+              info['viewer_resolution_y'],
+              info['viewer_resolution_z'])
+
 im = {'name': 'FANCv4',
       # As of Aug 2022, path is 'precomputed://gs://zetta_lee_fly_vnc_001_precomputed/fanc_v4_em'
       'path': info['aligned_volume']['image_source']}
@@ -19,13 +24,14 @@ seg = {'name': 'seg_Mar2021_proofreading',
 syn = {'name': 'synapses_May2021',
        'path': 'precomputed://gs://lee-lab_female-adult-nerve-cord/alignmentV4/synapses/postsynapses_May2021'}
 
-nuclei = {'name': 'nuclei_mar2022',
+nuclei = {'name': 'nuclei_Mar2022',
           'path': 'precomputed://gs://lee-lab_female-adult-nerve-cord/alignmentV4/nuclei/nuclei_seg_Mar2022'}
 
 view_options = dict(
     position=[48848, 114737, 2690],
-    zoom_image=12,
-    zoom_3d=6700
+    zoom_2d=12,
+    zoom_3d=6700,
+    layout='xy-3d'
 )
 
 
