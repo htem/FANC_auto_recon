@@ -39,7 +39,7 @@ def main():
     else:
         template_space_name = 'JRC2018_VNC_UNISEX_461'
 
-    fanc.render_neurons.render_mesh_into_template_space(seg_id, template_space_name)
+    fanc.render_neuron_into_template_space(seg_id, template_space_name)
 
 
 if __name__ == '__main__':
