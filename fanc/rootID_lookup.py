@@ -1,11 +1,15 @@
+#!/usr/bin/env python3
+
 import collections
 from concurrent import futures
+
 import numpy as np
 import pandas as pd
 import requests
 import tqdm
 import cloudvolume
-from .authentication_utils import get_cloudvolume
+
+from . import auth
 
 
 def segIDs_from_pts_service(pts,
@@ -34,7 +38,7 @@ def segIDs_from_pts_service(pts,
 
         if return_roots is True:
             if cv is None:
-                cv = get_cloudvolume()
+                cv = auth.get_cloudvolume()
 
             root_ids = get_roots(sv_ids, cv)
             return root_ids

@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import numpy as np
 import pandas as pd
 from scipy.spatial import distance
@@ -59,10 +61,6 @@ def mp_to_navis(meshparty_skel, node_labels=None, xyz_scaling=1):
     skel:        meshparty skeleton
     node_labels: list , list of node labels, default is None and will generate new ones.
     xyz_scaling: int, scale factor for coordinates
-    recalculate_radius: bool, If true, will use the skeletor method of radius calculate, and will require a mesh input
-    mesh: mesh, required only if recalculating radius
- 
-    
     '''
     ds = meshparty_skel.distance_to_root
     order_old = np.argsort(ds)
@@ -99,7 +97,7 @@ def set_soma(neuron, soma_coord):
     navis.reroot_neuron(neuron, neuron.soma, inplace=True)
     neuron.nodes.parent_id = neuron.nodes.parent_id.where(pd.notnull(neuron.nodes.parent_id), None)
 
-    return (neuron)
+    return neuron
 
 
 def diameter_smoothing(neuron, smooth_method='smooth', smooth_bandwidth=1000):
@@ -139,10 +137,10 @@ def diameter_smoothing(neuron, smooth_method='smooth', smooth_bandwidth=1000):
 
         neuron.nodes.radius = smooth_r
 
-    return (neuron)
+    return neuron
 
 
 def downsample_neuron(neuron, downsample_factor=4):
     downsampled = navis.resample.downsample_neuron(neuron, downsample_factor, inplace=False)
 
-    return (downsampled)
+    return downsampled

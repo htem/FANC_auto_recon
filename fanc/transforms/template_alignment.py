@@ -272,7 +272,3 @@ def warp_points_template_to_FANC(points,
     elif output_units == 'voxels':
         points /= (4.3, 4.3, 45)  # Convert nm to FANC voxels
     return points
-
-
-if __name__ == "__main__":
-    pass

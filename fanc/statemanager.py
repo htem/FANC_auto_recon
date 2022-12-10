@@ -1,10 +1,13 @@
+#!/usr/bin/env python3
+
+import os
 from pathlib import Path
 import json
+
 import pandas as pd
-import os
  
+
 class StateManager: 
-    
     ''' Class for keeping track of JSON states.'''
     def __init__(self,
                  filename=None,
@@ -37,17 +40,15 @@ class StateManager:
         df = pd.DataFrame([{'state_id':state_id,'description':description}])
         df.to_csv(filename, mode='a', header=False,index=False, encoding = 'utf-8')
         self.get_database()
-        return('state added')
+        return 'state added'
     
      
     def remove_state(self,index): 
         df = self.df
         df = df.drop(index)
         df.to_csv(self.filename,index=False)
-        return('state removed')
+        return 'state removed'
         
-    
     
     def get_url(self,state):
-        return('https://neuromancer-seung-import.appspot.com/?json_url=https://api.zetta.ai/json/' + str(state))
-        
+        return 'https://neuromancer-seung-import.appspot.com/?json_url=https://api.zetta.ai/json/' + str(state)

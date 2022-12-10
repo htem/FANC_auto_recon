@@ -12,7 +12,7 @@ try:
 except ImportError:
     from trimesh import io as exchange
 
-from .segmentation import authentication_utils
+from . import auth, connectivity
 
 
 def plot_neurons(segment_ids, cv=None,
@@ -46,7 +46,7 @@ def plot_neurons(segment_ids, cv=None,
         cloud-volume that segment IDs exist
     camera :  int
         json state id of neuroglancer scene. required to plot scale bar
-    client : caveclient.frameworkclient.CAVEclientFull
+    client : caveclient.CAVEclient
         CAVEclient to retrieve tables for visualizing synapses and soma
     plot_synapses :  bool
         visualize synapses
@@ -82,10 +82,10 @@ def plot_neurons(segment_ids, cv=None,
     colormap = cm.get_cmap(cmap, len(segment_ids))
 
     if cv is None:
-        cv = authentication_utils.get_cloudvolume()
+        cv = auth.get_cloudvolume()
 
     if client is None:
-        client = authentication_utils.get_caveclient()
+        client = auth.get_caveclient()
 
     if isinstance(camera, int):
         state = client.state.get_state_json(camera)
@@ -111,27 +111,27 @@ def plot_neurons(segment_ids, cv=None,
 
         # get synapses
         if plot_synapses is True:
-            if synapse_type is 'inputs':
-                input_table = connectivity_utils.get_synapsesv2(j[1],
-                                                                direction='inputs',
-                                                                threshold=synapse_threshold)
+            if synapse_type == 'inputs':
+                input_table = connectivity.get_synapses(j[1],
+                                                          direction='inputs',
+                                                          threshold=synapse_threshold)
 
                 neuron.add_annotations('syn_in', input_table, point_column='post_pt')
 
 
-            elif synapse_type is 'outputs':
+            elif synapse_type == 'outputs':
                 input_table = None
-                output_table = connectivity_utils.get_synapsesv2(j[1],
-                                                                 direction='outputs',
-                                                                 threshold=synapse_threshold)
-            elif synapse_type is 'all':
-                input_table = connectivity_utils.get_synapsesv2(j[1],
-                                                                direction='inputs',
-                                                                threshold=synapse_threshold)
+                output_table = connectivity.get_synapses(j[1],
+                                                           direction='outputs',
+                                                           threshold=synapse_threshold)
+            elif synapse_type == 'all':
+                input_table = connectivity.get_synapses(j[1],
+                                                          direction='inputs',
+                                                          threshold=synapse_threshold)
 
-                output_table = connectivity_utils.get_synapsesv2(j[1],
-                                                                 direction='outputs',
-                                                                 threshold=synapse_threshold)
+                output_table = connectivity.get_synapses(j[1],
+                                                           direction='outputs',
+                                                           threshold=synapse_threshold)
 
                 neuron.add_annotations('syn_in', input_table, point_column='post_pt')
                 neuron.add_annotations('syn_out', output_table, point_column='pre_pt')
@@ -167,28 +167,20 @@ def plot_neurons(segment_ids, cv=None,
 
     if plot_outlines == True:
         outlines_actors = []
-        base = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'volume_meshes')
+        base = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            'data', 'volume_meshes'
+        )
         mesh_outer = read_mesh_stl(os.path.normpath(os.path.join(base, 'tissueoutline_aug2019.stl')))
         mp_mesh = trimesh_io.Mesh(mesh_outer[0], mesh_outer[1])
         outlines_outer = meshwork.Meshwork(mp_mesh, seg_id=[1], voxel_resolution=[4.3, 4.3, 45])
         outlines_actors.append(trimesh_vtk.mesh_actor(outlines_outer.mesh, color=(191/255,191/255,191/255), opacity=0.1))
 
-        # paths = authentication_utils.get_cv_path()
-        # volume_outlines_cv = CloudVolume(paths['volumes']['url'], use_https=True)
-        # mesh_outer = volume_outlines_cv.mesh.get([1], use_byte_offsets=True)[1]
-        # mp_mesh = trimesh_io.Mesh(mesh_outer.vertices, mesh_outer.faces)
-        # outlines_outer = meshwork.Meshwork(mp_mesh, seg_id=[1], voxel_resolution=[4.3, 4.3, 45])
-        # outlines_actors.append(trimesh_vtk.mesh_actor(outlines_outer.mesh, color=(191/255,191/255,191/255), opacity=0.1))
 
         mesh_inner = read_mesh_stl(os.path.normpath(os.path.join(base, 'JRC2018_VNC_FEMALE_to_FANC', 'VNC_template_Aug2020.stl')))
         mp_mesh = trimesh_io.Mesh(mesh_inner[0], mesh_inner[1])
         outlines_inner = meshwork.Meshwork(mp_mesh, seg_id=[2], voxel_resolution=[4.3, 4.3, 45])
         outlines_actors.append(trimesh_vtk.mesh_actor(outlines_inner.mesh, color=(211/255,67/255,214/255), opacity=0.1))
-
-        # mesh_inner = volume_outlines_cv.mesh.get([2], use_byte_offsets=True)[2]
-        # mp_mesh = trimesh_io.Mesh(mesh_inner.vertices, mesh_inner.faces)
-        # outlines_inner = meshwork.Meshwork(mp_mesh, seg_id=[2], voxel_resolution=[4.3, 4.3, 45])
-        # outlines_actors.append(trimesh_vtk.mesh_actor(outlines_inner.mesh, color=(211/255,67/255,214/255), opacity=0.1))
 
         all_actors = all_actors + outlines_actors
 

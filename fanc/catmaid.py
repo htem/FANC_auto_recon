@@ -1,7 +1,11 @@
-import numpy as np
+#!/usr/bin/env python3
+
 from pathlib import Path
-import pymaid
 import json
+
+import numpy as np
+import pymaid
+
 
 def set_catmaid_credentials(catmaid_url,
                             api_key=None,
@@ -55,10 +59,10 @@ def catmaid_login(username='default_user',
         with open(fname, 'r') as f:
             apikeys = json.load(f)
 
-    myInstance = pymaid.CatmaidInstance(apikeys["source_catmaid_url"],
-                                        apikeys["catmaid_account_api_keys"][username],
-                                        project_id=project_id);
-    return (myInstance)
+    instance = pymaid.CatmaidInstance(apikeys["source_catmaid_url"],
+                                      apikeys["catmaid_account_api_keys"][username],
+                                      project_id=project_id);
+    return instance
 
 
 def upload_to_CATMAID(neuron,
@@ -76,4 +80,4 @@ def upload_to_CATMAID(neuron,
     if annotations is not None:
         pymaid.add_annotations(upload_info['skeleton_id'], annotations)
 
-    return (upload_info)
+    return upload_info
