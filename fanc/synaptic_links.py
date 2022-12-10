@@ -175,18 +175,21 @@ def load(fn, convention='xyz', units='voxels', voxel_size=None, verbose=False, t
     return links
 
 
-def to_ng_annotations(links, input_order='xyz', input_units=(1, 1, 1),
+def to_ng_annotations(synapses, input_order='xyz', input_units=(1, 1, 1),
                       voxel_mip_center=None):
     """
     Create a json representation of a set of synaptic links, appropriate for
     pasting into a neuroglancer annotation layer.
-    links: Nx6 numpy array representing N pre-post point pairs.
+    synapses: np.array or pd.DataFrame
+        Nx6 numpy array representing N pre-post point pairs OR
+        DataFrame with columns 'pre_pt_position' and 'post_pt_position'
     input_order: 'xyz' (default) or 'zyx'
         Indicate which column order the input array has.
     input_units: (1, 1, 1) (default) or some other 3-tuple
-        If your links are in nm, indicate the voxel size in nm. e.g. (4, 4,
-        40) or (40, 4, 4) depending on the input order. If your links are
-        already in units of voxels, leave this at the default value.
+        If your coordinates are in nm, indicate the voxel size in nm.
+        e.g. (4, 4, 40) or (40, 4, 4) depending on the input order. If
+        your synapses are already in units of voxels, leave this at the
+        default value.
     voxel_mip_center: None or int
         In neuroglancer, an annotation with an integer coordinate value appears
         at the top-left corner of a voxel, not at the center of that voxel.
@@ -213,24 +216,28 @@ def to_ng_annotations(links, input_order='xyz', input_units=(1, 1, 1),
             'id': token_hex(40)
         }
 
-    if isinstance(links, str):
-        links = load(links)
+    if isinstance(synapses, str):
+        synapses = load(synapses)
+
+    if isinstance(synapses, pd.DataFrame):
+        synapses = np.hstack([np.vstack(synapses.pre_pt_position.values),
+                              np.vstack(synapses.post_pt_position.values)])
 
     if tuple(input_units) != (1, 1, 1):
-        links = downscale(links.astype(float), input_units, inplace=False)
-        # Now links are in units of voxels
+        synapses = downscale(synapses.astype(float), input_units, inplace=False)
+        # Now synapses are in units of voxels
 
     if input_order == 'zyx':
-        links = flip_xyz_zyx_convention(links, inplace=False)
+        synapses = flip_xyz_zyx_convention(synapses, inplace=False)
 
     if voxel_mip_center is not None:
         delta = 0.5 * 2**voxel_mip_center
         adjustment = (delta, delta, 0, delta, delta, 0)
-        links = links.astype(float) + adjustment
+        synapses = synapses.astype(float) + adjustment
 
-    annotations = [line_anno(links[i, 0:3],
-                             links[i, 3:6])
-                   for i in range(links.shape[0])]
+    annotations = [line_anno(synapses[i, 0:3].tolist(),
+                             synapses[i, 3:6].tolist())
+                   for i in range(synapses.shape[0])]
     print(json.dumps(annotations, indent=2))
 
     try:
@@ -244,166 +251,3 @@ def to_ng_annotations(links, input_order='xyz', input_units=(1, 1, 1),
     except:
         print("Install pyperclip (pip install pyperclip) for the option to"
               " programmatically copy the output above to the clipboard")
-
-        
-        
-## Methods for updating synapses
-
-def update_synapse_tables(csv_path=None, db_path=None, cv=None):
-    
-    if cv is None:
-        cv = auth.get_cloudvolume()
-    
-    if csv_path is not None:
-        update_synapse_csv(csv_path,cv)
-    
-    if db_path is not None and csv_path is not None:
-        update_synapse_db(db_path,csv_path)
-
-
-def update_synapse_db(synapse_db, synapse_csv_fname):
-    
-    if isinstance(synapse_db,str):
-        synapse_db = Path(synapse_db)
-    elif isinstance(synapse_db, Path):
-        synapse_db = synapse_db  
-    else:
-        raise Exception('Wrong path format. Use string or pathlib.Path')
-        
-    temp_file = synapse_db.parent / '{}.db'.format(random.randint(111111,999999)) 
-    
-    con = sqlite3.connect(str(temp_file))
-    cur = con.cursor()
-
-    # Create table
-    cur.execute('''CREATE TABLE synapses
-                   (source text, post_pt text, pre_SV INTEGER, post_SV INTEGER, pre_pt text, pre_root INTEGER, post_root INTEGER)''')
-
-    # Insert a row of data
-
-    with open(synapse_csv_fname, 'r') as fin: # `with` statement available in 2.5+
-        # csv.DictReader uses first line in file for column headings by default
-        dr = csv.DictReader(fin) # comma is default delimiter
-        to_db = [(i['source'], i['post_pt'], i['pre_SV'], i['post_SV'], i['pre_pt'], i['pre_root'], i['post_root']) for i in dr]
-
-    cur.executemany("INSERT INTO synapses (source, post_pt, pre_SV, post_SV, pre_pt, pre_root, post_root) VALUES (?, ?, ?, ?, ?, ?, ?);", to_db)
-    con.commit()
-    con.close()
-    
-    os.replace(temp_file,synapse_db)
-
-    
-def update_synapse_csv(source_file, cv, retry=True, max_tries=10, chunksize = 100000, timestamp = None):
-    ''' Update roots of a synapse table.
-    
-    args:
-    source_file: str, path to csv file containing synapses.
-    cv:         CloudVolume object
-    retry:      bool, If errors occur duriong lookup, retry failed chunk. Default = True
-    max_tries:  int, number of tries for a given chunk before failing
-    chunksize:  int, number of rows to read from csv file at once. Default is 10000
-    
-    returns:
-    first a temp csv file is generated, and if no failures occur, a replaced csv file with updated root IDs will be generated.'''
-    
-    if isinstance(source_file,str):
-        source_file = Path(source_file)
-    elif isinstance(source_file, Path):
-        source_file = source_file  
-    else:
-        raise Exception('Wrong path format. Use string or pathlib.Path')
-        
-    temp = source_file.parent / '{}.csv'.format(random.randint(111111,999999)) 
-
-    header = True
-    idx = 0
-    for chunk in pd.read_csv(source_file, chunksize=chunksize):    
-        try:
-            chunk.loc[:,'pre_root'] = rootID_lookup.get_roots(chunk.pre_SV.values,cv,timestamp = timestamp)
-            chunk.loc[:,'post_root'] = rootID_lookup.get_roots(chunk.post_SV.values,cv,timestamp = timestamp)
-            chunk.to_csv(temp, mode='a',index=False,header=header)
-            
-        except Exception as e:
-            print(e)
-            if retry is True:
-                tries = 0
-                while tries < max_tries:
-                    try:
-                        chunk.pre_root = rootID_lookup.get_roots(chunk.pre_SV.values, cv, timestamp = timestamp)
-                        chunk.post_root = rootID_lookup.get_roots(chunk.post_SV.values, cv, timestamp = timestamp)
-                        chunk.to_csv(temp, mode='a', index=False, header=False)
-                        tries = max_tries+1
-                    except Exception as e2:
-                        print(e2)
-                        tries+=1
-                        print('Fail at:',chunksize*idx,' Try:',tries)
-                    if tries == max_tries:
-                        return 'Incomplete',idx*chunksize
-            else:      
-                return 'Incomplete',idx 
-        idx+=1
-        
-        header = False
-        
-    os.replace(temp, source_file)
-    return 'Complete',None 
-
-
-def init_table(filename):
-        fileEmpty =  os.path.exists(filename)
-        if not fileEmpty:
-            df = pd.DataFrame(data = None, columns={'pre_SV','post_SV','pre_pt','post_pt','source','pre_root','post_root'})
-            df.to_csv(filename,index=False)
-            print('table created')
-        else:
-            print('table exists')
-
-
-def write_table(table_name,
-                source_name,
-                threshold=12,
-                include_source=True,
-                drop_duplicates=True):
-    
-    ''' Write a synapse csv file from synaptic links stored locally
-    args:
-    
-    table_name: str, path to table
-    source_name: str, path to folder containing synapse files
-    threshold: int, thresholding value to use when selecting synapses. Thresholding is based on "sum" value. This currently only works with link files that have the sum score as the 10th value in the array. 
-    include_source: bool, include the filename of the synaptic link. Can be useful for tracking issues, but increases file size substantially. 
-    drop_duplicates: bool, drop duplicate synapses between the same pair of supervoxels. 
-    '''
-    
-    if not isinstance(source_name,str):
-        source_name = str(source_name)
-    
-    links_formatted = load(source_name,threshold=threshold).reshape([-1,3])
-    
-    if links_formatted is not None:
-        sv_ids = rootID_lookup.segIDs_from_pts_service(links_formatted,return_roots=False)
-        if isinstance(sv_ids,list):
-            pre_ids = sv_ids[0::2]
-            post_ids = sv_ids[1::2]
-            cols = {'pre_SV','post_SV','pre_pt','post_pt','source','pre_root','post_root'}
-            df = pd.DataFrame(columns=cols)
-
-            df.pre_SV = pre_ids
-            df.post_SV = post_ids
-            df.pre_pt = list(links_formatted[0::2])
-            df.post_pt = list(links_formatted[1::2])
-            if include_source is True:
-                df.source = source_name
-            # Remove 0 value SV ids
-            df =df[(df.pre_SV != 0) & (df.post_SV !=0)]
-            
-            if drop_duplicates is True:    
-                df.drop_duplicates(subset=['pre_SV', 'post_SV'], inplace=True)
-                
-
-            df.to_csv(table_name, mode='a', header=False,index=False, encoding = 'utf-8',columns=cols)
-            return True
-        else:
-            return True
-            
-    return False
