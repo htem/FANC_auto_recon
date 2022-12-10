@@ -11,12 +11,13 @@ import numpy as np
 from . import auth
 
 
-def get_synapsesv2(seg_ids,
-                   direction='outputs',
-                   threshold=3,
-                   drop_duplicates=True,
-                   client=None):
-    '''Primary function for synapse table lookup. Will default to looking for a sql database, but can query either a .csv of a .db.
+def get_synapses(seg_ids,
+                 direction='outputs',
+                 threshold=3,
+                 drop_duplicates=True,
+                 client=None):
+    '''
+    Find synapses that are either inputs to or outputs from a specified list of neurons
     args:
     seg_ids:          list, int root ids to query
     direction:        str, inputs or outputs
@@ -43,8 +44,10 @@ def get_synapsesv2(seg_ids,
 
     result = []                                  
     for i in range(len(seg_ids)):
-        syn_i = client.materialize.query_table(client.info.get_datastack_info()['synapse_table'],
-                                               filter_equal_dict = {'{}_pt_root_id'.format(to_find): seg_ids[i]})
+        syn_i = client.materialize.query_table(
+            client.info.get_datastack_info()['synapse_table'],
+            filter_equal_dict = {'{}_pt_root_id'.format(to_find): seg_ids[i]}
+        )
         if len(syn_i) >= 200000:
             warnings.warn('query is maxed out')
         result.append(syn_i)
@@ -54,48 +57,11 @@ def get_synapsesv2(seg_ids,
     t_idx = counts >= threshold
     syn_table = result_c[result_c['{}_pt_root_id'.format(to_threshold)].isin(set(t_idx.index[t_idx==1]))]
 
-    if drop_duplicates is True:
-        syn_table2 = syn_table.drop_duplicates(subset=['pre_pt_supervoxel_id', 'post_pt_supervoxel_id'], inplace=False)
+    if drop_duplicates:
+        syn_table.drop_duplicates(subset=['pre_pt_supervoxel_id',
+                                          'post_pt_supervoxel_id'],
+                                  inplace=True)
 
-    return syn_table2
-
-def get_synapses(seg_ids,
-                 synapse_table='synapses.db',
-                 direction='outputs',
-                 threshold=3,
-                 drop_duplicates=True):
-    '''Primary function for synapse table lookup. Will default to looking for a sql database, but can query either a .csv of a .db.
-    args:
-    seg_ids:          list, int root ids to query
-    synapse_table:    str, path to synapse table
-    direction:        str, inputs or outputs
-    threshold:        int, synapse threshold to use. default is 3
-    drop_duplicates:  bool, whether to drop links between the same supervoxel pair 
-    
-    returns:
-    
-    a pd.DataFrame of synapse points, root IDs, 
-    '''
-        
-    if isinstance(seg_ids,int):
-        seg_ids = [seg_ids]
-    
-    syn_table = pd.DataFrame(columns=['pre_SV','post_SV','pre_pt','post_pt','source','pre_root','post_root'])
-
-    for i in seg_ids:
-        if '.db' in synapse_table:
-            syn_table = syn_table.append(get_partner_synapses_sql(i, database=synapse_table, direction=direction, threshold = threshold))
-        elif '.csv' in synapse_table:
-            syn_table = syn_table.append(batch_partners( i, synapse_table, direction=direction, threshold=threshold))
-        
-    cs = lambda x : [int(i) for i in re.findall('[0-9]+', x)]
-    syn_table.pre_pt = [cs(i) for i in syn_table.pre_pt]
-    syn_table.post_pt = [cs(i) for i in syn_table.post_pt] 
-    
-    #TODO: add a distance threshold here too. 
-    if drop_duplicates is True:
-        syn_table.drop_duplicates(subset=['pre_SV', 'post_SV'], inplace=True)
-    
     return syn_table
 
 
@@ -136,8 +102,6 @@ def get_partner_synapses_csv(root_id,
         
         partners = partners[partners[to_threshold].isin(set(t_idx.index[t_idx==1]))]
     
-      
-     
     return partners
 
 
@@ -179,4 +143,3 @@ def batch_partners(root_id, fname, direction, threshold=None):
     
 
     return result 
-
