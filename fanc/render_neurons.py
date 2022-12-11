@@ -42,14 +42,14 @@ def render_neuron_into_template_space(seg_id: int, target_space: str,
 
     # Setup
     client = auth.get_caveclient()
-    mm = trimesh_io.MeshMeta(
+    meshmeta = trimesh_io.MeshMeta(
         cv_path=client.info.segmentation_source(),
-        disk_cache_path=os.path.expanduser('~/.meshes'),
+        disk_cache_path=os.path.expanduser('~/fanc-meshes'),
         map_gs_to_https=True
     )
 
     print('Downloading mesh')
-    my_mesh = mm.mesh(
+    my_mesh = meshmeta.mesh(
         seg_id=seg_id,
         remove_duplicate_vertices=True,
         merge_large_components=False  # False is faster but probably worse quality

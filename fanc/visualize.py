@@ -91,17 +91,18 @@ def plot_neurons(segment_ids, cv=None,
         state = client.state.get_state_json(camera)
         camera = trimesh_vtk.camera_from_ngl_state(state, zoom_factor=zoom_factor)
 
+    meshmeta = trimesh_io.MeshMeta(
+        cv_path=client.info.segmentation_source(),
+        disk_cache_path=os.path.expanduser('~/fanc-meshes'),
+        map_gs_to_https=True
+    )
+
     neuron_actors = []
     annotation_actors = []
     # outline_actor = []
     for j in enumerate(segment_ids):
         # Get mesh
-        if isinstance(cv, CloudVolumePrecomputed):
-            mesh = cv.mesh.get(j[1])[j[1]]
-        else:
-            mesh = cv.mesh.get(j[1], use_byte_offsets=True)[j[1]]
-        mp_mesh = trimesh_io.Mesh(mesh.vertices, mesh.faces)
-
+        mp_mesh = meshmeta.mesh(seg_id=j[1])
         neuron = meshwork.Meshwork(mp_mesh, seg_id=j[1], voxel_resolution=[4.3, 4.3, 45])
 
         if plot_soma == True:
