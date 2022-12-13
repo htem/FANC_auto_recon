@@ -10,7 +10,7 @@ Once downloaded, I opened the .obj file in meshlab, inverted faces (`Filters > N
     ./warp_mesh_to_FANC.py "JRC2018_VNC_UNISEX/VFB_00104652 prothoracic neuromeres_cleaned.stl" JRC2018_VNC_UNISEX_to_FANC
 
 **NOTE:** Elastix must be installed and its lib and bin paths must be appended
-to the `LD_LIBRARY_PATH` and `PATH` environment variables.
+to the `LD_LIBRARY_PATH` and `PATH` environment variables. See [`pytransformix` documentation](https://github.com/jasper-tms/pytransformix#installation) for details.
 
 ## Cutting neuromeres and tracts by side
 In the template the neuromeres and tracts are not delineated by side. For
@@ -28,5 +28,8 @@ To run it:
     export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:<elastix-installation-dir>/lib
     export PATH=$PATH:<elastix-installation-dir>/bin
     python cut_neuromeres_by_side.py
+
+**NOTE:** Elastix must be installed and its lib and bin paths must be appended
+to the `LD_LIBRARY_PATH` and `PATH` environment variables. See [`pytransformix` documentation](https://github.com/jasper-tms/pytransformix#installation) for details.
 
 This will create a set of STL files under `JRC2018_VNC_UNISEX_to_FANC/meshes_by_side`. Note that left/right designations are inverted when transforming from the template space to the FANC space. This is due to different Z ordering conventions.
