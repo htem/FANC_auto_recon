@@ -31,3 +31,6 @@ The final set of 45,055,925 synapses is available:
 
 The `score` column is the `sum_score` provided by `synful`, converted from float to int.
 
+
+## Identify which region each (filtered) synapse is in
+
