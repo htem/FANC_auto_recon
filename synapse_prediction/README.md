@@ -33,4 +33,51 @@ The `score` column is the `sum_score` provided by `synful`, converted from float
 
 
 ## Identify which region each (filtered) synapse is in
+We next check which region(s)/neuropil(s) each synapse is in.
 
+**Algorithm**: For each neuropil-synapse pair, we first check whether the
+synapse is at least in the bounding box of the neuropil mesh by simple
+arithmetic comparisons of x, y, z coordinates. If the synapse is in the
+bounding box, we further check whether it's actually contained in the mesh
+using a [ray-casting](https://en.wikipedia.org/wiki/Ray_casting)-based
+algorithm from the [Trimesh](https://github.com/mikedh/trimesh) peckage.
+
+**Implementation**: Practically, we load the CSV synapse table dump and add
+boolean columns "is\_in\_<region\_name>" to indicate whether each synapse is in
+the corresponding region. This allows for overlapping/hierarchical organization
+of regions. We also split the synapse table into chunks and distribute the
+workload among many worker processes using a payload pool. Each payload checks
+whether a set of synapses is in a single given neuropil. The results are merged
+and written into a Parquet file.
+
+**Usage:** Use `neuropil_identification/locate_neuropil.py`:
+```
+usage: locate_neuropil [-h] [-c CHUNK_SIZE] [-p PROCS]
+                       input_file output_file mesh_dir
+
+Identify which neuropil/tract each synapse is in
+
+positional arguments:
+  input_file            Input CSV file listing all synapses
+  output_file           Output Parquet file identifying the regions
+  mesh_dir              Path to mesh files
+
+options:
+  -h, --help            show this help message and exit
+  -c CHUNK_SIZE, --chunk_size CHUNK_SIZE
+                        Synapses are localized in small chunks. Set the chunk
+                        size here.
+  -p PROCS, --procs PROCS
+                        Number of worker processes
+```
+
+For example:
+```bash
+python locate_neuropil.py \
+    ~/Data/fanc/synapse_table_20221120/raw_dump/20221117_fanc_syn.csv \    # input
+    ~/Data/fanc/synapse_table_20221120/localization_res/synapse_location.parquet \    # output
+    FANC_auto_recon/data/volume_meshes/JRC2018_VNC_UNISEX_to_FANC/meshes_by_side \    # meshes
+    -c 10000 -p 12    # run in chunks of 10,000 synapses with 12 worker processes
+```
+
+Alternatively, one can also import `locate_neuropil` from `neuropil_identification/locate_neuropil.py` in Python. See docstring for details.
