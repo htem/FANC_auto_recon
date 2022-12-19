@@ -30,7 +30,7 @@ def render_neuron_into_template_space(seg_id: int, target_space: str,
     (may involve rendering many millions of triangles) but gives the most
     accurate rendering.
     If skeletonize is True, the neuron's mesh will be skeletonized and then the
-    skeleton will be rendered.
+    skeleton will be rendered. **This feature is not yet implemented.**
     """
     if target_space not in template_info.keys():
         raise ValueError(
@@ -59,6 +59,9 @@ def render_neuron_into_template_space(seg_id: int, target_space: str,
                               out_of_bounds_vertices,
                               invert=True).all(axis=1)
     my_mesh.faces = my_mesh.faces[in_bounds_faces]
+
+    if skeletonize:
+        raise NotImplementedError
 
     if target_space.startswith('JRC2018_VNC_FEMALE'):
         print('Warping into alignment with JRC2018_VNC_FEMALE')
