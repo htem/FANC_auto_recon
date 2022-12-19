@@ -7,7 +7,6 @@ import numpy as np
 import tqdm
 import navis
 import flybrains
-from meshparty import trimesh_io
 import npimage
 import npimage.graphics
 
@@ -42,14 +41,10 @@ def render_neuron_into_template_space(seg_id: int, target_space: str,
 
     # Setup
     client = auth.get_caveclient()
-    meshmeta = trimesh_io.MeshMeta(
-        cv_path=client.info.segmentation_source(),
-        disk_cache_path=os.path.expanduser('~/fanc-meshes'),
-        map_gs_to_https=True
-    )
+    meshmanager = auth.get_meshmanager()
 
     print('Downloading mesh')
-    my_mesh = meshmeta.mesh(
+    my_mesh = meshmanager.mesh(
         seg_id=seg_id,
         remove_duplicate_vertices=True,
         merge_large_components=False  # False is faster but probably worse quality
