@@ -159,13 +159,21 @@ def render_scene(neurons=None,
 
     # Handle 'neurons' argument
     if neurons is None:
-        # Default to showing the "homepage" FANC neuron
+        # Default to showing the 'homepage' FANC neuron
         neurons = np.array([[48848, 114737, 2690]])
-    elif isinstance(neurons, list):
+    elif isinstance(neurons, int):
+        neurons = [neurons]
+
+    if isinstance(neurons, np.ndarray):
+        neurons = list(rootID_lookup.segIDs_from_pts_service(neurons))
+
+    if isinstance(neurons, list):
         cmap = cm.get_cmap('Set1', len(neurons))
         neurons_df = pd.DataFrame(columns=['segment_id', 'xyz', 'color'])
         neurons_df['segment_id'] = neurons
         neurons_df['color'] = [colors.rgb2hex(cmap(i)) for i in range(cmap.N)]
+
+
 
     # Process kwargs
     if 'client' in kwargs:
