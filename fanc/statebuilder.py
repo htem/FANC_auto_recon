@@ -141,6 +141,8 @@ def render_scene(neurons=None,
     ---Other kwargs---
     client: CAVEclient
         Override the default CAVEclient
+    materialization_version: int
+        A materialization version for querying CAVEclient
     img_source: str
         Override the default url for the image layer
     seg_source: str
@@ -149,6 +151,8 @@ def render_scene(neurons=None,
         Override the default url for the json state server
     bg_color: str
         Set the background color. Must be 'w'/'white' or a hex color code
+    nuclei: int or list or DataFrame or np.array
+        Nucleus IDs to visualize specific nuclei. Set nuclei_layer=True when using.
     
     ---Returns---
     Neuroglancer state (as a json or a url depending on 'return_as')
@@ -157,7 +161,7 @@ def render_scene(neurons=None,
     # which I don't want to do until this function is called
     from . import ngl_info
 
-    # Process kwargs
+    # Process some kwargs here
     if 'client' in kwargs:
         client = kwargs['client']
     else:
@@ -187,7 +191,7 @@ def render_scene(neurons=None,
         neurons_df['color'] = [colors.rgb2hex(cmap(i)) for i in range(cmap.N)]
 
 
-    # Process kwargs
+    # Process the rest of kwargs
     if 'img_source' in kwargs:
         ngl_info.im['path'] = kwargs['img_source']
     if 'seg_source' in kwargs:
@@ -221,9 +225,9 @@ def render_scene(neurons=None,
         source=ngl_info.nuclei['path']
     )
 
-    # Annotation layer(s)
-    annotation_states = []
-    annotation_data = []
+    # Additional layer(s)
+    additional_states = []
+    additional_data = []
     if annotations is not None:
         for i in annotations:
 
@@ -240,17 +244,28 @@ def render_scene(neurons=None,
                 raise NotImplementedError
 
             anno_layer = AnnotationLayerConfig(name=i['name'], mapping_rules=anno_mapper)
-            annotation_states.append(
+            additional_states.append(
                 StateBuilder(layers=[anno_layer], resolution=ngl_info.voxel_size)
             )
-            annotation_data.append(i['data'])
+            additional_data.append(i['data'])
+    if nuclei_layer:
+        if 'nuclei' in kwargs:
+            nuclei_df = pd.DataFrame(columns=['nucleus_id'])
+            nuclei_df['nucleus_id'] = kwargs['nuclei']
+            additional_data.append(nuclei_df)
+            nuclei_config = SegmentationLayerConfig( # overwrite nuclei_config
+                name=ngl_info.nuclei['name'],
+                source=ngl_info.nuclei['path'],
+                selected_ids_column = 'nucleus_id'
+            )
+        additional_states.append(
+            StateBuilder(layers=[nuclei_config], resolution=ngl_info.voxel_size)
+        )
 
     # Build a state with the requested layers
     layers = [img_config, seg_config]
     if synapses_layer:
         layers.append(synapses_config)
-    if nuclei_layer:
-        layers.append(nuclei_config)
 
     view_options = ngl_info.view_options.copy()
     zoom_2d = view_options.pop('zoom_2d')
@@ -260,10 +275,10 @@ def render_scene(neurons=None,
         resolution=ngl_info.voxel_size,
         view_kws=view_options
     )
-    chained_sb = ChainedStateBuilder([standard_state] + annotation_states)
+    chained_sb = ChainedStateBuilder([standard_state] + additional_states)
 
     # Turn state into a dict, then add some last settings manually
-    state = chained_sb.render_state([neurons_df] + annotation_data, return_as='dict')
+    state = chained_sb.render_state([neurons_df] + additional_data, return_as='dict')
     if synapses_layer:
         # User must make synapse layer visible manually if they want to see postsynaptic blobs
         state['layers'][2]['visible'] = False
