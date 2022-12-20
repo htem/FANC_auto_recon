@@ -80,19 +80,19 @@ def fragment_dataframes(seg_ids, coords, segment_threshold=20, node_threshold=No
     else:
         ids_to_use = seg_ids
 
-    skeleton_df = pd.DataFrame(columns=['segment_id', 'xyz'])
-    skeleton_df.xyz = [i for i in coords]
+    skeleton_df = pd.DataFrame(columns=['pt_root_id', 'pt_position'])
+    skeleton_df.pt_position = [i for i in coords]
     cmap = cm.get_cmap('Blues_r', len(ids_to_use))
     sk_colors = [colors.rgb2hex(cmap(i)) for i in range(cmap.N)]
 
-    neuron_df = pd.DataFrame(columns=['segment_id', 'xyz', 'color'])
-    neuron_df.segment_id = ids_to_use
+    neuron_df = pd.DataFrame(columns=['pt_root_id', 'pt_position', 'color'])
+    neuron_df.pt_root_id = ids_to_use
 
     for i in range(len(ids_to_use)):
         idx = seg_ids == ids_to_use[i]
-        neuron_df.loc[neuron_df.segment_id == ids_to_use[i], 'color'] = sk_colors[i]
+        neuron_df.loc[neuron_df.pt_root_id == ids_to_use[i], 'color'] = sk_colors[i]
 
-    neuron_df = neuron_df.append({'segment_id': primary_neuron[0], 'xyz': None, 'color': "#ff0000"}, ignore_index=True)
+    neuron_df = neuron_df.append({'pt_root_id': primary_neuron[0], 'pt_position': None, 'color': "#ff0000"}, ignore_index=True)
     return neuron_df, skeleton_df
 
 
@@ -114,7 +114,7 @@ def render_scene(neurons=None,
         - A list containing segment IDs
         - A pd.DataFrame containing a segmentID column and optionally a
           color column
-        - A np.array with shape (N, 3) containing the xyz coordinates of
+        - A np.array with shape (N, 3) containing the pt_position coordinates of
           N points, each of which indicates the location of a neuron
         - A string specifying the name of a CAVE table from which to
           pull neurons
@@ -157,30 +157,37 @@ def render_scene(neurons=None,
     # which I don't want to do until this function is called
     from . import ngl_info
 
-    # Handle 'neurons' argument
-    if neurons is None:
-        # Default to showing the 'homepage' FANC neuron
-        neurons = np.array([[48848, 114737, 2690]])
-    elif isinstance(neurons, int):
-        neurons = [neurons]
-
-    if isinstance(neurons, np.ndarray):
-        neurons = list(rootID_lookup.segIDs_from_pts_service(neurons))
-
-    if isinstance(neurons, list):
-        cmap = cm.get_cmap('Set1', len(neurons))
-        neurons_df = pd.DataFrame(columns=['segment_id', 'xyz', 'color'])
-        neurons_df['segment_id'] = neurons
-        neurons_df['color'] = [colors.rgb2hex(cmap(i)) for i in range(cmap.N)]
-
-
-
     # Process kwargs
     if 'client' in kwargs:
         client = kwargs['client']
     else:
         client = auth.get_caveclient()
 
+    if 'materialization_version' in kwargs:
+        materialization_version = kwargs['materialization_version']
+    else:
+        materialization_version = client.materialize.most_recent_version()
+
+    # Handle 'neurons' argument
+    if neurons is None:
+        # Default to showing the 'homepage' FANC neuron
+        neurons = np.array([[48848, 114737, 2690]])
+    elif isinstance(neurons, int):
+        neurons = [neurons]
+    elif isinstance(neurons, str):
+        neurons = list(client.materialize.query_table(neurons, materialization_version = materialization_version).pt_root_id.values)
+
+    if isinstance(neurons, np.ndarray) and np.any(neurons < 10000000000000000): # convert only when np array has coordinates.
+        neurons = list(rootID_lookup.segIDs_from_pts_service(neurons))
+ 
+    if isinstance(neurons, list):
+        cmap = cm.get_cmap('Set1', len(neurons))
+        neurons_df = pd.DataFrame(columns=['pt_root_id', 'color'])
+        neurons_df['pt_root_id'] = neurons
+        neurons_df['color'] = [colors.rgb2hex(cmap(i)) for i in range(cmap.N)]
+
+
+    # Process kwargs
     if 'img_source' in kwargs:
         ngl_info.im['path'] = kwargs['img_source']
     if 'seg_source' in kwargs:
@@ -200,7 +207,7 @@ def render_scene(neurons=None,
     seg_config = SegmentationLayerConfig(
         name=ngl_info.seg['name'],
         source=ngl_info.seg['path'],
-        selected_ids_column='segment_id',
+        selected_ids_column='pt_root_id',
         color_column='color',
         fixed_ids=None,
         active=True
@@ -219,8 +226,16 @@ def render_scene(neurons=None,
     annotation_data = []
     if annotations is not None:
         for i in annotations:
+
+            if 'pt_root_id' in i['data'].columns:
+                linked_segmentation_column = 'pt_root_id'
+            else:
+                linked_segmentation_column = None
+
             if i['type'] == 'points':
-                anno_mapper = PointMapper(point_column='xyz')
+                anno_mapper = PointMapper(point_column='pt_position', linked_segmentation_column = linked_segmentation_column)
+            elif i['type'] == 'spheres':
+                anno_mapper = SphereMapper(center_column='pt_position', radius_column='radius', linked_segmentation_column = linked_segmentation_column)
             else:
                 raise NotImplementedError
 

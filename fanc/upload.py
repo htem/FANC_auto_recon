@@ -222,6 +222,9 @@ class SomaTableOrganizer(object):
             pass
         else:
             raise UploadUnsuccessful("The information below has root ids that are already registed in soma table. \n {}".format(df.drop(columns=['id'])[overlap].to_string()))
+
+    def join_table(self):
+        return self._subset_table.join(self._soma_table.set_index('id'), on='target_id', lsuffix='_subset', rsuffix='_soma')
     
     def preview(self, asPoint=True, asSphere=False):
         """
@@ -237,16 +240,20 @@ class SomaTableOrganizer(object):
         ---Returns---
         Neuroglancer url (as a string)
         """
-        st = self._soma_table.reindex(columns=['id', 'pt_root_id', 'pt_position', 'bb_start_position', 'bb_end_position'])
+
+        joined = self.join_table()
+        st = joined.reindex(columns=['id', 'pt_root_id', 'pt_position', 'bb_start_position', 'bb_end_position'])
 
         annotations = []
-        if asPoint:
+        if asPoint == True and asSphere == False:
             LayerName = '{}_pt_{}'.format(self.subset_table_name, datetime.now().strftime("%Y%m%d"))
             annotations.append({'name':LayerName,'type':'points','data': st})
-        if asSphere:
+        elif asPoint == False and asSphere == True:
             LayerName = '{}_sp_{}'.format(self.subset_table_name, datetime.now().strftime("%Y%m%d"))
             st_r = self.add_radius_column(st)
-            annotations.append({'name':LayerName,'type':'sphere','data': st_r})
+            annotations.append({'name':LayerName,'type':'spheres','data': st_r})
+        else:
+            raise ValueError("Either asPoint or asSphere should be True")
 
         print(render_scene(annotations=annotations, client=self._client))
 
