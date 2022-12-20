@@ -60,22 +60,21 @@ def fetch_orphaned_somas(y_range=[0, 160000], query_size=20, synapse_count_thres
     parameters typically returns between 2 and 6 somas.
 
     --- Arguments ---
-    y_range : list of ints (default [0, 160000])
+    y_range : list of ints (default [0, 160000]) or str
+      If str, must be 'T1', 'T2', or 'T3' to select these coordinate ranges:
+        T1 -> [     0, 120000]
+        T2 -> [120000, 160000]
+        T3 -> [160000, 223000]
       Only inspect somas with y coordinate between y_range[0] and
       y_range[1]. This allows us to prioritize connecting somas to
       arbors in specific regions of the dataset. The default parameters
       currently specify to look in the anterior half of the VNC (T1 &
       wing & T2 neuropils), where most people in the community are
       currently focused.
-
       Some useful landmark values:
         120000 : Just below T1
         160000 : Just below T2
         223000 : The bottom of the dataset
-      Examples:
-        y_range=[     0, 160000] : Search for somas in the T1 & T2 regions (default)
-        y_range=[120000, 160000] : Search for somas around the T2 region
-        y_range=[160000, 223000] : Search for somas in T3 and the abdominal ganglion
 
     query_size : int (default 20)
       Request postsynaptic site counts for this many somas. Larger queries take
@@ -90,6 +89,13 @@ def fetch_orphaned_somas(y_range=[0, 160000], query_size=20, synapse_count_thres
     A DataFrame with 2 columns named 'pt_root_id' and 'synapse_counts'. Each row
     represents the segment ID and number of synapses for a different object.
     """
+
+    if isinstance(y_range, str):
+        y_range = {
+            'T1': [     0, 120000],
+            'T2': [120000, 160000],
+            'T3': [160000, 223000]
+        }[y_range]
 
     somas = caveclient.materialize.query_table(info['soma_table'])
     somas = somas.loc[np.vstack(somas.pt_position)[:, 1] > y_range[0]]
@@ -123,9 +129,17 @@ def serve_somas_to_eligible_messages(verbosity=1, fake=False):
 
         if verbosity >= 1:
             print('Serving somas to message with timestamp', message['ts'])
+        kwargs = dict()
+        if 'T1' in message['text'] and 'T2' not in message['text']:
+            kwargs['y_range'] = 'T1'
+        elif 'T2' in message['text'] and 'T1' not in message['text']:
+            kwargs['y_range'] = 'T2'
+        elif 'T3' in message['text']:
+            kwargs['y_range'] = 'T3'
+
         orphaned_somas = pd.Series(dtype='int64')
         while orphaned_somas.shape == (0,):
-            orphaned_somas = fetch_orphaned_somas().values
+            orphaned_somas = fetch_orphaned_somas(**kwargs).values
         text = "Segment IDs: {}\nSynapse counts: {}".format(
                       list(orphaned_somas[:, 0]),
                       list(orphaned_somas[:, 1])

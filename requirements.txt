@@ -16,3 +16,4 @@ task-queue
 caveclient
 cloud-files
 urllib3
+trimesh

@@ -20,7 +20,11 @@ As is always the case in python, consider making a virtual environment (using yo
     git clone https://github.com/htem/FANC_auto_recon.git
     cd FANC_auto_recon
     pip install -e .
-    
+
+### Additional installation steps for mesh manipulation and transform
+
+The mesh manipulation and coordinate transform code requires `pytransformix`, which is itself a Python wrapper for Elastix. Therefore, Elastix must be installed and its lib and bin paths must be appended to the `LD_LIBRARY_PATH` and `PATH` environment variables. See [`pytransformix` documentation](https://github.com/jasper-tms/pytransformix#installation) for details.
+
 
 ### Provide credentials
 

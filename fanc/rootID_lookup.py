@@ -11,21 +11,39 @@ import cloudvolume
 
 from . import auth
 
+default_svid_lookup_url = 'https://services.itanna.io/app/transform-service/query/dataset/fanc_v4/s/2/values_array_string_response/'
+
 
 def segIDs_from_pts_service(pts,
-                            service_url='https://services.itanna.io/app/transform-service/query/dataset/fanc_v4/s/{}/values_array_string_response/',
-                            scale=2,
                             return_roots=True,
-                            cv=None):
-    # Reshape from list entries if dataframe column is passed
-    if pts.shape != (3,) and len(pts.shape) == 1:
-        pts = np.concatenate(pts).reshape(-1, 3)
-    elif isinstance(pts, pd.Series):
-        pts = pts.values.tolist()
-    else:
-        pass
+                            timestamp=None,
+                            service_url=default_svid_lookup_url):
+    """
+    Return the rootIDs (if return_roots=True) or supervoxelIDs (if
+    return_roots=False) corresponding to a given set of points.
 
-    service_url = service_url.format(scale)
+    --- Arguments ---
+    pts: Nx3 numpy array or pandas Series
+      Points to query, in xyz order and in mip0 coordinates.
+    return_roots: bool (default True)
+      If true, will look up rootIDs from supervoxelIDs. Otherwise, supervoxel
+      ids will be returned.
+    timestamp: None or datetime
+      Only relevant if return_roots=True.
+      If None, look up the current rootID corresponding to the point location.
+      Otherwise, look up the rootID for the point location at the given time in
+      the past.
+
+    --- Returns ---
+    If return_roots=True, a numpy array of rootIDs as uint64
+    If return_roots=False, a list of supervoxelIDs as int
+    """
+
+    # Reshape from list entries if dataframe column (Series) is passed
+    if pts.shape != (3,):
+        if len(pts.shape) == 1:
+            pts = np.concatenate(pts).reshape(-1, 3)
+
     pts = np.array(pts, dtype=np.uint32)
     ndims = len(pts.shape)
     if ndims == 1:
@@ -39,37 +57,18 @@ def segIDs_from_pts_service(pts,
         r = r.json()['values'][0]
         sv_ids = [int(i) for i in r]
 
-        if return_roots is True:
-            if cv is None:
-                cv = auth.get_cloudvolume()
-
-            root_ids = get_roots(sv_ids, cv)
-            return root_ids
+        if return_roots:
+            return auth.get_cloudvolume().get_roots(sv_ids, timestamp=timestamp)
         else:
             return sv_ids
     except:
         return None
 
 
-def get_roots(sv_ids, cv, timestamp=None):
-    ''' A method for dealing with 0 value supervoxel IDs. This is no longer necessary as of cloud-volume version 3.13.0
 
-    args: 
-    sv_ids: list,array array of int64 supervoxel ids
-    cv: cloud volume object
-    
-    returns: 
-    root ids for each supervoxel id. 
-    '''
-    roots = cv.get_roots(sv_ids, timestamp=timestamp)
-    # Make sure there are no zeros. .get_roots drops only the first zero, so reinsert if >0 zeros exist.
-    if len(np.where(sv_ids == 0)[0]) > 0:
-        index_to_insert = np.where(sv_ids == 0)[0][0]
-        roots = np.insert(roots, index_to_insert, 0)
-
-    return roots
-
-# THESE METHODS ARE NO LONGER NECESSSARY WITH RELEASE OF segIDs_from_pts_service
+# The code below implements a slower version of segIDs_from_pts_service that
+# you should never need to run as long as the service is operational. If the
+# service goes down, try using segIDs_from_pts_cv instead
 class GSPointLoader(object):
     """Build up a list of points, then load them batched by chunk.
     This code is based on an implementation by
@@ -188,27 +187,44 @@ class GSPointLoader(object):
 
         return points, data
 
+
 def segIDs_from_pts_cv(pts,
-                       cv,
                        n=100000,
                        max_tries=3,
                        return_roots=True,
                        max_workers=4,
                        progress=True,
                        timestamp=None):
-    ''' Query cloudvolume object for root or supervoxel IDs. This method is slower than segIDs_from_pts_service, and does not need to be used for FANC_v4.
-    args:
-    pts: nx3 array, mip0 coordinates to query.
-    cv:     cloudvolume object
-    n:      int, number of coordinates to query in a single batch. Default is 100000, which seems to prevent server errors.
-    max_tries: int, number of attempts per batch. Default is 3. Usually if it fails 3 times, something is wrong and more attempts won't work.
-    return_roots: bool, If true, will look up root ids from supervoxel ids. Otherwise, supervoxel ids will be returned. Default is True.
+    """
+    Query cloudvolume object for root or supervoxel IDs.
 
-    returns:
+    This method is slower than segIDs_from_pts_service, but does not depend on
+    the supervoxel ID lookup service created by Eric Perlman and hosted on
+    services.itanna.io. As such, this function might be useful if that service
+    is not available for some reason.
 
-    root or supervoxel ids for queried coordinates as int64
-    '''
+    This function may not actually work as-is (it threw errors when tested in
+    December 2022) but presumably it's close to working, because it did work in
+    the past, so we can try to revive it if the need arises.
 
+    --- Arguments ---
+    pts: Nx3 numpy array or pandas Series
+      Points to query, in xyz order and in mip0 coordinates.
+    n: int (default 100,000)
+      number of coordinates to query in a single batch. Default is 100000,
+      which seems to prevent server errors.
+    max_tries: int (default 3)
+      number of attempts per batch. Usually if it fails 3 times, something is
+      wrong and more attempts won't work.
+    return_roots: bool (detault True)
+      If true, will look up root ids from supervoxel ids. Otherwise, supervoxel
+      ids will be returned.
+
+    --- Returns ---
+    root IDs or supervoxel IDs for queried coordinates as int64
+    """
+
+    cv = auth.get_cloudvolume()
     if hasattr(cv, 'agglomerate'):
         cv.agglomerate = False
 
@@ -244,7 +260,7 @@ def segIDs_from_pts_cv(pts,
 
     sv_id_full = np.concatenate(sv_ids)
 
-    if return_roots is True:
+    if return_roots:
         root_ids = cv.get_roots(sv_id_full, timestamp=timestamp)
         return root_ids
     else:
