@@ -11,7 +11,6 @@ import npimage
 import npimage.graphics
 
 from . import auth
-from .transforms.template_alignment import warp_points_FANC_to_template
 from .template_spaces import template_info, get_nrrd_metadata
 
 

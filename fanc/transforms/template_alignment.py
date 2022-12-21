@@ -1,14 +1,8 @@
 #!/usr/bin/env python3
+"""
+Transform points and neurons between FANC and the 2018 Janelia VNC templates
+"""
 
-# Originally published in https://www.lee.hms.harvard.edu/phelps-hildebrand-graham-et-al-2021
-# and made available in that paper's repository located at:
-# https://github.com/htem/GridTape_VNC_paper/tree/main/template_registration_pipeline/register_EM_dataset_to_template
-# Development of this script is continuing here, not in the GridTape_VNC_paper repository
-
-
-# TODO
-# - Implement an interactive __main__ function where users can manually input
-#    the coordinates of a single point they want to warp.
 
 import os
 import subprocess
@@ -26,6 +20,13 @@ def warp_points_FANC_to_template(points,
                                  output_units='microns',
                                  reflect=False):
     """
+    --- DEPRECATION NOTICE ---
+    This function has now been integrated into the more general
+      function navis.xform_brain (see https://github.com/navis-org/navis)
+      and it is preferred to use that instead of this functions in most cases.
+      For an example of using xform_brain, see other functions in this module.
+    ------
+
     Transform point coordinates from FANC to the corresponding point
     location in the 2018 Janelia Female VNC Template (JRC2018_VNC_FEMALE).
 
@@ -70,6 +71,12 @@ def warp_points_FANC_to_template(points,
     -------
     An Nx3 numpy array representing x,y,z point coordinates in
     JRC2018_VNC_FEMALE, in units specified by `output_units`.
+
+    ------
+    Originally published in https://www.lee.hms.harvard.edu/phelps-hildebrand-graham-et-al-2021
+      and made available in that paper's repository located at:
+      https://github.com/htem/GridTape_VNC_paper/tree/main/template_registration_pipeline/register_EM_dataset_to_template
+    This function is a slight improvement on the published version.
     """
 
     points = np.array(points, dtype=np.float64)
@@ -153,6 +160,13 @@ def warp_points_template_to_FANC(points,
                                  output_units='nanometers',
                                  reflect=False):
     """
+    --- DEPRECATION NOTICE ---
+    This function has now been integrated into the more general
+      function navis.xform_brain (see https://github.com/navis-org/navis)
+      and it is preferred to use that instead of this functions in most cases.
+      For an example of using xform_brain, see other functions in this module.
+    ------
+
     Transform point coordinates from the 2018 Janelia Female VNC Template
     (JRC2018_VNC_FEMALE) to the corresponding point location in FANC.
 
@@ -197,6 +211,12 @@ def warp_points_template_to_FANC(points,
     -------
     An Nx3 numpy array representing x,y,z point coordinates in FANC, in
     units specified by `output_units`.
+
+    ------
+    Originally published in https://www.lee.hms.harvard.edu/phelps-hildebrand-graham-et-al-2021
+      and made available in that paper's repository located at:
+      https://github.com/htem/GridTape_VNC_paper/tree/main/template_registration_pipeline/register_EM_dataset_to_template
+    This function is a slight improvement on the published version.
     """
 
     points = np.array(points)
