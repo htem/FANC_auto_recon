@@ -7,29 +7,6 @@ import pandas as pd
 import nglui
 
 
-def soma_table_entries(state,layer_name = 'cells',description=None):
-    ''' Generate entries for a soma table using the bound_tag schema 
-    Args:
-    state: json, json state from get_json_state
-    layer_name: name of layer containing soma coords
-    ### Change this to points later. This is just for database copying because I used a stupid annotation
-    
-    Returns:
-    entries: list, list of dict entries for the bound_tag schema'''
-    
-    cell_layer = nglui.parser.get_layer(state,layer_name)
-    entries = []
-    for i in cell_layer['annotations']:
-        if description is None:
-            entry = {'tag': i['description'],
-                     'pt': {'position': i['point']}}
-        else:
-            entry = {'tag': description,
-                     'pt': {'position': i['point']}}
-        entries.append(entry)
-    return entries
-        
-
 def upload_cells(client,cell_entries,table_name,description=None):
     ''' Upload cell entries to a soma dable using the bound_tag schema'
     Args:

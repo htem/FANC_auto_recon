@@ -5,7 +5,7 @@ from . import (
     connectivity,
     rootID_lookup,
     schema_download,
-    schema_upload,
+    upload,
     skeletonize,
     statebuilder,
     statemanager,

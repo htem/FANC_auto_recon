@@ -39,10 +39,12 @@ def segIDs_from_pts_service(pts,
     If return_roots=False, a list of supervoxelIDs as int
     """
 
-    # Reshape from list entries if dataframe column (Series) is passed
-    if pts.shape != (3,):
-        if len(pts.shape) == 1:
-            pts = np.concatenate(pts).reshape(-1, 3)
+    if pts.shape != (3,) and len(pts.shape) == 1:
+        pts = np.concatenate(pts).reshape(-1, 3)
+    elif isinstance(pts, pd.Series):
+        pts = pts.values.tolist()
+    else:
+        pass
 
     pts = np.array(pts, dtype=np.uint32)
     ndims = len(pts.shape)

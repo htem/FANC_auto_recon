@@ -25,7 +25,7 @@ syn = {'name': 'synapses_May2021',
        'path': 'precomputed://gs://lee-lab_female-adult-nerve-cord/alignmentV4/synapses/postsynapses_May2021'}
 
 nuclei = {'name': 'nuclei_Mar2022',
-          'path': 'precomputed://gs://lee-lab_female-adult-nerve-cord/alignmentV4/nuclei/nuclei_seg_Mar2022'}
+          'path': client.annotation.get_table_metadata(info['soma_table'])['flat_segmentation_source']}
 
 view_options = dict(
     position=[48848, 114737, 2690],
