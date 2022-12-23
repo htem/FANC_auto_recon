@@ -49,30 +49,10 @@ def render_neuron_into_template_space(seg_id: int, target_space: str,
         merge_large_components=False  # False is faster but probably worse quality
     )
 
-    # Remove any mesh faces in the neck connective or brain,
-    # since those can't be warped to the VNC template
-    y_cutoff = 322500 + 1e-4  # y=75000vox * 4.3nm/vox, plus a small epsilon
-    # Find row numbers of vertices that are out of bounds
-    out_of_bounds_vertices = (my_mesh.vertices[:, 1] < y_cutoff).nonzero()[0]
-    in_bounds_faces = np.isin(my_mesh.faces,
-                              out_of_bounds_vertices,
-                              invert=True).all(axis=1)
-    my_mesh.faces = my_mesh.faces[in_bounds_faces]
 
     if skeletonize:
         raise NotImplementedError
 
-    if target_space.startswith('JRC2018_VNC_FEMALE'):
-        print('Warping into alignment with JRC2018_VNC_FEMALE')
-        my_mesh.vertices = navis.xform_brain(my_mesh.vertices, source='FANC', target='JRCVNC2018F')
-    elif target_space.startswith('JRC2018_VNC_UNISEX'):
-        print('Warping into alignment with JRC2018_VNC_UNISEX')
-        my_mesh.vertices = navis.xform_brain(my_mesh.vertices, source='FANC', target='JRCVNC2018U')
-    elif target_space.startswith('JRC2018_VNC_MALE'):
-        print('Warping into alignment with JRC2018_VNC_MALE')
-        my_mesh.vertices = navis.xform_brain(my_mesh.vertices, source='FANC', target='JRCVNC2018M')
-    else:
-        raise ValueError('Could not determine target from: {}'.format(target_space))
 
     # Convert from microns to pixels in the target space
     my_mesh.vertices = my_mesh.vertices / target_info['voxel size']

@@ -3,17 +3,66 @@
 Transform points and neurons between FANC and the 2018 Janelia VNC templates
 """
 
-
 import os
 import subprocess
-import numpy as np
 
-import transformix  # https://github.com/jasper-tms/pytransformix
+import numpy as np
+import navis
+import flybrains
 
 
 template_plane_of_symmetry_x_voxel = 329
 template_plane_of_symmetry_x_microns = 329 * 0.400
 
+def warp_mesh(mesh, target_space='JRC2018_VNC_FEMALE', inplace=True):
+    """
+    Given a mesh of a neuron in FANC-space, warp its vertices' coordinates to
+    be aligned to a 2018 Janelia VNC template space.
+
+    --- Arguments ---
+    mesh :
+      The mesh to warp. Can be any type of mesh object that has .faces and
+      .vertices attributes.
+      The coordinate locations of .vertices must be specified in nanometers.
+    target_space : str (default 'JRC2018_VNC_FEMALE')
+      The template space to warp the mesh into alignment with. Must be a string
+      with one of the following values:
+        female, FEMALE, or JRC2018_VNC_FEMALE
+        unisex, UNISEX, or JRC2018_VNC_UNISEX
+        male, MALE, or JRC2018_VNC_MALE
+      See template_spaces.py in this repo for more information.
+    inplace : bool (default True)
+      If true, replace the vertices of the given mesh object. If false, return
+      a copy, leaving the given mesh object unchanged.
+    """
+    if not inplace:
+        mesh = mesh.copy()
+
+    # First remove any mesh faces in the neck connective or brain,
+    # since those can't be warped to the VNC template
+    # This cutoff is 75000voxels * 4.3nm/voxel, plus a small epsilon
+    y_cutoff = 322500 + 1e-4
+    # Find row numbers of vertices that are out of bounds
+    out_of_bounds_vertices = (mesh.vertices[:, 1] < y_cutoff).nonzero()[0]
+    in_bounds_faces = np.isin(mesh.faces,
+                              out_of_bounds_vertices,
+                              invert=True).all(axis=1)
+    mesh.faces = mesh.faces[in_bounds_faces]
+
+    # Use navis.xform_brain to transform coordinates
+    if target_space.upper() in ('FEMALE', 'JRC2018_VNC_FEMALE'):
+        print('Warping into alignment with JRC2018_VNC_FEMALE')
+        mesh.vertices = navis.xform_brain(mesh.vertices, source='FANC', target='JRCVNC2018F')
+    elif target_space.upper() in ('UNISEX', 'JRC2018_VNC_UNISEX'):
+        print('Warping into alignment with JRC2018_VNC_UNISEX')
+        mesh.vertices = navis.xform_brain(mesh.vertices, source='FANC', target='JRCVNC2018U')
+    elif target_space.upper() in ('MALE', 'JRC2018_VNC_MALE'):
+        print('Warping into alignment with JRC2018_VNC_MALE')
+        mesh.vertices = navis.xform_brain(mesh.vertices, source='FANC', target='JRCVNC2018M')
+    else:
+        raise ValueError('Could not determine target from: {}'.format(target_space))
+
+    return mesh
 
 def warp_points_FANC_to_template(points,
                                  input_units='nanometers',
@@ -78,6 +127,8 @@ def warp_points_FANC_to_template(points,
       https://github.com/htem/GridTape_VNC_paper/tree/main/template_registration_pipeline/register_EM_dataset_to_template
     This function is a slight improvement on the published version.
     """
+    # Only required for deprecated functions so not imported up top
+    import transformix  # https://github.com/jasper-tms/pytransformix
 
     points = np.array(points, dtype=np.float64)
     if len(points.shape) == 1:
@@ -218,6 +269,8 @@ def warp_points_template_to_FANC(points,
       https://github.com/htem/GridTape_VNC_paper/tree/main/template_registration_pipeline/register_EM_dataset_to_template
     This function is a slight improvement on the published version.
     """
+    # Only required for deprecated functions so not imported up top
+    import transformix  # https://github.com/jasper-tms/pytransformix
 
     points = np.array(points)
     if len(points.shape) == 1:
