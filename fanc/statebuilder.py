@@ -172,24 +172,27 @@ def render_scene(neurons=None,
     else:
         materialization_version = client.materialize.most_recent_version()
 
-    # Handle 'neurons' argument
+    # Build a DataFrame containing rootIDs starting from whatever type is given
     if neurons is None:
         # Default to showing the 'homepage' FANC neuron
         neurons = np.array([[48848, 114737, 2690]])
     elif isinstance(neurons, int):
         neurons = [neurons]
     elif isinstance(neurons, str):
-        neurons = list(client.materialize.query_table(neurons, materialization_version = materialization_version).pt_root_id.values)
-
-    if isinstance(neurons, np.ndarray) and np.any(neurons < 10000000000000000): # convert only when np array has coordinates.
+        neurons = client.materialize.query_table(neurons, materialization_version=materialization_version)
+    if isinstance(neurons, np.ndarray) and np.any(neurons < 10000000000000000):
+        # Lookup rootIDs, when array contains point coordinates
         neurons = list(rootID_lookup.segIDs_from_pts_service(neurons))
- 
     if isinstance(neurons, list):
-        cmap = cm.get_cmap('Set1', len(neurons))
-        neurons_df = pd.DataFrame(columns=['pt_root_id', 'color'])
-        neurons_df['pt_root_id'] = neurons
-        neurons_df['color'] = [colors.rgb2hex(cmap(i)) for i in range(cmap.N)]
+        neurons = pd.Series({'pt_root_id': neurons})
 
+    if not isinstance(neurons, (pd.DataFrame, pd.Series)):
+        raise TypeError('Could not determine how to handle neurons argument')
+    cmap = cm.get_cmap('Set1', len(neurons))
+    neurons = pd.DataFrame(
+        {'pt_root_id': neurons.pt_root_id,
+         'color': [colors.rgb2hex(cmap(i)) for i in range(cmap.N)]}
+    )
 
     # Process the rest of kwargs
     if 'img_source' in kwargs:
@@ -278,7 +281,7 @@ def render_scene(neurons=None,
     chained_sb = ChainedStateBuilder([standard_state] + additional_states)
 
     # Turn state into a dict, then add some last settings manually
-    state = chained_sb.render_state([neurons_df] + additional_data, return_as='dict')
+    state = chained_sb.render_state([neurons] + additional_data, return_as='dict')
     if synapses_layer:
         # User must make synapse layer visible manually if they want to see postsynaptic blobs
         state['layers'][2]['visible'] = False
