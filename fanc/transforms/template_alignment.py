@@ -14,7 +14,8 @@ import flybrains
 template_plane_of_symmetry_x_voxel = 329
 template_plane_of_symmetry_x_microns = 329 * 0.400
 
-def warp_mesh(mesh, target_space='JRC2018_VNC_FEMALE', inplace=True):
+
+def align_mesh(mesh, target_space='JRC2018_VNC_FEMALE', inplace=True):
     """
     Given a mesh of a neuron in FANC-space, warp its vertices' coordinates to
     be aligned to a 2018 Janelia VNC template space.
