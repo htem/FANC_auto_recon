@@ -13,9 +13,11 @@ except ImportError:
     from trimesh import io as exchange
 
 from . import auth, connectivity
+from .transforms import template_alignment
 
 
 def plot_neurons(segment_ids, cv=None,
+                 template_space='JRC2018_VNC_FEMALE',
                  cmap='Blues', opacity=1,
                  plot_type='mesh',
                  resolution=[4.3,4.3,45],
@@ -99,6 +101,9 @@ def plot_neurons(segment_ids, cv=None,
     for j in enumerate(segment_ids):
         # Get mesh
         mp_mesh = meshmanager.mesh(seg_id=j[1])
+        if not template_space.startswith('FANC'):
+            mp_mesh = template_alignment.align_mesh(mp_mesh, target_space=template_space)
+            mp_mesh.vertices *= 1000
         neuron = meshwork.Meshwork(mp_mesh, seg_id=j[1], voxel_resolution=[4.3, 4.3, 45])
 
         if plot_soma == True:
@@ -168,13 +173,26 @@ def plot_neurons(segment_ids, cv=None,
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
             'data', 'volume_meshes'
         )
-        mesh_outer = read_mesh_stl(os.path.normpath(os.path.join(base, 'tissueoutline_aug2019.stl')))
+        if template_space == 'FANC':
+            outer_mesh_filename = os.path.normpath(os.path.join(base, 'tissueoutline_aug2019.stl'))
+            inner_mesh_filename = os.path.normpath(os.path.join(base, 'JRC2018_VNC_FEMALE_to_FANC', 'VNC_template_Aug2020.stl'))
+        elif template_space == 'JRC2018_VNC_FEMALE':
+            outer_mesh_filename = os.path.normpath(os.path.join(base, 'JRC2018_VNC_FEMALE', 'tissueOutline_Aug2019.stl'))
+            inner_mesh_filename = os.path.normpath(os.path.join(base, 'JRC2018_VNC_FEMALE', 'VNC_neuropil_Aug2020.stl'))
+        elif template_space == 'JRC2018_VNC_UNISEX':
+            raise NotImplementedError
+            outer_mesh_filename = needtogetfile
+            inner_mesh_filename = needtogetfile
+        elif template_space == 'JRC2018_VNC_MALE':
+            raise NotImplementedError
+            outer_mesh_filename = needtogetfile
+            inner_mesh_filename = needtogetfile
+        mesh_outer = read_mesh_stl(outer_mesh_filename)
         mp_mesh = trimesh_io.Mesh(mesh_outer[0], mesh_outer[1])
         outlines_outer = meshwork.Meshwork(mp_mesh, seg_id=[1], voxel_resolution=[4.3, 4.3, 45])
         outlines_actors.append(trimesh_vtk.mesh_actor(outlines_outer.mesh, color=(191/255,191/255,191/255), opacity=0.1))
 
-
-        mesh_inner = read_mesh_stl(os.path.normpath(os.path.join(base, 'JRC2018_VNC_FEMALE_to_FANC', 'VNC_template_Aug2020.stl')))
+        mesh_inner = read_mesh_stl(inner_mesh_filename)
         mp_mesh = trimesh_io.Mesh(mesh_inner[0], mesh_inner[1])
         outlines_inner = meshwork.Meshwork(mp_mesh, seg_id=[2], voxel_resolution=[4.3, 4.3, 45])
         outlines_actors.append(trimesh_vtk.mesh_actor(outlines_inner.mesh, color=(211/255,67/255,214/255), opacity=0.1))
