@@ -174,25 +174,39 @@ def render_scene(neurons=None,
 
     # Build a DataFrame containing rootIDs starting from whatever type is given
     if neurons is None:
+        # None -> np.array
         # Default to showing the 'homepage' FANC neuron
         neurons = np.array([[48848, 114737, 2690]])
     elif isinstance(neurons, int):
+        # int -> list
         neurons = [neurons]
     elif isinstance(neurons, str):
+        # str -> DataFrame
         neurons = client.materialize.query_table(neurons, materialization_version=materialization_version)
-    if isinstance(neurons, np.ndarray) and np.any(neurons < 10000000000000000):
-        # Lookup rootIDs, when array contains point coordinates
-        neurons = list(rootID_lookup.segIDs_from_pts_service(neurons))
+    if isinstance(neurons, pd.Series):
+        # pd.Series -> pd.DataFrame or list
+        try:
+            # If Series contains point coordinates instead of rootIDs, lookup rootIDs
+            iter(neurons[0])
+            neurons = rootID_lookup.segIDs_from_pts_service(neurons.values)
+        except:
+            neurons = pd.DataFrame(neurons)
+    if isinstance(neurons, np.ndarray):
+        # np.array -> list
+        if np.any(neurons < 10000000000000000):
+            # If array contains point coordinates instead of rootIDs, lookup rootIDs
+            neurons = rootID_lookup.segIDs_from_pts_service(neurons)
+        neurons = list(neurons)
     if isinstance(neurons, list):
-        neurons = pd.Series({'pt_root_id': neurons})
+        # list -> pd.DataFrame
+        neurons = pd.DataFrame({'pt_root_id': neurons})
 
-    if not isinstance(neurons, (pd.DataFrame, pd.Series)):
+    if not isinstance(neurons, pd.DataFrame):
         raise TypeError('Could not determine how to handle neurons argument')
+
+    # Add a color column
     cmap = cm.get_cmap('Set1', len(neurons))
-    neurons = pd.DataFrame(
-        {'pt_root_id': neurons.pt_root_id,
-         'color': [colors.rgb2hex(cmap(i)) for i in range(cmap.N)]}
-    )
+    neurons['color'] = [colors.rgb2hex(cmap(i)) for i in range(cmap.N)]
 
     # Process the rest of kwargs
     if 'img_source' in kwargs:
