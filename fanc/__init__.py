@@ -4,7 +4,6 @@ from . import (
     catmaid,
     connectivity,
     rootID_lookup,
-    schema_download,
     upload,
     skeletonize,
     statebuilder,
