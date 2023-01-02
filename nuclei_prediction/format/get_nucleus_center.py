@@ -3,7 +3,8 @@ import pandas as pd
 from cloudvolume import CloudVolume, Bbox
 from taskqueue import queueable, LocalTaskQueue
 from functools import partial
-from lib import *
+from tqdm import tqdm
+from ..lib import *
 from fanc import rootID_lookup, ngl_info
 
 # -----------------------------------------------------------------------------
