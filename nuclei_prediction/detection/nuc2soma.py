@@ -1,20 +1,14 @@
 import numpy as np
-import sys
-import os
 import pandas as pd
 from glob import glob
 import argparse
-import  sqlite3
 
-from cloudvolume import CloudVolume, Bbox
+from cloudvolume import CloudVolume
 import fill_voids
 from taskqueue import TaskQueue, queueable, LocalTaskQueue
 from functools import partial
-from lib import *
-sys.path.append(os.path.abspath("../segmentation"))
-# to import rootID_lookup and authentication_utils like below
-import rootID_lookup as IDlook
-import authentication_utils as auth
+from ..lib import *
+from fanc import rootID_lookup as IDlook
 
 # -----------------------------------------------------------------------------
 # argument
@@ -32,9 +26,7 @@ file_input=args.input
 
 # path
 outputpath = '/n/groups/htem/users/skuroda/aug2021-5s'
-# outputpath = '../Output'
 path_to_nuc_list = '~/nuc_info_Aug2021ver2.csv'
-# path_to_nuc_list = '../Output/nuc_info.csv'
 
 # variables
 np.random.seed(123)
@@ -42,8 +34,8 @@ window_coef = 2 # window size to get nuclei in mip2
 output_name = 'soma_info_Aug2021ver5'
 
 # could-volume url setting
-seg = CloudVolume(auth.get_cv_path('FANC_production_segmentation')['url'], use_https=True, agglomerate=False, cache=True, progress=False) # mip2
-nuclei_seg_cv = CloudVolume(auth.get_cv_path('nuclei_seg_Aug2021')['url'], cache=False, progress=False, use_https=True,autocrop=True, bounded=False) # mip4
+seg = CloudVolume(get_cv_path('FANC_production_segmentation')['url'], use_https=True, agglomerate=False, cache=True, progress=False) # mip2
+nuclei_seg_cv = CloudVolume(get_cv_path('nuclei_seg_Aug2021')['url'], cache=False, progress=False, use_https=True,autocrop=True, bounded=False) # mip4
 # read csv
 df = pd.read_csv(path_to_nuc_list, header=0)
 

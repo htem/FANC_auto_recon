@@ -1,20 +1,9 @@
 import numpy as np
-import sys
 import os
-import pandas as pd
-from numpy.random.mtrand import f
-from tqdm import tqdm
-from glob import glob
 import argparse
-import random
-import sqlite3
-
-from cloudvolume import CloudVolume, view, Bbox
-sys.path.append(os.path.abspath("../segmentation"))
-# to import rootID_lookup and authentication_utils like below
-
-import rootID_lookup as IDlook
-import authentication_utils as auth
+from pathlib import Path
+import json
+from fanc import rootID_lookup as IDlook
 
 # function - path
 
@@ -26,6 +15,15 @@ def validate_file(f):
         raise argparse.ArgumentTypeError("{0} does not exist".format(f))
     return f
 
+def get_cv_path(version=None):
+    fname = Path.home() / '.cloudvolume' / 'segmentations.json'
+    with open(fname) as f:
+        paths = json.load(f)
+    
+    if version is None:
+        return(paths)
+    else:
+        return(paths[version])
 
 # function - cloud-volume
 
@@ -139,43 +137,3 @@ def segID_to_svID(segID, ID_array, location_array_mip0, cv, reverse=False):
     #     ptsj = pts[0]
 
     return svID[0],ptsj
-
-    
-def update_soma_table(dir, input_table_name, output_table_name, cv=None, timestamp=None, retry=True, max_tries=1000, chunksize = 20000):
-  if cv is None:
-    cv = auth.get_cv()
-
-  temp = dir + '/' + str(random.randint(111111,999999)) + '.csv'
-  header = True
-  idx = 0
-  for chunk in pd.read_csv(dir + '/' + input_table_name, chunksize=chunksize): 
-    try:
-      chunk.loc[:,'nuc_rootID'] = cv.get_roots(chunk.nuc_svID.values, timestamp=timestamp)
-      chunk.loc[:,'soma_rootID'] = cv.get_roots(chunk.soma_svID.values, timestamp=timestamp)
-      chunk.to_csv(temp, mode='a', index=False, header=header)
-      
-    except Exception as e:
-      print(e)
-      if retry is True:
-        tries = 0
-        while tries < max_tries:
-          try:
-            chunk.loc[:,'nuc_rootID'] = cv.get_roots(chunk.nuc_svID.values, timestamp=timestamp)
-            chunk.loc[:,'soma_rootID'] = cv.get_roots(chunk.soma_svID.values, timestamp=timestamp)
-            chunk.to_csv(temp, mode='a', index=False, header=False)
-            tries = max_tries+1
-          except Exception as e2:
-            print(e2)
-            tries+=1
-            print('Fail at:',chunksize*idx,' Try:',tries)
-            if tries == max_tries:
-              return 'Incomplete',idx*chunksize
-      else:      
-        return 'Incomplete',idx 
-
-    idx+=1 
-    header = False
-      
-  os.replace(temp, dir + '/' + output_table_name)
-  return 'Complete',None 
-
