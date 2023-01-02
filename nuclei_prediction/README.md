@@ -1,5 +1,8 @@
 # nuclei_prediction
-This code detected all the neuron nuclei & somas in `FANCv4`. Thanks to Jasper, Ran, Brandon, Thomas, and Stephan, this pipeline identified 17,076 putative nuclei after applying a size threshold. We manually inspected each one and categorized them to neurons, glias, or false positives (see the table below). There are also some somas that our pipeline could not detect, but FANC community members have found. The numbers in the table are from 2023/01/02, and they are constantly updated when community members have found wrongly-categorized nuclei (e.g., neuronal nucleus in the glia nucleus table) or missing somas.
+
+![https://neuromancer-seung-import.appspot.com/?json_url=https://global.daf-apis.com/nglstate/api/v1/6297321721561088](./img/soma_preview.gif)
+
+This code detected all the neuron nuclei & somas in `FANCv4`. Thanks to Jasper, Ran, Brandon, Thomas, Forrest, and Stephan, this pipeline identified 17,076 putative nuclei after applying a size threshold. We manually inspected each one and categorized them to neurons, glias, or false positives (see the table below). There are also some somas that our pipeline could not detect but the FANC community members have found. The numbers in the table are from 2023/01/02, and they are constantly updated when the community members have found wrongly-categorized nuclei (e.g., neuronal nucleus in the glia nucleus table) or missing somas.
 
 | Cell types      |                     | Automatically detected | Manually found |
 |:----------------|:--------------------| ----------------------:|---------------:|
@@ -12,7 +15,7 @@ This code detected all the neuron nuclei & somas in `FANCv4`. Thanks to Jasper, 
 Neuronal somas and glial somas are available through CAVE. You can find more detailed information in [our manuscript](https://doi.org/10.1101/2022.12.15.520299). Please contact Sumiya Kuroda @sumiya-kuroda for any questions or feedbacks.
 
 ## Detection
-We first segmented nuclei from the dataset using a convolutional neural network made by Ran. Basically, we extracted a point for each nucleus and soma, and use that coordinates to retrieve their `pt_root_id`. We ran the scripts inside `detection` folder using the commands below. We used `LocalTaskQueue` for this version of the scripts, but you can use `TaskQueue` instead, which may increase the computation speed. You can also change `--choose` (numbers of pixels you look at) and `--parallel` (number of cpu cores you use) if necessary.
+We first segmented nuclei from the dataset using a convolutional neural network made by Ran. Basically, we extracted a point for each nucleus and soma, and used that coordinates to retrieve their `pt_root_id`. We ran the scripts inside `detection` folder using the commands below. We used `LocalTaskQueue` for this version of the scripts, but you can use `TaskQueue` instead, which may increase the computation speed. You can also change `--choose` (numbers of pixels you look at) and `--parallel` (number of cpu cores you use) if necessary.
 
 ```sh
 python3.6 -c "import get_nuc; get_nuc.run_local('task_get_nuc_info')" -c 10 -p 20
@@ -33,10 +36,10 @@ python3.6 -c "import nuc2soma; nuc2soma.run_local('task_get_surrounding')" -c 20
 
 python3.6 -c "import nuc2soma; nuc2soma.run_local('task_save')" -p 20
 ```
-![https://neuromancer-seung-import.appspot.com/?json_url=https://global.daf-apis.com/nglstate/api/v1/6297321721561088](./img/soma_preview.gif)
+
 
 ### 0. Prepare the data
-Make sure you have access to `FANCv4` dataset. The voxel size of `FANCv4` was `[4.3, 4.3, 45]`nm^3. We mostly used areas around `[7953, 118101, 2584]` to validate my code (which belongs to the block `i = 7817`), but any areas with a lot of nuclei will be useful. For example, the image below displays a different area around `[52268, 84179, 2117]`.
+Make sure you have access to `FANCv4` dataset. The voxel size of `FANCv4` is `[4.3, 4.3, 45]`nm^3. We mostly used areas around `[7953, 118101, 2584]` to validate my code (which belongs to the block `i = 7817`), but any areas with a lot of nuclei will be useful. For example, the image below displays a different area around `[52268, 84179, 2117]`.
 
 <img src="./img/raw2d.png" width="400"> <img src="./img/empty3d.png" width="400">
 
@@ -44,7 +47,7 @@ Make sure you have access to `FANCv4` dataset. The voxel size of `FANCv4` was `[
 
 
 ### 1. Nuclei segmentation
-We used the results of Ran's nuclei segmentaion from August 2021. Ran uploaded the intensity map to `auth.get_cv_path('nuclei_map_Aug2021')['url']` and the connected components to `auth.get_cv_path('nuclei_seg_Aug2021')['url']`.
+We used the results of Ran's nuclei segmentaion from August 2021. Ran uploaded the intensity map to `lib.get_cv_path('nuclei_map_Aug2021')['url']` and the connected components to `lib.get_cv_path('nuclei_seg_Aug2021')['url']`.
 
 <img src="./img/segmented.png" width="400"> <img src="./img/empty3d.png" width="400">
 
@@ -71,7 +74,7 @@ The results were saved in a csv file.
 
 
 ### (2-3). Retrieve pt_root_id of nuclei
-`rootID_lookup.py` can retrieve `pt_root_id` of all nuclei.
+`rootID_lookup.py` can retrieve `pt_root_id` of all nuclei, but is not necessary to do this (since `pt_root_id` is constantly updated).
 
 <img src="./img/nucpreview.png" width="400"> <img src="./img/nucpreview3d.png" width="400">
 
@@ -87,7 +90,7 @@ We then extracted soma `pt` with `nuc2soma.py`. Jasper came up with a very smart
 
 
 ### (3-2). Retrieve pt_root_id of Somas
-`rootID_lookup.py` can retrieve `pt_root_id` of all somas.
+`rootID_lookup.py` can retrieve `pt_root_id` of all somas, but is not necessary to do this.
 
 <img src="./img/somapreview2d.png" width="400"> <img src="./img/somapreview3d.png" width="400">
 
@@ -95,7 +98,7 @@ We then extracted soma `pt` with `nuc2soma.py`. Jasper came up with a very smart
 
 
 ## Conduct quality check on all detected nuclei
-`nuc2soma.py` resulted in 17,076 pairs of nuclei and somas stored in the csv file `soma_info_Aug2021ver5.csv`. We were aware that there were more than one false positives in these putative nuclei, so we started to manually inspect each nucleus and cell body, using `quality_check/proofread_nuclei.ipynb` and `quality_check/proofread_soma.ipynb`, respectively. First quality check found 14679 neurons, 1987 glia, and 410 false positives out of 17076 putative nuclei (`proofread_nuclei.ipynb`). Second quality check found 14639 neurons and 40 glia out of 14679 quality-checked nuclei (`proofread_soma.ipynb`). While 14579/14639 neurons had soma `pt` (`soma_xyz`) inside their cell bodies, 60/14639 neurons had soma `pt` outside and we had to manually merge their nucleus/soma pairs during quality check.
+`nuc2soma.py` resulted in 17,076 pairs of nuclei and somas stored in the csv file `soma_info_Aug2021ver5.csv`. We were aware that there were more than one false positives in these putative nuclei, so we started to manually inspect each nucleus and cell body, using `quality_check/proofread_nuclei.ipynb` and `quality_check/proofread_soma.ipynb`, respectively. First quality check found 14,679 neurons, 1,987 glia, and 410 false positives out of 17,076 putative nuclei (`proofread_nuclei.ipynb`). Second quality check found 14,639 neurons and 40 glia out of 14,679 quality-checked nuclei (`proofread_soma.ipynb`). While 14,579/14,639 neurons had soma `pt` (`soma_xyz`) inside their cell bodies, 60/14,639 neurons had soma `pt` outside and we had to manually merge their nucleus/soma pairs during quality check.
 
 
 ## Format soma table
@@ -105,14 +108,14 @@ At the same time, since the original `nuc_xyz` column showed random points insid
 
 
 ## Upload soma table to CAVE
-After formatting the (local) soma table, we uploaded the result to [CAVE (Connectome Annotation Versioning Engine)](https://github.com/seung-lab/CAVEclient) so that everyone in the FANC community can access to this data. Because of the server's expiration setting, the original nucleus predictions were all deleted. We re-ran the code and generated a new segmentation (and confirmed all the putative nuclei were re-detected), but the nucleus ids were not identical anymore. Therefore, we updated nucleus ids before uploading them to CAVE. `upload2cave.ipynb` shows how we uploaded the table to CAVE as `somas_dec2022`, as well as how future users can use CAVE to conducut similar procedures.
+After formatting the (local) soma table, we uploaded the result to [CAVE (Connectome Annotation Versioning Engine)](https://github.com/seung-lab/CAVEclient) so that everyone in the FANC community could access to this data. Because of the server's expiration setting, the original nucleus predictions were all deleted. We re-ran the code and generated a new segmentation (and confirmed all the putative nuclei were re-detected), but the nucleus ids were not identical anymore. Therefore, we updated nucleus ids before uploading them to CAVE. `upload2cave.ipynb` shows how we uploaded the table to CAVE as `somas_dec2022`, as well as how future users can use CAVE to conducut similar procedures.
 
 <img src="./img/soma_table_CAVE.png" width="700">
 
 ## Manual maintenance of soma table on CAVE
-Even though we checked the quality multiple times manually, there is a small chance that some nuclei are still wrongly categorized. In fact, we have already found several glias and false positives labeled as neurons in the soma table. (**The soma table on CAVE is always up-to-date.** If you want to know updated numbers for each cell type/object, please take a look at the tables above.)
+Even though we manually checked our somas' quality multiple times, there is a small chance that some nuclei are still wrongly categorized. In fact, we have already found several glias and false positives labeled as neurons in the soma table. (**The soma table on CAVE is always up-to-date.** If you want to know updated numbers for each cell type/object, please take a look at the table above.)
 
-At the same time, our convolutional neural network missed some nuclei. (e.g., A neuronal nucleus that was partically detected but too small to be picked up by our size threshold.) This is mostly because of the knifemarks, and DeepEM could not segment a nucleus correctly if there is a knifemark on it. Therefore, we asked community members to report if they have found any nuclei that were not listed on soma table. Those manually identified nuclei have their own 17-digit nucleus ids, which starts from `10000000000000001`. (The automatically detected nuclei have randomly-generated nucleus ids that start from `7`. See [here](https://github.com/seung-lab/cloud-volume/wiki/Graphene) for more detailed information.) If you are a member of `FANC_soma_edit` group on CAVE, you can use the code in `fanc/upload.py` to upload these missing somas to the soma table. `example_notebooks/update_cave_tables.ipynb` demostrates how to upload them. Currently, @sumiya-kuroda and @jasper-tms are the members of `FANC_soma_edit`.
+At the same time, our convolutional neural network missed some nuclei. (e.g., A neuronal nucleus that was partically detected but too small to be picked up by our size threshold.) This is mostly because of the knifemarks, and DeepEM could not segment a nucleus correctly if there is a knifemark on it. Therefore, we asked community members to report if they have found any nuclei that were not listed on the soma table. Those manually identified nuclei have their own 17-digit nucleus ids, which starts from `10000000000000001`. If you are a member of `FANC_soma_edit` group on CAVE, you can use the code in `fanc/upload.py` to upload these missing somas to the soma table. `example_notebooks/update_cave_tables.ipynb` demostrates how to upload them. Currently, @sumiya-kuroda and @jasper-tms are the members of `FANC_soma_edit`.
 
 There are also some other rules when it comes to uploading manually detected somas:
 - If you want to upload neurons that have somas outside the dataset and locate on the ventral side, use coordinates on `z = 10` slice.
