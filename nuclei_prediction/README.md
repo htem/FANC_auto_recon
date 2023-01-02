@@ -1,5 +1,5 @@
 # nuclei_prediction
-This code detected all the neuron nuclei & somas in `FANCv4`. Thanks to Jasper, Ran, Brandon, Thomas, and Stephan, this pipeline identified 17,076 putative nuclei after applying a size threshold. We manually inspected each one and categorized them to neurons, glias, or false positives (see the table below). There are also some somas that our pipeline could not detect, but FANC community members have found. The numbers in the table are from 2023/01/02, and they are constantly updated when community members have found wrongly-categorized nuclei (e.g., neuronal nucleus in the glia nucleus table) or missing somas. Neuronal somas and glial somas are available through CAVE. You can find more detailed information in [our manuscript](https://doi.org/10.1101/2022.12.15.520299). Please contact Sumiya Kuroda @sumiya-kuroda for any questions or feedbacks.
+This code detected all the neuron nuclei & somas in `FANCv4`. Thanks to Jasper, Ran, Brandon, Thomas, and Stephan, this pipeline identified 17,076 putative nuclei after applying a size threshold. We manually inspected each one and categorized them to neurons, glias, or false positives (see the table below). There are also some somas that our pipeline could not detect, but FANC community members have found. The numbers in the table are from 2023/01/02, and they are constantly updated when community members have found wrongly-categorized nuclei (e.g., neuronal nucleus in the glia nucleus table) or missing somas.
 
 | Cell types      |                     | Automatically detected | Manually Found |
 | ----------------|:-------------------:| ----------------------:|---------------:|
@@ -8,6 +8,8 @@ This code detected all the neuron nuclei & somas in `FANCv4`. Thanks to Jasper, 
 | false positives | non-neuronal object |                    412 |              0 |
 |                 | duplicated neurons  |                     15 |              0 |
 |                 | duplicated glias    |                      2 |              0 |
+
+Neuronal somas and glial somas are available through CAVE. You can find more detailed information in [our manuscript](https://doi.org/10.1101/2022.12.15.520299). Please contact Sumiya Kuroda @sumiya-kuroda for any questions or feedbacks.
 
 ## Detection
 We first segmented nuclei from the dataset using a convolutional neural network made by Ran. Basically, we extracted a point for each nucleus and soma, and use that coordinates to retrieve their `pt_root_id`. We ran the scripts inside `detection` folder using the commands below. We used `LocalTaskQueue` for this version of the scripts, but you can use `TaskQueue` instead, which may increase the computation speed. You can also change `--choose` (numbers of pixels you look at) and `--parallel` (number of cpu cores you use) if necessary.
@@ -103,23 +105,14 @@ At the same time, since the original `nuc_xyz` column showed random points insid
 
 
 ## Upload soma table to CAVE
-After formatting the (local) soma table, we uploaded the result to [CAVE (Connectome Annotation Versioning Engine)](https://github.com/seung-lab/CAVEclient) so that everyone in the FANC community can access to this data. `upload2cave.ipynb` shows how we uploaded the table to CAVE as `somas_dec2022`, as well as how future users can use CAVE to conducut similar procedures.
+After formatting the (local) soma table, we uploaded the result to [CAVE (Connectome Annotation Versioning Engine)](https://github.com/seung-lab/CAVEclient) so that everyone in the FANC community can access to this data. Because of the server's expiration setting, the original nucleus predictions were all deleted. We re-ran the code and generated a new segmentation (and confirmed all the putative nuclei were re-detected), but the nucleus ids were not identical anymore. Therefore, we updated nucleus ids before uploading them to CAVE. `upload2cave.ipynb` shows how we uploaded the table to CAVE as `somas_dec2022`, as well as how future users can use CAVE to conducut similar procedures.
 
 <img src="./img/soma_table_CAVE.png" width="400">
 
 ## Manual maintenance of soma table on CAVE
-Even though we checked the quality of each cell body twice, there is a small chance that some of them are not neuron cell bodies. We have already found 3 glia and 15 neurons that are registered twice, and they are removed from the table. No nuclei were detected more than twice (`upload2cave.ipynb`). At the same time, our convolutional neural network missed some nuclei. If you find soma that are not listed in soma table, please report it to [this Google Sheet](https://docs.google.com/spreadsheets/d/1NJFKZTwVe_gkYkC4Bau53fiMsLQcfFgB7qCDYzx4TVo/edit?usp=sharing).
+Even though we checked the quality multiple times manually, there is a small chance that some nuclei are still wrongly categorized. In fact, we have already found several glias and false positives labeled as neurons in the soma table. (**The soma table on CAVE is always up-to-date.** If you want to know updated numbers for each cell type/object, please take a look at the tables above.)
 
-data is gone. but new nucleus is fine
-We first uploaded tables of all 17,076 putative nuclei and the result of quality check processes. The original detection result was obtained using a pervious version of nucleus segmentation data (`nuclei_map_Aug2021` and `nuclei_seg_Aug2021` in `Aug2021.log`). 17,076 nuclei found in this segmentation is available in `nucleus_mar2022`. However, this data was deleted by a 30-day expiration setting of the server. We re-ran the code and generated new segmentation data, but the nucleus ids are not identical anymore. The new nucleus ids and their labels are available in `nucleus_mar2022_label`. We have confirmed all of the putative nuclei that were found in the previous segmentation are also detected in the new segmentation. At the same time, two glia cells are found out that they were detected twice in the old version of the segmentation (1 new nucleus id but 2 old nucleus ids). New 1-digit nucleus ids are given to these glia cells.
+At the same time, our convolutional neural network missed some nuclei. (e.g., A neuronal nucleus that was partically detected but too small to be picked up by our size threshold.) This is mostly because of the knifemarks, and DeepEM could not segment a nucleus correctly if there is a knifemark on it. Therefore, we asked community members to report if they have found any nuclei that were not listed on soma table. Those manually identified nuclei have their own 17-digit nucleus ids, which starts from `10000000000000001`. (The automatically detected nuclei have randomly-generated nucleus ids that start from `7`. See [here](https://github.com/seung-lab/cloud-volume/wiki/Graphene) for more detailed information.) If you are a member of `FANC_soma_edit` group on CAVE, you can use the code in `fanc/upload.py` to upload these missing somas to the soma table. `example_notebooks/update_cave_tables.ipynb` demostrated how to upload them. Currently, @sumiya-kuroda and @jasper-tms are the members of `FANC_soma_edit`.
 
-z = 10
-
-manually found ones
-
-FANC_soma_edit
-
-During the quality check processes, we noticed that our automated segmentation had several false negatives (Neuronal nuclei that were partically detected but excluded when we applied the size threshold or not detected at all). This is mostly because of the knifemarks as DeepEM could not segment a nucleus correctly if there is a knifemark on it. Therefore, we asked community members to report if they have found any nuclei that were not listed on soma table. Those manually identified nuclei were listed on the Google Sheet and have their own 17-digit nucleus ids, which starts from `10000000000000001`. (The automatically detected nuclei have randomly-generated nucleus ids that start from `7`. See [here](https://github.com/seung-lab/cloud-volume/wiki/Graphene) for more detailed information.)
-
-fanc/upload.py
-example_notebooks/update_cave_tables.ipynb
+There are also some other rules when it comes to uploading manually detected somas:
+- If you want to upload neurons that have somas outside the daset and locate on the ventral side, use points on `z = 10` slice.
