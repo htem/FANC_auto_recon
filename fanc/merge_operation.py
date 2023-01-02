@@ -1,5 +1,4 @@
 import time
-import copy
 import numpy as np
 from urllib.error import HTTPError
 from caveclient import CAVEclient
@@ -102,35 +101,3 @@ class PerformMergeTask(RegisteredTask):
         cf.put_json(f"{self.B_sv_id}.json", r)
         print(r)
         return
-
-
-def create_nuc_merge_tasks(df, pcg_source, bucket_save_location, resolution=(4.3, 4.3, 45)):
-    class PerformNucMergeTaskIterator(object):
-        def __init__(self, df, pcg_source, bucket_save_location, resolution=(4.3, 4.3, 45)):
-            self.pcg_source = pcg_source
-            self.bucket_save_location = bucket_save_location
-            self.df = df
-            self.resolution = resolution
-
-        def __len__(self):
-            return len(self.df)
-
-        def __getitem__(self, slc):
-            itr = copy.deepcopy(self)
-            itr.df = df.iloc[slc]
-            return itr
-
-        def __iter__(self):
-
-            for num, row in self.df.iterrows():
-                yield PerformMergeTask(
-                    self.pcg_source,
-                    self.bucket_save_location,
-                    row.nuc_sv_id,
-                    row.cell_sv_id,
-                    row.nuc_sv_id_loc,
-                    row.cell_sv_id_loc,
-                    self.resolution,
-                )
-
-    return PerformNucMergeTaskIterator(df, pcg_source, bucket_save_location, resolution)

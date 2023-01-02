@@ -4,13 +4,14 @@ from . import (
     catmaid,
     connectivity,
     rootID_lookup,
-    upload,
+    merge_operation,
     skeletonize,
     statebuilder,
     statemanager,
     synaptic_links,
     template_spaces,
     transforms,
+    upload
 )
 
 from .auth import *
