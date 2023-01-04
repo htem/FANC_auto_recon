@@ -1,7 +1,7 @@
 from taskqueue import LocalTaskQueue
 import pandas as pd
 import copy
-from fanc.merge_operation import PerformMergeTask
+from merge_operation import PerformMergeTask
 from fanc import ngl_info
 
 parallel_cpu = 1
