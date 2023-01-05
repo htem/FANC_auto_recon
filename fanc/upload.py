@@ -121,7 +121,8 @@ class SomaTableOrganizer(object):
         self.update_tables()
         txt_msg = """\
             Ready to update soma table: {} and subset soma table: {}
-            Please make sure you have separate soma in each annotation and have all information required: {}.""".format(self._soma_table_name, self._subset_table_name, self._required_props())
+            Please make sure you have separate soma in each annotation and have all information required: {}.
+            When you upload somas locating slightly outside the dataset and dorsal, use the coordinates on z=10 slice.""".format(self._soma_table_name, self._subset_table_name, self._required_props())
         print(dedent(txt_msg))
 
     @property

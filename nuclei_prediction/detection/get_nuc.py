@@ -1,5 +1,4 @@
 import numpy as np
-import sys
 import os
 import pandas as pd
 from glob import glob
@@ -9,11 +8,8 @@ from cloudvolume import CloudVolume, Bbox
 import cc3d
 from taskqueue import TaskQueue, queueable, LocalTaskQueue
 from functools import partial
-from lib import *
-
-sys.path.append(os.path.abspath("../segmentation")) # to import rootID_lookup and authentication_utils like below
-import rootID_lookup as IDlook
-import authentication_utils as auth
+from ..lib import *
+from fanc import rootID_lookup as IDlook
 
 # -----------------------------------------------------------------------------
 # argument
@@ -33,7 +29,6 @@ choose=args.choose
 
 # path
 outputpath = '/n/groups/htem/users/skuroda/aug2021-2'
-# outputpath = '../Output'
 
 # variables
 np.random.seed(123)
@@ -54,10 +49,10 @@ connectivity = 26 # number of nearby voxels to look at for calculating connectiv
 final_product = 'nuc_info_Aug2021ver2'
 
 # could-volume url setting
-cv = CloudVolume(auth.get_cv_path('Image')['url'], use_https=True, agglomerate=False) # mip0
-seg = CloudVolume(auth.get_cv_path('FANC_production_segmentation')['url'], use_https=True, agglomerate=False, cache=False) # mip2
+cv = CloudVolume(get_cv_path('Image')['url'], use_https=True, agglomerate=False) # mip0
+seg = CloudVolume(get_cv_path('FANC_production_segmentation')['url'], use_https=True, agglomerate=False, cache=False) # mip2
 nuclei_cv = CloudVolume( # mip4
-    auth.get_cv_path('nuclei_map_Aug2021')['url'],
+    get_cv_path('nuclei_map_Aug2021')['url'],
     progress=False,
     cache=False, # to aviod conflicts with LocalTaskQueue
     use_https=True,
@@ -65,7 +60,7 @@ nuclei_cv = CloudVolume( # mip4
     bounded=False
 )
 nuclei_seg_cv = CloudVolume( # mip4
-    auth.get_cv_path('nuclei_seg_Aug2021')['url'],
+    get_cv_path('nuclei_seg_Aug2021')['url'],
     cache=False,
     progress=False,
     use_https=True, # this is precomputed so no need to specify agglomerate=False
