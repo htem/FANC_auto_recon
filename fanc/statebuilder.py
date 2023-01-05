@@ -107,15 +107,16 @@ def render_scene(neurons=None,
     Render a neuroglancer scene with an arbitrary number of annotation layers
 
     ---Arguments---
-    neurons: int or list or DataFrame or np.array or string
-        A IDs or locations of the neurons that you want to display in
-        the scene. This can be provided in a few ways:
+    neurons:
+        Some specification of which neurons you want to be displayed in the
+        scene. This argument is flexible and can be provided in a few ways:
         - A int specifying a single segment ID
-        - A list containing segment IDs
-        - A pd.DataFrame containing a segmentID column and optionally a
-          color column
-        - A np.array with shape (N, 3) containing the pt_position coordinates of
-          N points, each of which indicates the location of a neuron
+        - A list or pd.Series containing segment IDs
+        - A pd.DataFrame with a column named pt_root_id containing
+          segment IDs, and optionally with a column named color
+        - A np.array with shape (N, 3) containing the xyz coordinates of
+          N points, each of which indicates the location of a neuron you
+          want to display. Coordinates should be in units of voxels
         - A string specifying the name of a CAVE table from which to
           pull neurons
 
