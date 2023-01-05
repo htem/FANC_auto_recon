@@ -35,20 +35,28 @@ def set_catmaid_credentials(catmaid_url,
 def catmaid_login(username='default_user',
                   project_id=13,
                   key_file_path=None):
-    '''' Establish a CATMAID login instance for pulling data from a project. Usually this will run as part of a pull request, not directly.
+    '''
+    Establish a CATMAID login instance for pulling data from a project. Usually
+    this will be run as part of a data fetch request, not directly by the user.
 
     Parameters
     ----------
-    username :    str, Username of catmaid account. Not necessary if you have only one api key. Default is 'default_user'.
-    project_id:   int, Project ID in the case that there are multiple stacks in the catmaid instance. Default is 13 (FANC community project).
-    key_file:     str, Full file name of the api keys for your catmaid project, check example for format. Default will be ~/.cloudvolume/secrets/catmaid_keys.json
+    username: str (default 'default_user')
+        Username of catmaid account. Not necessary if you have only one api key.
+    project_id: int (default 13)
+        Project ID in the case that there are multiple stacks in the catmaid
+        instance. Default is 13, the FANC community project.
+    key_file: str
+        Full file name of the api keys for your catmaid project, check example
+        for format. Default will be ~/.cloudvolume/secrets/catmaid_keys.json
+
     Returns
     -------
     myInstance:   A CATMAID login instance.
     '''
     if key_file_path is None:
         try:
-            fname = Path.home() / '.cloudvolume' / 'catmaid_keys.json'
+            fname = Path.home() / '.cloudvolume' / 'secrets' / 'catmaid_keys.json'
             with open(fname) as f:
                 apikeys = json.load(f)
         except:

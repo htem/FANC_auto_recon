@@ -17,7 +17,8 @@ default_svid_lookup_url = 'https://services.itanna.io/app/transform-service/quer
 def segIDs_from_pts_service(pts,
                             return_roots=True,
                             timestamp=None,
-                            service_url=default_svid_lookup_url):
+                            service_url=default_svid_lookup_url,
+                            **kwargs):
     """
     Return the rootIDs (if return_roots=True) or supervoxelIDs (if
     return_roots=False) corresponding to a given set of points.
@@ -33,6 +34,11 @@ def segIDs_from_pts_service(pts,
       If None, look up the current rootID corresponding to the point location.
       Otherwise, look up the rootID for the point location at the given time in
       the past.
+
+    --- Additional kwargs ---
+    cv: cloudvolume.CloudVolume
+      If return_roots is True and cv is provided, lookup rootIDs using the
+      given cloudvolume instead of the default one. Not common to need this.
 
     --- Returns ---
     If return_roots=True, a numpy array of rootIDs as uint64
@@ -60,7 +66,10 @@ def segIDs_from_pts_service(pts,
         sv_ids = [int(i) for i in r]
 
         if return_roots:
-            return auth.get_cloudvolume().get_roots(sv_ids, timestamp=timestamp)
+            if 'cv' in kwargs:
+                return kwargs['cv'].get_roots(sv_ids, timestamp=timestamp)
+            else:
+                return auth.get_cloudvolume().get_roots(sv_ids, timestamp=timestamp)
         else:
             return sv_ids
     except:
