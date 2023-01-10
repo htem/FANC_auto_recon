@@ -35,15 +35,12 @@ def set_cave_credentials(token, dataset='fanc_production_mar2021', overwrite=Fal
           f'~/.cloudvolume/secrets/cave-secret.json under key "{dataset}"')
 
 
-def get_caveclient(dataset='fanc_production_mar2021', auth_token_key=True):
+def get_caveclient(dataset='fanc_production_mar2021', auth_token_key=None):
     # If a nickname was used, get the proper datastack name
     dataset = DATASTACK_NICKNAMES.get(dataset, dataset)
 
     if dataset not in _clients:
-        if auth_token_key:
-            _clients[dataset] = CAVEclient(dataset, auth_token_key=dataset)
-        else:
-            _clients[dataset] = CAVEclient(dataset)
+        _clients[dataset] = CAVEclient(dataset, auth_token_key=auth_token_key)
 
     return _clients[dataset]
 
