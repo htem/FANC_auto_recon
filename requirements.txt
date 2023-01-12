@@ -5,7 +5,7 @@ python-catmaid
 meshparty
 navis
 flybrains
-transformix @ git+https://github.com/jasper-tms/pytransformix.git
+transformix
 nglui
 pyperclip
 numpyimage
