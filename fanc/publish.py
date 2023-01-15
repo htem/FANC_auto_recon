@@ -29,7 +29,7 @@ def publish_mesh_to_gcloud(segids,
     https://console.cloud.google.com/storage/browser/lee-lab_female-adult-nerve-cord/VNC_templates/JRC2018_VNC_FEMALE/FANC_neurons/meshes
 
     Public neurons can be viewed by entering their ID into this neuroglancer state:
-    https://neuromancer-seung-import.appspot.com/?json_url=https://global.daf-apis.com/nglstate/api/v1/5524208104767488
+    https://neuromancer-seung-import.appspot.com/?json_url=https://global.daf-apis.com/nglstate/api/v1/5850904959909888
     """
     try:
         iter(segids)
