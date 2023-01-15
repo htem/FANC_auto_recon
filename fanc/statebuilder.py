@@ -98,9 +98,9 @@ def fragment_dataframes(seg_ids, coords, segment_threshold=20, node_threshold=No
 
 def render_scene(neurons=None,
                  annotations=None,
-                 synapses_layer=True,
-                 nuclei_layer=False,
-                 volumes_layer=True,
+                 outlines_layer=True,
+                 nuclei_layer=True,
+                 synapses_layer=False,
                  return_as='url',
                  **kwargs):
     """
@@ -130,8 +130,8 @@ def render_scene(neurons=None,
         Whether to include the postsynaptic blobs layer in the state
     nuclei_layer: bool (default False)
         Whether to include the nuclei layer in the state
-    volumes_layer: bool (default True)
-        Whether to include the volume outlines in the state
+    outlines_layer: bool (default True)
+        Whether to include the region outlines in the state
 
     return_as: string
         Must be 'json' or 'url' (default). Specifies whether to return a
@@ -234,14 +234,6 @@ def render_scene(neurons=None,
         fixed_ids=None,
         active=True
     )
-    synapses_config = ImageLayerConfig(
-        name=ngl_info.syn['name'],
-        source=ngl_info.syn['path']
-    )
-    nuclei_config = SegmentationLayerConfig(
-        name=ngl_info.nuclei['name'],
-        source=ngl_info.nuclei['path']
-    )
 
     # Additional layer(s)
     additional_states = []
@@ -267,43 +259,42 @@ def render_scene(neurons=None,
             )
             additional_data.append(i['data'])
     if nuclei_layer:
+        nuclei_config = SegmentationLayerConfig(name=ngl_info.nuclei['name'],
+                                                source=ngl_info.nuclei['path'],
+                                                selected_ids_column='nucleus_id')
         if 'nuclei' in kwargs:
+            try:
+                iter(kwargs['nuclei'])
+                nucleus_ids = kwargs['nuclei']
+            except:
+                nucleus_ids = [kwargs['nuclei']]
             nuclei_df = pd.DataFrame(columns=['nucleus_id'])
-            nuclei_df['nucleus_id'] = kwargs['nuclei']
+            nuclei_df['nucleus_id'] = nucleus_ids
             additional_data.append(nuclei_df)
-            nuclei_config = SegmentationLayerConfig( # overwrite nuclei_config
-                name=ngl_info.nuclei['name'],
-                source=ngl_info.nuclei['path'],
-                selected_ids_column = 'nucleus_id'
-            )
-        additional_states.append(
-            StateBuilder(layers=[nuclei_config], resolution=ngl_info.voxel_size)
+        else:
+            additional_data.append(None)
+        additional_states.append(StateBuilder(layers=[nuclei_config],
+                                              resolution=ngl_info.voxel_size)
         )
+    if synapses_layer:
+        synapses_config = ImageLayerConfig(name=ngl_info.syn['name'],
+                                           source=ngl_info.syn['path'])
+        additional_states.append(StateBuilder(layers=[synapses_config],
+                                              resolution=ngl_info.voxel_size))
+        additional_data.append(None)
+
 
     # Build a state with the requested layers
-    layers = [img_config, seg_config]
-    if synapses_layer:
-        layers.append(synapses_config)
-
-    view_options = ngl_info.view_options.copy()
-    zoom_2d = view_options.pop('zoom_2d')
-
-    standard_state = StateBuilder(
-        layers=layers,
-        resolution=ngl_info.voxel_size,
-        view_kws=view_options
-    )
+    standard_state = StateBuilder(layers=[img_config, seg_config],
+                                  resolution=ngl_info.voxel_size,
+                                  view_kws=ngl_info.view_options)
     chained_sb = ChainedStateBuilder([standard_state] + additional_states)
 
     # Turn state into a dict, then add some last settings manually
     state = chained_sb.render_state([neurons] + additional_data, return_as='dict')
-    if synapses_layer:
-        # User must make synapse layer visible manually if they want to see postsynaptic blobs
-        state['layers'][2]['visible'] = False
-    if volumes_layer:
-        state['layers'].append(ngl_info.volume_meshes)
-    state['navigation']['zoomFactor'] = zoom_2d
-    state.update(ngl_info.other_options)
+    if outlines_layer:
+        state['layers'].insert(2, ngl_info.outlines_layer)
+    ngl_info.final_json_tweaks(state)
 
     if return_as == 'json':
         return state
