@@ -256,7 +256,7 @@ class SomaTableOrganizer(object):
         else:
             raise ValueError("Either asPoint or asSphere should be True")
 
-        print(render_scene(annotations=annotations, client=self._client))
+        print(render_scene(annotations=annotations, nuclei=st.id.values, client=self._client))
 
     def add_dataframe(self, df: pd.DataFrame, bath_size=10000):
         """
