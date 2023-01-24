@@ -20,7 +20,7 @@ _clients = {}
 _cloudvolumes = {}
 
 
-def set_cave_credentials(token, dataset='fanc_production_mar2021', overwrite=False):
+def save_cave_credentials(token, dataset='fanc_production_mar2021', overwrite=False):
     # If a nickname was used, get the proper datastack name
     dataset = DATASTACK_NICKNAMES.get(dataset, dataset)
 
