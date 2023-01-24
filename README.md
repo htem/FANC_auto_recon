@@ -28,7 +28,7 @@ The mesh manipulation and coordinate transform code requires `pytransformix`, wh
 
 ### Provide credentials
 
-Access to the latest reconstruction of FANC is restricted to authorized users. If you are a member of the FANC community (see [Collaborative community](../wiki#collaborative-community) on this repo's wiki) and have been granted access, you can generate an API key by visiting [https://global.daf-apis.com/auth/api/v1/create_token](https://global.daf-apis.com/auth/api/v1/create_token) and logging in with your FANC-authorized google account. Copy the key that is displayed, then run the following commands in python to save your key to the appropriate file:
+Access to the latest reconstruction of FANC is restricted to authorized users. If you are a member of the FANC community (see [Collaborative community](../../wiki#collaborative-community) on this repo's wiki) and have been granted access, you can generate an API key by visiting [https://global.daf-apis.com/auth/api/v1/create_token](https://global.daf-apis.com/auth/api/v1/create_token) and logging in with your FANC-authorized google account. Copy the key that is displayed, then run the following commands in python to save your key to the appropriate file:
 ```python
 import fanc
 fanc.save_cave_credentials("THE API KEY YOU COPIED")
