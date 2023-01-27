@@ -97,6 +97,7 @@ def fetch_orphaned_somas(y_range=[0, 160000], query_size=20, synapse_count_thres
             'T3': [160000, 223000]
         }[y_range]
 
+    caveclient.materialize.version = caveclient.materialize.most_recent_version()
     somas = caveclient.materialize.query_table(info['soma_table'])
     somas = somas.loc[np.vstack(somas.pt_position)[:, 1] > y_range[0]]
     somas = somas.loc[np.vstack(somas.pt_position)[:, 1] < y_range[1]]
