@@ -22,7 +22,7 @@ from .transforms import realignment
 
 
 def skel2scene(skid, project=13, segment_threshold=10, node_threshold=None, return_as='url', dataset='production'):
-    CI = catmaid.catmaid_login('FANC', project)
+    catmaid.connect(project_id=project)
     try:
         n = pymaid.get_neurons(skid)
     except:
