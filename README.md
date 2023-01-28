@@ -52,13 +52,13 @@ The mesh manipulation and coordinate transform code requires `pytransformix`, wh
 You can get your CATMAID API key by logging into https://radagast.hms.harvard.edu/catmaidvnc then hovering over "You are [Your Name]" in the top-right corner, then clicking "Get API token".
 
 Save your CATMAID API key by running:
-```
+```python
 import fanc
 fanc.catmaid.save_catmaid_credentials("YOUR CATMAID API KEY")
 ```
 
 You can verify that your API key has been saved successfully by running:
-```
+```python
 import fanc
 fanc.catmaid.connect()
 ```
