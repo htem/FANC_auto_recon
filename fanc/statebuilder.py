@@ -258,6 +258,11 @@ def render_scene(neurons=None,
     additional_states = []
     additional_data = []
     if annotations is not None:
+        if annotation_units in ['nm', 'nanometer', 'nanometers']:
+            resolution = (1, 1, 1)
+        else:
+            resolution = ngl_info.voxel_size
+
         if isinstance(annotations, np.ndarray):
             annotations = {
                 'name': 'points',
@@ -276,10 +281,6 @@ def render_scene(neurons=None,
             else:
                 segid_column = None
 
-            if annotation_units in ['nm', 'nanometer', 'nanometers']:
-                i['data'].pt_position = [row for row in
-                                         np.vstack(i['data'].pt_position) / ngl_info.voxel_size]
-
             if i['type'] == 'points':
                 anno_mapper = PointMapper(point_column='pt_position',
                                           linked_segmentation_column=segid_column)
@@ -292,7 +293,7 @@ def render_scene(neurons=None,
 
             anno_layer = AnnotationLayerConfig(name=i['name'], mapping_rules=anno_mapper)
             additional_states.append(
-                StateBuilder(layers=[anno_layer], resolution=ngl_info.voxel_size)
+                StateBuilder(layers=[anno_layer], resolution=resolution)
             )
             additional_data.append(i['data'])
     if nuclei_layer:
