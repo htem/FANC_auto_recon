@@ -2,6 +2,7 @@
 
 import collections
 from concurrent import futures
+from datetime import datetime
 
 import numpy as np
 import pandas as pd
@@ -74,6 +75,41 @@ def segIDs_from_pts_service(pts,
             return sv_ids
     except:
         return None
+
+
+# TODO implement the raise kwargs
+# TODO is this the right module for this function?
+def get_somas(segid, raise_not_found=True, raise_multiple=True):
+    """
+    Given a segID (ID of an object from the full dataset segmentation),
+    return information about its soma listed in the soma table.
+
+    --- Arguments ---
+    raise_not_found: bool (default True)
+      If no entry is found in the soma table for the given segID, raise an
+      exception. Otherwise, return None.
+    raise_not_found: bool (default True)
+      If multiple entries are found in the soma table for the given segID,
+      raise an exception. Otherwise, return all soma table entries
+
+    --- Returns ---
+    pd.DataFrame
+    """
+    try: iter(segid)
+    except: segid = [segid]
+
+    timestamp = datetime.utcnow()
+    client = auth.get_caveclient()
+    if not all(client.chunkedgraph.is_latest_roots(list(segid), timestamp=timestamp)):
+        raise KeyError('The given ID is out ot date. Please use an updated ID.')
+
+    # Hardcoding somas_dec2022 to get neurons and glia
+    soma_table = 'somas_dec2022' #client.info.get_datastack_info()['soma_table']
+    #select_columns=('id', 'volume', 'pt_root_id', 'pt_position')
+    somas = client.materialize.query_table(soma_table,
+                                           #select_columns=select_columns,
+                                           timestamp=timestamp)
+    return somas.loc[somas.pt_root_id.isin(segid)]
 
 
 
