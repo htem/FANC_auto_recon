@@ -3,12 +3,38 @@
 import numpy as np
 import pandas as pd
 from scipy.spatial import distance
+
 from meshparty import trimesh_io, meshwork, mesh_filters
 import navis
+import pcg_skel
+
+from . import auth
 
 
-## DEFAULTS FOR SKELETONIZATION
+def get_pcg_skeleton(segid, **kwargs):
+    """
+    Create a skeleton from an object in the FANC segmentation.
 
+    This function just calls pcg_skel.pcg_skeleton, so its main purpose
+    is just to inform you that pcg_skel is the recommended way to
+    generate a skeleton from a FANC neuron.
+
+    Examples
+    ---
+    >>> skel = fanc.skeletonize.get_pcg_skeleton(648518346481082458)
+    >>> fanc.statebuilder.render_scene(annotations=skel.vertices, annotation_units='nm')
+
+    This example pulls a skeleton of the "homepage" FANC neuron, then renders
+    a neuroglancer scene with the skeleton nodes displayed as point annotations.
+    """
+    if 'client' not in kwargs:
+        kwargs['client'] = auth.get_caveclient()
+    return pcg_skel.pcg_skeleton(segid, **kwargs)
+
+
+# --- Older skeletonization methods below --- #
+
+# Default parameters for skeletonization
 contraction_defaults = {'epsilon': 1e-05, 'iter_lim': 8, 'precision': 1e-5, 'SL': 2, 'WH0': .05, 'WL0': 'auto'}
 
 skeletonization_defaults = {'voxel_resolution': np.array([4.3, 4.3, 45]),
