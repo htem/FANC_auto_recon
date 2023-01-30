@@ -98,6 +98,7 @@ def fragment_dataframes(seg_ids, coords, segment_threshold=20, node_threshold=No
 
 def render_scene(neurons=None,
                  annotations=None,
+                 annotation_units='voxels',
                  outlines_layer=True,
                  nuclei_layer=True,
                  synapses_layer=False,
@@ -120,11 +121,26 @@ def render_scene(neurons=None,
         - A string specifying the name of a CAVE table from which to
           pull neurons
 
-    annotations: list of dicts
-        A list of dictionaries specifying annotation dataframes. Format
-        must be [{'name':str,'type':'points','data': DataFrame}]
-        where DataFrame is formatted appropriately for the annotation
-        type. Currently only points is implemented.
+    annotations: Nx3 numpy array OR dict OR list of dicts
+        Data (often point coordinates) you want displayed in an annotation layer.
+        If Nx3 numpy array, each row must specify a point coordinate (xyz order).
+        If dict, format must be
+          {'name': str,
+           'type': 'points' OR 'spheres',
+           'data': numpy array OR DataFrame}
+        where data is formatted appropriately for the specified type.
+        Currently supported types and their corresponding data:
+        - 'points': data must be an Nx3 numpy array or a DataFrame with a
+                    column named 'pt_position'
+        - 'spheres': data must be a DataFrame with columns 'pt_position'
+                     and 'radius'
+        If list of dicts, each dict must have the format above, and each one
+        will be displayed as its own annotation layer.
+
+    annotation_units: 'voxel' (Default) or 'nm'
+        Whether annotation data is provided in units of voxels or nanometers.
+        If in nanometers, data will be divided by `fanc.ngl_info.voxel_size` to
+        convert to voxels.
 
     synapses_layer: bool (default True)
         Whether to include the postsynaptic blobs layer in the state
@@ -172,6 +188,9 @@ def render_scene(neurons=None,
         materialization_version = kwargs['materialization_version']
     else:
         materialization_version = client.materialize.most_recent_version()
+
+    if annotation_units not in ['nm', 'nanometer', 'nanometers', 'vox', 'voxel', 'voxels']:
+        raise ValueError(f"annotation_units must be 'nm' or 'voxel' but was {annotation_units}")
 
     # Build a DataFrame containing rootIDs starting from whatever type is given
     if neurons is None:
@@ -239,19 +258,37 @@ def render_scene(neurons=None,
     additional_states = []
     additional_data = []
     if annotations is not None:
+        if isinstance(annotations, np.ndarray):
+            annotations = {
+                'name': 'points',
+                'type': 'points',
+                'data': pd.DataFrame({'pt_position': [pt for pt in annotations]})
+            }
+        if isinstance(annotations, dict):
+            annotations = [annotations]
+
         for i in annotations:
+            if isinstance(i['data'], np.ndarray):
+                i['data'] = pd.DataFrame({'pt_position': [pt for pt in i['data']]})
 
             if 'pt_root_id' in i['data'].columns:
-                linked_segmentation_column = 'pt_root_id'
+                segid_column = 'pt_root_id'
             else:
-                linked_segmentation_column = None
+                segid_column = None
+
+            if annotation_units in ['nm', 'nanometer', 'nanometers']:
+                i['data'].pt_position = [row for row in
+                                         np.vstack(i['data'].pt_position) / ngl_info.voxel_size]
 
             if i['type'] == 'points':
-                anno_mapper = PointMapper(point_column='pt_position', linked_segmentation_column = linked_segmentation_column)
+                anno_mapper = PointMapper(point_column='pt_position',
+                                          linked_segmentation_column=segid_column)
             elif i['type'] == 'spheres':
-                anno_mapper = SphereMapper(center_column='pt_position', radius_column='radius', linked_segmentation_column = linked_segmentation_column)
+                anno_mapper = SphereMapper(center_column='pt_position',
+                                           radius_column='radius',
+                                           linked_segmentation_column=segid_column)
             else:
-                raise NotImplementedError
+                raise NotImplementedError(f"Unrecognized annotation type: '{i['type']}'")
 
             anno_layer = AnnotationLayerConfig(name=i['name'], mapping_rules=anno_mapper)
             additional_states.append(
