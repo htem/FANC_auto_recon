@@ -7,8 +7,8 @@ import os
 import subprocess
 
 import numpy as np
-import navis
-import flybrains
+
+from .. import template_spaces
 
 
 template_plane_of_symmetry_x_voxel = 329
@@ -25,17 +25,19 @@ def align_mesh(mesh, target_space='JRC2018_VNC_FEMALE', inplace=True):
       The mesh to warp. Can be any type of mesh object that has .faces and
       .vertices attributes.
       The coordinate locations of .vertices must be specified in nanometers.
+
     target_space : str (default 'JRC2018_VNC_FEMALE')
-      The template space to warp the mesh into alignment with. Must be a string
-      with one of the following values:
-        female, FEMALE, or JRC2018_VNC_FEMALE
-        unisex, UNISEX, or JRC2018_VNC_UNISEX
-        male, MALE, or JRC2018_VNC_MALE
-      See template_spaces.py in this repo for more information.
+      The template space to warp the mesh into alignment with. This string will
+      be passed to `template_spaces.to_navis_name()`, so check that function's
+      docstring for the complete list of valid values for this argument.
+      See template_spaces.py for more information about each template space.
+
     inplace : bool (default True)
       If true, replace the vertices of the given mesh object. If false, return
       a copy, leaving the given mesh object unchanged.
     """
+    import navis
+    import flybrains
     if not inplace:
         mesh = mesh.copy()
 
@@ -50,20 +52,12 @@ def align_mesh(mesh, target_space='JRC2018_VNC_FEMALE', inplace=True):
                               invert=True).all(axis=1)
     mesh.faces = mesh.faces[in_bounds_faces]
 
-    # Use navis.xform_brain to transform coordinates
-    if target_space.upper() in ('FEMALE', 'JRC2018_VNC_FEMALE'):
-        print('Warping into alignment with JRC2018_VNC_FEMALE')
-        mesh.vertices = navis.xform_brain(mesh.vertices, source='FANC', target='JRCVNC2018F')
-    elif target_space.upper() in ('UNISEX', 'JRC2018_VNC_UNISEX'):
-        print('Warping into alignment with JRC2018_VNC_UNISEX')
-        mesh.vertices = navis.xform_brain(mesh.vertices, source='FANC', target='JRCVNC2018U')
-    elif target_space.upper() in ('MALE', 'JRC2018_VNC_MALE'):
-        print('Warping into alignment with JRC2018_VNC_MALE')
-        mesh.vertices = navis.xform_brain(mesh.vertices, source='FANC', target='JRCVNC2018M')
-    else:
-        raise ValueError('Could not determine target from: {}'.format(target_space))
+    target = template_spaces.to_navis_name(target_space)
+    print(f'Warping into alignment with {target}')
+    mesh.vertices = navis.xform_brain(mesh.vertices, source='FANC', target=target)
 
-    return mesh
+    if not inplace:
+        return mesh
 
 def warp_points_FANC_to_template(points,
                                  input_units='nanometers',
@@ -128,6 +122,8 @@ def warp_points_FANC_to_template(points,
       https://github.com/htem/GridTape_VNC_paper/tree/main/template_registration_pipeline/register_EM_dataset_to_template
     This function is a slight improvement on the published version.
     """
+    import navis
+    import flybrains
     # Only required for deprecated functions so not imported up top
     import transformix  # https://github.com/jasper-tms/pytransformix
 

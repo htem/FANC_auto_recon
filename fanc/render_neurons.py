@@ -12,24 +12,35 @@ import npimage.graphics
 
 from . import auth
 from .template_spaces import template_info, get_nrrd_metadata
+from .transforms import template_alignment
 
 
-def render_neuron_into_template_space(seg_id: int, target_space: str,
-                                      header_pixels=0, skeletonize=False):
+def render_neuron_into_template_space(seg_id: int,
+                                      target_space: str,
+                                      skeletonize=False,
+                                      compress=True):
     """
-    1. Create an image canvas aligned to a VNC template space (target_space)
-    2. Render a template-aligned version of a neuron onto that canvas
-    3. Save the resulting image volume as a .nrrd file
+    Create an image volume in .nrrd format with dimensions matching a
+    specified VNC template space, containing a rendering of a neuron
+    from FANC aligned to that VNC template space.
 
-    seg_id :  The segment ID to render
-    target_space :  See template_spaces.py
-    header_pixels :  Add this many empty rows to the top of the image
-
-    If skeletonize is False, the neuron's mesh will be rendered. This is slow
-    (may involve rendering many millions of triangles) but gives the most
-    accurate rendering.
-    If skeletonize is True, the neuron's mesh will be skeletonized and then the
-    skeleton will be rendered. **This feature is not yet implemented.**
+    Arguments
+    ---------
+    seg_id : int
+        The segment ID from the FANC segmentation to render
+    target_space: str
+       See template_spaces.py for a list of template spaces that can be
+       provided for this argument
+    skeletonize: bool (default False)
+        If True, the skeletonized version of the neuron will be rendered.
+        If False, the neuron's mesh will be rendered. This is slow because it
+        may involve rendering many millions of triangles, but gives the most
+        accurate rendering.
+    compress: bool (default True)
+        If True, save the .nrrd with gzip encoding. If False, save with raw
+        encoding. (Because the image volume created here is all black except for
+        a small percent of the pixels that are white to represent the neuron,
+        compression gives file sizes <1MB where raw gives file sizes >100MB.)
     """
     if target_space not in template_info.keys():
         raise ValueError(
@@ -42,6 +53,9 @@ def render_neuron_into_template_space(seg_id: int, target_space: str,
     client = auth.get_caveclient()
     meshmanager = auth.get_meshmanager()
 
+    if skeletonize:
+        raise NotImplementedError
+
     print('Downloading mesh')
     my_mesh = meshmanager.mesh(
         seg_id=seg_id,
@@ -49,10 +63,7 @@ def render_neuron_into_template_space(seg_id: int, target_space: str,
         merge_large_components=False  # False is faster but probably worse quality
     )
 
-
-    if skeletonize:
-        raise NotImplementedError
-
+    template_alignment.align_mesh(my_mesh, target_space)
 
     # Convert from microns to pixels in the target space
     my_mesh.vertices = my_mesh.vertices / target_info['voxel size']
@@ -70,12 +81,13 @@ def render_neuron_into_template_space(seg_id: int, target_space: str,
             fill_value=255
         )
 
-    if header_pixels:
-        dims = rendered_image.shape
-        header = np.zeros((dims[0], header_pixels, dims[2]), dtype=np.uint8)
-        rendered_image = np.concatenate((header, rendered_image), axis=1)
+    #if header_pixels:
+    #    dims = rendered_image.shape
+    #    header = np.zeros((dims[0], header_pixels, dims[2]), dtype=np.uint8)
+    #    rendered_image = np.concatenate((header, rendered_image), axis=1)
 
     npimage.save(rendered_image,
                  'segid{}_in_{}.nrrd'.format(seg_id, target_space),
                  metadata=get_nrrd_metadata(target_space),
+                 compress=compress,
                  dim_order='xyz')
