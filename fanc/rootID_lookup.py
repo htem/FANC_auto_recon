@@ -79,7 +79,12 @@ def segIDs_from_pts_service(pts,
 
 # TODO implement the raise kwargs
 # TODO is this the right module for this function?
-def get_somas(segid, raise_not_found=True, raise_multiple=True):
+def get_somas(segid,
+              table='default_soma_table',
+              get_columns=['id', 'volume', 'pt_root_id', 'pt_position'],
+              timestamp=None,
+              raise_not_found=True,
+              raise_multiple=True):
     """
     Given a segID (ID of an object from the full dataset segmentation),
     return information about its soma listed in the soma table.
@@ -98,16 +103,27 @@ def get_somas(segid, raise_not_found=True, raise_multiple=True):
     try: iter(segid)
     except: segid = [segid]
 
-    timestamp = datetime.utcnow()
+    if timestamp in ['now', 'live']:
+        timestamp = datetime.utcnow()
     client = auth.get_caveclient()
     if not all(client.chunkedgraph.is_latest_roots(list(segid), timestamp=timestamp)):
-        raise KeyError('The given ID is out ot date. Please use an updated ID.')
+        raise KeyError('A given ID(s) is not valid at the given timestamp.'
+                       ' Use updated IDs or provide the timestamp where'
+                       ' the ID(s) is valid.')
 
-    # Hardcoding somas_dec2022 to get neurons and glia
-    soma_table = 'somas_dec2022' #client.info.get_datastack_info()['soma_table']
-    #select_columns=('id', 'volume', 'pt_root_id', 'pt_position')
-    somas = client.materialize.query_table(soma_table,
-                                           #select_columns=select_columns,
+    if table in [None, 'default_soma_table']:
+        table = client.info.get_datastack_info()['soma_table']
+        get_columns = None  # Feature not currently supported on reference tables
+    elif table in ['all', 'somas']:
+        table = 'somas_dec2022'
+    elif table in ['neurons', 'neuron']:
+        table = 'neuron_somas_dec2022'
+        get_columns = None  # Feature not currently supported on reference tables
+    elif table == 'glia':
+        table = 'glia_somas_dec2022'
+        get_columns = None  # Feature not currently supported on reference tables
+    somas = client.materialize.query_table(table,
+                                           select_columns=get_columns,
                                            timestamp=timestamp)
     return somas.loc[somas.pt_root_id.isin(segid)]
 
