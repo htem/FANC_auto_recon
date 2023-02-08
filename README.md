@@ -1,27 +1,64 @@
 # FANC_auto_recon
 
-Code for interacting with the automated neuron and synapse reconstructions of FANC, the Female Adult Nerve Cord GridTape-TEM dataset. See [here](https://www.lee.hms.harvard.edu/phelps-hildebrand-graham-et-al-2021) for more information about the dataset.
+FANC (pronounced "fancy") is the Female Adult Nerve Cord, a GridTape-TEM dataset of an adult _Drosophila melanogaster_'s ventral nerve cord. The dataset was first published in [Phelps, Hildebrand, Graham et al. 2021 _Cell_](https://www.lee.hms.harvard.edu/phelps-hildebrand-graham-et-al-2021), after which we applied automated methods for reconstructing neurons, synapses, and nuclei to accelerate reconstruction of the ventral nerve cord connectome. This repository contains a python package for interacting with the connectome (see the folder [`fanc`](fanc)) as well as other supporting files. 
 
-This repo can't be `pip install`ed yet (we'll make this possible at some point) so you may want to add it to your `PYTHONPATH` so you can import its modules regardless of what folder you're in, e.g. if you cloned this repo to `~/repos/FANC_auto_recon`, add `export PYTHONPATH=~/repos/:$PYTHONPATH` to your shell config file (`~/.bashrc` or `~/.bash_profile` or `~/.zshrc`)
+Have any questions? Please [open an issue](https://github.com/htem/FANC_auto_recon/issues/new) or contact [Jasper Phelps (jasper.s.phelps@gmail.com)](https://github.com/jasper-tms).
 
-Folder descriptions:
+## Installing and configuring the `fanc` python package
 
-- `annotations` : Code for interacting with the annotation framework.
-- `example_notebooks`: Examples of how to use the code in this repo. `FANC_Connectomics_General_Intro.ipynb` is a good place to start.
-- `images`: Code and info related to the EM image data.
-- `lm_em_comparisons`: Code for comparing EM reconstructions with light microscopy data, e.g. color-depth MIP mask searching.
-- `nuclei_prediction`: For code related to detecting neuron nuclei/somas.
-- `segmentation`: Code for interacting with chunkedgraph to access the neuron segmentation data.
-- `skeletonization`: Code related to skeletonization.
-- `synapses`: Code related to connectivity.
-- `transforms`: Code for transforming points between different alignment versions of FANC or between FANC and the Janelia VNC template.
-- `volume_meshes`: Neuropil compartment mesh files (work in progress).
+### Before you start
+
+As is always the case in python, consider making a virtual environment (using your preference of virtualenv/virtualenvwrapper or conda) before installing.
+
+### Installation option 1: pip install directly from GitHub
+
+    pip install git+https://github.com/htem/FANC_auto_recon.git
+
+### Installation option 2: Clone then install
+
+    cd ~/repos  # or wherever you keep your repos
+    git clone https://github.com/htem/FANC_auto_recon.git
+    cd FANC_auto_recon
+    pip install -e .
 
 
-Generate an API key by visiting [https://global.daf-apis.com/auth/api/v1/create_token](https://global.daf-apis.com/auth/api/v1/create_token) and logging in with your FANC-authorized google account. Copy the key that is displayed, then create a text file that contains:
+### Provide credentials
+
+Access to the latest reconstruction of FANC is restricted to authorized users. If you are a member of the FANC community (see [Collaborative community](../../wiki#collaborative-community) on this repo's wiki) and have been granted access, you can generate an API key by visiting [https://global.daf-apis.com/auth/api/v1/create_token](https://global.daf-apis.com/auth/api/v1/create_token) and logging in with your FANC-authorized google account. Copy the key that is displayed, then run the following commands in python to save your key to the appropriate file:
+```python
+import fanc
+fanc.save_cave_credentials("THE API KEY YOU COPIED")
+```
+
+Alternatively, you can manually do what the command above accomplishes, which is to create a text file at `~/.cloudvolume/secrets/cave-secret.json` with these contents:
 
     {
-      "token": "THE API KEY YOU COPIED"
+      "token": "THE API KEY YOU COPIED",
+      "fanc_production_mar2021": "THE API KEY YOU COPIED"
     }
 
-and save that file to `~/.cloudvolume/secrets/cave-secret.json`
+You can verify that your API key has been saved successfully by running:
+```python
+import fanc
+client = fanc.get_caveclient()
+```
+
+### Optional installation steps for additional functionality
+
+#### Install Elastix to transform neurons into alignment with the VNC template
+The mesh manipulation and coordinate transform code requires `pytransformix`, which is itself a Python wrapper for Elastix. Therefore, Elastix must be installed and its lib and bin paths must be appended to the `LD_LIBRARY_PATH` and `PATH` environment variables. See [`pytransformix` documentation](https://github.com/jasper-tms/pytransformix#installation) for specific instructions.
+
+#### Provide CATMAID credentials to pull data from CATMAID
+You can get your CATMAID API key by logging into https://radagast.hms.harvard.edu/catmaidvnc then hovering over "You are [Your Name]" in the top-right corner, then clicking "Get API token".
+
+Save your CATMAID API key by running:
+```python
+import fanc
+fanc.catmaid.save_catmaid_credentials("YOUR CATMAID API KEY")
+```
+
+You can verify that your API key has been saved successfully by running:
+```python
+import fanc
+fanc.catmaid.connect()
+```
