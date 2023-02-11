@@ -17,7 +17,7 @@ from cloudvolume import CloudVolume
 from cloudvolume.frontends.precomputed import CloudVolumePrecomputed
 from nglui.statebuilder import *
 
-from . import auth, catmaid, rootID_lookup
+from . import auth, catmaid, lookup
 from .transforms import realignment
 
 
@@ -53,7 +53,7 @@ def skel2seg(neuron,
     else:
         points = nodes
 
-    return rootID_lookup.segIDs_from_pts_service(points, cv=target_volume), points
+    return lookup.segids_from_pts(points, cv=target_volume), points
 
 
 def fragment_dataframes(seg_ids, coords, segment_threshold=20, node_threshold=None):
@@ -208,14 +208,14 @@ def render_scene(neurons=None,
         try:
             # If Series contains point coordinates instead of rootIDs, lookup rootIDs
             iter(neurons[0])
-            neurons = rootID_lookup.segIDs_from_pts_service(neurons.values)
+            neurons = lookup.segids_from_pts(neurons.values)
         except:
             neurons = pd.DataFrame(neurons)
     if isinstance(neurons, np.ndarray):
         # np.array -> list
         if np.any(neurons < 10000000000000000):
             # If array contains point coordinates instead of rootIDs, lookup rootIDs
-            neurons = rootID_lookup.segIDs_from_pts_service(neurons)
+            neurons = lookup.segids_from_pts(neurons)
         neurons = list(neurons)
     if isinstance(neurons, list):
         # list -> pd.DataFrame

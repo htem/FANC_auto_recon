@@ -15,76 +15,80 @@ from . import auth
 default_svid_lookup_url = 'https://services.itanna.io/app/transform-service/query/dataset/fanc_v4/s/2/values_array_string_response/'
 
 
-def segIDs_from_pts_service(pts,
-                            return_roots=True,
-                            timestamp=None,
-                            service_url=default_svid_lookup_url,
-                            **kwargs):
+def svids_from_pts(pts, service_url=default_svid_lookup_url):
     """
-    Return the rootIDs (if return_roots=True) or supervoxelIDs (if
-    return_roots=False) corresponding to a given set of points.
+    Return the supervoxel IDs for a set of points.
+
+    This function relies on an external service hosted on services.itanna.io,
+    created and maintained by Eric Perlman, which provides very fast svid
+    lookups. I
 
     --- Arguments ---
-    pts: Nx3 numpy array or pandas Series
-      Points to query, in xyz order and in mip0 coordinates.
-    return_roots: bool (default True)
-      If true, will look up rootIDs from supervoxelIDs. Otherwise, supervoxel
-      ids will be returned.
+    pts: Nx3 iterable (list / tuple / np.array / pd.Series)
+      Points to query. Provide these in xyz order and in mip0 voxel coordinates.
+
+    --- Returns ---
+    The requested supervoxel IDs as a list of ints.
+    Order is preserved - the svid corresponding to the Nth point in the
+    argument will be the Nth value in the returned list.
+    """
+    if isinstance(pts, pd.Series):
+        pts = np.vstack(pts)
+
+    pts = np.array(pts, dtype=np.uint32)
+    if pts.ndim == 1:
+        pts = pts.reshape(-1, 3)
+    r = requests.post(service_url, json={
+        'x': list(pts[:, 0].astype(str)),
+        'y': list(pts[:, 1].astype(str)),
+        'z': list(pts[:, 2].astype(str))
+    })
+    r = r.json()['values'][0]
+    return [int(i) for i in r]
+
+
+def segids_from_pts(pts,
+                    timestamp=None,
+                    service_url=default_svid_lookup_url,
+                    **kwargs):
+    """
+    Return the segment IDs (also called root IDs) for a set of points
+    at a specified timestamp.
+
+    --- Arguments ---
+    pts: Nx3 iterable (list / tuple / np.array / pd.Series)
+      Points to query. Provide these in xyz order and in mip0 voxel coordinates.
     timestamp: None or datetime
-      Only relevant if return_roots=True.
       If None, look up the current rootID corresponding to the point location.
       Otherwise, look up the rootID for the point location at the given time in
       the past.
 
     --- Additional kwargs ---
     cv: cloudvolume.CloudVolume
-      If return_roots is True and cv is provided, lookup rootIDs using the
-      given cloudvolume instead of the default one. Not common to need this.
+      If provided, lookup rootIDs using the given cloudvolume instead of the
+      default one. Not common to need this.
 
     --- Returns ---
-    If return_roots=True, a numpy array of rootIDs as uint64
-    If return_roots=False, a list of supervoxelIDs as int
+    The requested segIDs as a numpy array of uint64 values
+    Order is preserved - the segID corresponding to the Nth point in
+    the argument will be the Nth value in the returned array.
     """
+    svids = svids_from_pts(pts, service_url=service_url)
 
-    if pts.shape != (3,) and len(pts.shape) == 1:
-        pts = np.concatenate(pts).reshape(-1, 3)
-    elif isinstance(pts, pd.Series):
-        pts = pts.values.tolist()
+    if 'cv' in kwargs:
+        cv = kwargs.get['cv']
     else:
-        pass
-
-    pts = np.array(pts, dtype=np.uint32)
-    ndims = len(pts.shape)
-    if ndims == 1:
-        pts = pts.reshape([-1, 3])
-    r = requests.post(service_url, json={
-        'x': list(pts[:, 0].astype(str)),
-        'y': list(pts[:, 1].astype(str)),
-        'z': list(pts[:, 2].astype(str))
-    })
-    try:
-        r = r.json()['values'][0]
-        sv_ids = [int(i) for i in r]
-
-        if return_roots:
-            if 'cv' in kwargs:
-                return kwargs['cv'].get_roots(sv_ids, timestamp=timestamp)
-            else:
-                return auth.get_cloudvolume().get_roots(sv_ids, timestamp=timestamp)
-        else:
-            return sv_ids
-    except:
-        return None
+        cv = auth.get_cloudvolume()
+    return cv.get_roots(svids, timestamp=timestamp)
 
 
 # TODO implement the raise kwargs
-# TODO is this the right module for this function?
-def get_somas(segid,
-              table='default_soma_table',
-              get_columns=['id', 'volume', 'pt_root_id', 'pt_position'],
-              timestamp=None,
-              raise_not_found=True,
-              raise_multiple=True):
+def somas_from_segids(segid,
+                      table='default_soma_table',
+                      get_columns=['id', 'volume', 'pt_root_id', 'pt_position'],
+                      timestamp=None,
+                      raise_not_found=True,
+                      raise_multiple=True):
     """
     Given a segID (ID of an object from the full dataset segmentation),
     return information about its soma listed in the soma table.
@@ -251,7 +255,7 @@ class GSPointLoader(object):
         return points, data
 
 
-def segIDs_from_pts_cv(pts,
+def segids_from_pts_cv(pts,
                        n=100000,
                        max_tries=3,
                        return_roots=True,
@@ -261,7 +265,7 @@ def segIDs_from_pts_cv(pts,
     """
     Query cloudvolume object for root or supervoxel IDs.
 
-    This method is slower than segIDs_from_pts_service, but does not depend on
+    This method is slower than segIDs_from_pts, but does not depend on
     the supervoxel ID lookup service created by Eric Perlman and hosted on
     services.itanna.io. As such, this function might be useful if that service
     is not available for some reason.

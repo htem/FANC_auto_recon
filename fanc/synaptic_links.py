@@ -11,8 +11,6 @@ import sqlite3
 import numpy as np
 import pandas as pd
 
-from . import auth, rootID_lookup
-
 
 def flip_xyz_zyx_convention(array, inplace=True):
     """

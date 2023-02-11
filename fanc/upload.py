@@ -9,7 +9,7 @@ from cloudvolume.lib import green, red
 from requests.exceptions import HTTPError
 from textwrap import dedent
 from .statebuilder import render_scene
-from .rootID_lookup import segIDs_from_pts_service
+from .lookup import segids_from_pts
 
 CAVE_DATASETS = {'production': 'fanc_production_mar2021',
                  'sandbox': 'fanc_sandbox'}
@@ -215,7 +215,7 @@ class SomaTableOrganizer(object):
         stage.add_dataframe(df) # check whether the df has necessary columns
         stage.clear_annotations()
 
-        svIDs = segIDs_from_pts_service(df.pt_position, return_roots=False) 
+        svIDs = svids_from_pts(df.pt_position)
         rIDs = root_id_int_list_check(self._client.chunkedgraph.get_roots(svIDs))
 
         overlap = np.isin(rIDs, root_id_int_list_check(self._soma_table.pt_root_id.values))

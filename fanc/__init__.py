@@ -3,7 +3,7 @@
 from . import (
     catmaid,
     connectivity,
-    rootID_lookup,
+    lookup,
     skeletonize,
     statebuilder,
     statemanager,
