@@ -67,3 +67,8 @@ You can verify that your API key has been saved successfully by running:
 import fanc
 fanc.catmaid.connect()
 ```
+
+## Documentation
+- First go through [`fanc_python_package_examples.ipynb`](https://github.com/htem/FANC_auto_recon/blob/main/example_notebooks/fanc_python_package_examples.ipynb)
+- Then check out other notebooks in [`example_notebooks/`](https://github.com/htem/FANC_auto_recon/tree/main/example_notebooks)
+- Finally you can [browse the code](https://github.com/htem/FANC_auto_recon/tree/main/fanc), check out modules that have names that interest you, and read the docstrings.
