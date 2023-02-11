@@ -10,17 +10,22 @@ Have any questions? Please [open an issue](https://github.com/htem/FANC_auto_rec
 
 As is always the case in python, consider making a virtual environment (using your preference of virtualenv/virtualenvwrapper or conda) before installing.
 
-### Installation option 1: pip install directly from GitHub
+### Installation option 1: pip install from PyPI
+
+    pip install fanc-fly
+
+### Installation option 2: pip install directly from GitHub
+The code on GitHub will sometimes be slightly more up to date than the version on PyPI
 
     pip install git+https://github.com/htem/FANC_auto_recon.git
 
-### Installation option 2: Clone then install
+### Installation option 3: Clone then install
+This is the best option if you want to make changes yourself to the code
 
     cd ~/repos  # or wherever you keep your repos
     git clone https://github.com/htem/FANC_auto_recon.git
     cd FANC_auto_recon
     pip install -e .
-
 
 ### Provide credentials
 

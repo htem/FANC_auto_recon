@@ -8,7 +8,7 @@ with open('requirements.txt', 'r') as f:
     requirements = [l for l in requirements if not l.startswith('#')]
 
 setuptools.setup(
-    name='fanc',
+    name='fanc-fly',
     version='2.0.0',
     author='Jasper Phelps',
     author_email='jasper.s.phelps@gmail.com',
