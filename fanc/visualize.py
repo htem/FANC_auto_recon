@@ -16,19 +16,18 @@ from . import auth, connectivity
 from .transforms import template_alignment
 
 
-def plot_neurons(segment_ids, cv=None,
+def plot_neurons(segment_ids,
                  template_space='JRC2018_VNC_FEMALE',
                  cmap='Blues', opacity=1,
                  plot_type='mesh',
                  resolution=[4.3,4.3,45],
                  camera=None,
                  zoom_factor=300,
-                 client=None,
                  plot_synapses=False,
                  synapse_type='all',
                  synapse_threshold=3,
                  plot_soma=False,
-                 plot_outlines=False,
+                 show_outlines=False,
                  scale_bar_origin_3D=None,
                  scale_bar_origin_2D=None,
                  view='X',
@@ -36,7 +35,8 @@ def plot_neurons(segment_ids, cv=None,
                  save=False,
                  save_path=None,
                  width=1080,
-                 height=720):
+                 height=720,
+                 **kwargs):
     """
     Visualize neurons in 3d meshes, optionally saving high-resolution png images.
 
@@ -44,17 +44,22 @@ def plot_neurons(segment_ids, cv=None,
     ----------
     segment_ids :  list
         list of segment IDs of neurons
-    cv : cloudvolume.frontends.precomputed.CloudVolumePrecomputed
-        cloud-volume that segment IDs exist
+    template_space :  str
+        Name of template space to warp neurons into. Must be one of:
+          'JRC2018_VNC_FEMALE'
+          'JRC2018_VNC_UNISEX'
+          'JRC2018_VNC_MALE'
+          'FANC'
+          None
+        Both 'FANC' and None result in neurons being displayed in the
+        original FANC-space (i.e. no warping is applied).
     camera :  int
         json state id of neuroglancer scene. required to plot scale bar
-    client : caveclient.CAVEclient
-        CAVEclient to retrieve tables for visualizing synapses and soma
     plot_synapses :  bool
         visualize synapses
     plot_soma : bool
         visualize soma
-    plot_outlines :  bool
+    show_outlines :  bool
         visualize volume outlines
     scale_bar_origin_3D : list
         specify an origin of a 3D scale bar that users want to place in xyz
@@ -68,6 +73,11 @@ def plot_neurons(segment_ids, cv=None,
         write png image to disk, if false will open interactive window (default False)
     save_path : str
         filepath to save png image
+
+    Additional kwargs
+    -----------------
+    client : caveclient.CAVEclient
+        CAVEclient to use instead of the default one
 
     Returns
     -------
@@ -83,10 +93,9 @@ def plot_neurons(segment_ids, cv=None,
 
     colormap = cm.get_cmap(cmap, len(segment_ids))
 
-    if cv is None:
-        cv = auth.get_cloudvolume()
-
-    if client is None:
+    if 'client' in kwargs:
+        client = kwargs['client']
+    else:
         client = auth.get_caveclient()
 
     if isinstance(camera, int):
@@ -101,9 +110,9 @@ def plot_neurons(segment_ids, cv=None,
     for j in enumerate(segment_ids):
         # Get mesh
         mp_mesh = meshmanager.mesh(seg_id=j[1])
-        if not template_space.startswith('FANC'):
-            mp_mesh = template_alignment.align_mesh(mp_mesh, target_space=template_space)
-            mp_mesh.vertices *= 1000
+        if template_space and not template_space.startswith('FANC'):
+            template_alignment.align_mesh(mp_mesh, target_space=template_space, inplace=True)
+            mp_mesh.vertices *= 1000  # TODO delete this after adding nm/um to align_mesh
         neuron = meshwork.Meshwork(mp_mesh, seg_id=j[1], voxel_resolution=[4.3, 4.3, 45])
 
         if plot_soma == True:
@@ -167,16 +176,13 @@ def plot_neurons(segment_ids, cv=None,
 
     all_actors = neuron_actors + annotation_actors
 
-    if plot_outlines == True:
+    if show_outlines:
         outlines_actors = []
         base = os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
             'data', 'volume_meshes'
         )
-        if template_space == 'FANC':
-            outer_mesh_filename = os.path.normpath(os.path.join(base, 'tissueoutline_aug2019.stl'))
-            inner_mesh_filename = os.path.normpath(os.path.join(base, 'JRC2018_VNC_FEMALE_to_FANC', 'VNC_template_Aug2020.stl'))
-        elif template_space == 'JRC2018_VNC_FEMALE':
+        if template_space == 'JRC2018_VNC_FEMALE':
             outer_mesh_filename = os.path.normpath(os.path.join(base, 'JRC2018_VNC_FEMALE', 'tissueOutline_Aug2019.stl'))
             inner_mesh_filename = os.path.normpath(os.path.join(base, 'JRC2018_VNC_FEMALE', 'VNC_neuropil_Aug2020.stl'))
         elif template_space == 'JRC2018_VNC_UNISEX':
@@ -187,6 +193,9 @@ def plot_neurons(segment_ids, cv=None,
             raise NotImplementedError
             outer_mesh_filename = needtogetfile
             inner_mesh_filename = needtogetfile
+        elif template_space == 'FANC' or not template_space:
+            outer_mesh_filename = os.path.normpath(os.path.join(base, 'tissueoutline_aug2019.stl'))
+            inner_mesh_filename = os.path.normpath(os.path.join(base, 'JRC2018_VNC_FEMALE_to_FANC', 'VNC_template_Aug2020.stl'))
         mesh_outer = read_mesh_stl(outer_mesh_filename)
         mp_mesh = trimesh_io.Mesh(mesh_outer[0], mesh_outer[1])
         outlines_outer = meshwork.Meshwork(mp_mesh, seg_id=[1], voxel_resolution=[4.3, 4.3, 45])
