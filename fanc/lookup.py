@@ -76,7 +76,7 @@ def segids_from_pts(pts,
     svids = svids_from_pts(pts, service_url=service_url)
 
     if 'cv' in kwargs:
-        cv = kwargs.get['cv']
+        cv = kwargs['cv']
     else:
         cv = auth.get_cloudvolume()
     return cv.get_roots(svids, timestamp=timestamp)
