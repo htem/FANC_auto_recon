@@ -29,8 +29,9 @@ import fanc
 
 
 caveclient = CAVEclient('fanc_production_mar2021')
-info = caveclient.info.get_datastack_info()
-proofreading_table = 'proofreading_status_jasper'
+all_tables = caveclient.materialize.get_tables()
+print(all_tables)
+default_proofreading_table = 'proofreading_status_jasper'
 
 if len(sys.argv) > 1 and sys.argv[1] in os.environ:
     token = os.environ[sys.argv[1]]
@@ -73,8 +74,10 @@ A segment ID followed by a `!` followed by an xyz point coordinate (typically co
 • If you want to add a large number of entries to the proofreading status table, you can contact Jasper directly instead of using this bot.
 """)
 
+#def is_proofread(segid: int, table_name: str) -> bool:
 
-def process_message(message: str) -> str:
+
+def process_message(message: str, fake=False) -> str:
     """
     Process a slack message posted by a user, and return a text response.
 
@@ -96,24 +99,51 @@ def process_message(message: str) -> str:
     if len(tokens) == 0:
         return ("NO ACTION: Your message is empty or I couldn't understand"
                 " it. Make a post containing the word 'help' if needed.")
-    segid = tokens[0][:-1]
+    print(f'TOKEN 0: {tokens[0]}')
+    if tokens[0] in all_tables:
+        table_name = tokens.pop(0)
+    else:
+        table_name = default_proofreading_table
+    try:
+        segid = int(tokens[0][:-1])
+    except ValueError:
+        return (f"ERROR: Could not convert the first word"
+                f" {tokens[0][:-1]} to int. Is it a segID?")
     if tokens[0].endswith('?'):
         # Query
-        return f"Querying {segid} (to be implemented)"
+        now = datetime.utcnow()
+        try:
+            valid_id_matches = caveclient.materialize.live_live_query(
+                    table_name,
+                    now,
+                    filter_equal_dict={table_name: {'valid_id': segid}}
+            )
+        except Exception as e:
+            return f"`{type(e)}`\n```{e}```"
+        if len(valid_id_matches) > 0:
+            return "Found as a valid_id"
+        try:
+            root_id_matches = caveclient.materialize.live_live_query(
+                    table_name,
+                    now,
+                    filter_equal_dict={table_name: {'pt_root_id': segid}}
+            )
+        except Exception as e:
+            return f"`{type(e)}`\n```{e}```"
+        if len(root_id_matches) > 0:
+            return "Found as a root_id but not a valid_id"
+
+        return "Not found"
     elif tokens[0].endswith('!'):
         # Upload
-        try:
-            segid = int(tokens[0][:-1])
-        except ValueError:
-            return (f"ERROR: Could not convert the first word"
-                    f" {tokens[0][:-1]} to int. Is it a segID?")
         if not caveclient.chunkedgraph.is_latest_roots(segid):
             return (f"ERROR: {segid} is not a current segment ID."
                     " Was the segment edited recently? Or did you"
                     " copy-paste the wrong thing?")
-        if have_recently_uploaded(segid):
-            return (f"ERROR: I recently uploaded segment ID {segid}."
-                    " I'm not going to upload it again.")
+        if have_recently_uploaded(segid, table_name):
+            return (f"ERROR: I recently uploaded segment ID {segid}"
+                    f" to `{table_name}`. I'm not going to upload"
+                    " it again.")
         # TODO TODO TODO add a check to see if the segid is already in the
         # proofreading table, using live_live_query
 
@@ -161,7 +191,7 @@ def process_message(message: str) -> str:
         else:
             point = list(np.hstack(soma.pt_position))
 
-        stage = caveclient.annotation.stage_annotations(proofreading_table)
+        stage = caveclient.annotation.stage_annotations(table_name)
         try:
             stage.add(
                 proofread=True,
@@ -174,9 +204,12 @@ def process_message(message: str) -> str:
         except Exception as e:
             return (f"ERROR: Staging failed with exception {type(e)} {e}")
 
+        if fake:
+            return (f"Upload FAKE for segment ID {segid} and point"
+                    f" coordinate {point}.")
         try:
             response = caveclient.annotation.upload_staged_annotations(stage)
-            record_upload(segid)
+            record_upload(segid, table_name)
             return (f"Upload succeeded for segment ID {segid} and point"
                     f" coordinate {point}.\n\nServer response: {response}")
         except Exception as e:
@@ -208,15 +241,14 @@ def fetch_messages_and_post_replies(verbosity=1, fake=False):
             print('Processing message with timestamp', message['ts'])
 
         if response is None:
-            response = process_message(message['text'].strip('<@U04PUHVDSLX>'))
+            response = process_message(message['text'].strip('<@U04PUHVDSLX>'),
+                                       fake=fake)
 
 
         if verbosity >= 2:
             print('Slack user post:', message)
             print('Slack bot post:', response)
-        if fake:
-            print('fake=True, not posting message')
-            return
+
         slackclient.chat_postMessage(
             channel=channel_id,
             thread_ts=message['ts'],
@@ -224,22 +256,30 @@ def fetch_messages_and_post_replies(verbosity=1, fake=False):
         )
 
 
-def record_upload(segid, uploads_fn='proofreading_status_bot_uploads.txt'):
+def record_upload(segid, table_name):
+    uploads_fn = f'proofreading_status_bot_uploads_{table_name}.txt'
     with open(uploads_fn, 'a') as f:
         f.write(f'{segid}\n')
 
 
-def have_recently_uploaded(segid, uploads_fn='proofreading_status_bot_uploads.txt'):
+def have_recently_uploaded(segid, table_name):
+    uploads_fn = f'proofreading_status_bot_uploads_{table_name}.txt'
     with open(uploads_fn, 'r') as f:
         recent_uploads = [int(line.strip()) for line in f.readlines()]
     return segid in recent_uploads
 
 
 if __name__ == '__main__':
+    if len(sys.argv) > 1 and sys.argv[1] == 'fake':
+        fake = True
+        print('Running in FAKE mode')
+    else:
+        fake = False
+
     while True:
         print(datetime.now().strftime('%A %Y-%h-%d %H:%M:%S'))
         try:
-            fetch_messages_and_post_replies(verbosity=2, fake=False)
+            fetch_messages_and_post_replies(verbosity=2, fake=True)
         except Exception as e:
             print('Encountered exception: {} {}'.format(type(e), e))
             logfn = os.path.join('exceptions_proofreading_status_bot', datetime.now().strftime('%Y-%h-%d_%H-%M-%S') + '.txt')
