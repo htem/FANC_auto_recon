@@ -233,16 +233,17 @@ def render_scene(neurons=None,
         color_column = 'color'
 
     # Process the rest of kwargs
+    misc_settings = dict()
     if 'img_source' in kwargs:
         ngl_info.im['path'] = kwargs['img_source']
     if 'seg_source' in kwargs:
         ngl_info.seg['path'] = kwargs['seg_source']
     if 'state_server' in kwargs:
-        ngl_info.other_options['jsonStateServer'] = kwargs['state_server']
+        misc_settings['jsonStateServer'] = kwargs['state_server']
     if 'bg_color' in kwargs:
         if kwargs['bg_color'].lower() in ['white', 'w']:
             kwargs['bg_color'] == '#ffffff'
-        ngl_info.other_options['perspectiveViewBackgroundColor'] = kwargs['bg_color']
+        misc_settings['perspectiveViewBackgroundColor'] = kwargs['bg_color']
 
     # Make layers
     img_config = ImageLayerConfig(
@@ -335,6 +336,7 @@ def render_scene(neurons=None,
     if outlines_layer:
         state['layers'].insert(2, ngl_info.outlines_layer)
     ngl_info.final_json_tweaks(state)
+    state.update(misc_settings)
 
     if return_as == 'json':
         return state
