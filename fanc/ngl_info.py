@@ -53,7 +53,7 @@ def final_json_tweaks(state):
         if layer['name'] == seg['name']:
             layer['selectedAlpha'] = 0.4
         if layer['name'] == nuclei['name']:
-            layer['visible'] = False
+            #layer['visible'] = False
             layer['ignoreSegmentInteractions'] = True
             layer['selectedAlpha'] = 0.8
         if layer['name'] == syn['name']:
