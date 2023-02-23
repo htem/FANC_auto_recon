@@ -1,6 +1,11 @@
 # FANC_auto_recon
 
-FANC (pronounced "fancy") is the Female Adult Nerve Cord, a GridTape-TEM dataset of an adult _Drosophila melanogaster_'s ventral nerve cord. The dataset was first published in [Phelps, Hildebrand, Graham et al. 2021 _Cell_](https://www.lee.hms.harvard.edu/phelps-hildebrand-graham-et-al-2021), after which we applied automated methods for reconstructing neurons, synapses, and nuclei to accelerate reconstruction of the ventral nerve cord connectome. This repository contains a python package for interacting with the connectome (see the folder [`fanc`](fanc)) as well as other supporting files. 
+FANC (pronounced "fancy") is the Female Adult Nerve Cord, a GridTape-TEM dataset of an adult _Drosophila melanogaster_'s ventral nerve cord. The dataset was first published in [Phelps, Hildebrand, Graham et al. 2021 _Cell_](https://www.lee.hms.harvard.edu/phelps-hildebrand-graham-et-al-2021), after which we applied automated methods for reconstructing neurons, synapses, and nuclei to accelerate reconstruction of the ventral nerve cord connectome, as described in [Azevedo, Lesser, Mark, Phelps et al. 2022 _bioRxiv_](https://www.biorxiv.org/content/10.1101/2022.12.15.520299).
+
+This repository contains:
+- A python package for interacting with the connectome data (see the folder [`fanc/`](fanc), and installation instructions below)
+- Other files and information related to the automated reconstructions (e.g. [`nuclei_prediction/`](nuclei_prediction), [`synapse_prediction/`](synapse_prediction))
+- Information for the collaborative proofreading community (see the [wiki](https://github.com/htem/FANC_auto_recon/wiki)). 
 
 Have any questions? Please [open an issue](https://github.com/htem/FANC_auto_recon/issues/new) or contact [Jasper Phelps (jasper.s.phelps@gmail.com)](https://github.com/jasper-tms).
 
