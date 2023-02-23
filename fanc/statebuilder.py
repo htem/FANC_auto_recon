@@ -107,6 +107,8 @@ def render_scene(neurons=None,
     """
     Render a neuroglancer scene with an arbitrary number of annotation layers
 
+    See some examples at https://github.com/htem/FANC_auto_recon/blob/main/example_notebooks/fanc_python_package_examples.ipynb
+
     ---Arguments---
     neurons:
         Some specification of which neurons you want to be displayed in the

@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+"""
+Upload data to CAVE tables
+
+See some examples at https://github.com/htem/FANC_auto_recon/blob/main/example_notebooks/update_cave_tables.ipynb
+"""
 
 import numpy as np
 import pandas as pd
