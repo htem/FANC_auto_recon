@@ -279,7 +279,7 @@ if __name__ == '__main__':
     while True:
         print(datetime.now().strftime('%A %Y-%h-%d %H:%M:%S'))
         try:
-            fetch_messages_and_post_replies(verbosity=2, fake=True)
+            fetch_messages_and_post_replies(verbosity=2, fake=fake)
         except Exception as e:
             print('Encountered exception: {} {}'.format(type(e), e))
             logfn = os.path.join('exceptions_proofreading_status_bot', datetime.now().strftime('%Y-%h-%d_%H-%M-%S') + '.txt')
