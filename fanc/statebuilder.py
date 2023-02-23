@@ -225,8 +225,12 @@ def render_scene(neurons=None,
         raise TypeError('Could not determine how to handle neurons argument')
 
     # Add a color column
-    cmap = cm.get_cmap('Set1', len(neurons))
-    neurons['color'] = [colors.rgb2hex(cmap(i)) for i in range(cmap.N)]
+    if kwargs.get('color', False):
+        cmap = cm.get_cmap('Set1', len(neurons))
+        neurons['color'] = [colors.rgb2hex(cmap(i)) for i in range(cmap.N)]
+    color_column = None
+    if 'color' in neurons.columns:
+        color_column = 'color'
 
     # Process the rest of kwargs
     if 'img_source' in kwargs:
@@ -249,7 +253,7 @@ def render_scene(neurons=None,
         name=ngl_info.seg['name'],
         source=ngl_info.seg['path'],
         selected_ids_column='pt_root_id',
-        color_column='color',
+        color_column=color_column,
         fixed_ids=None,
         active=True
     )
