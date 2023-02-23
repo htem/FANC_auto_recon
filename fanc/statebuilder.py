@@ -258,6 +258,10 @@ def render_scene(neurons=None,
         active=True
     )
 
+    StateBuilderDefaultSettings = lambda layers : StateBuilder(layers=layers,
+                                                               resolution=ngl_info.voxel_size,
+                                                               view_kws=ngl_info.view_options)
+
     # Additional layer(s)
     additional_states = []
     additional_data = []
@@ -296,7 +300,7 @@ def render_scene(neurons=None,
 
             anno_layer = AnnotationLayerConfig(name=i['name'], mapping_rules=anno_mapper)
             additional_states.append(
-                StateBuilder(layers=[anno_layer], resolution=ngl_info.voxel_size)
+                StateBuilderDefaultSettings([anno_layer])
             )
             additional_data.append(i['data'])
     if nuclei_layer:
@@ -314,21 +318,16 @@ def render_scene(neurons=None,
             additional_data.append(nuclei_df)
         else:
             additional_data.append(None)
-        additional_states.append(StateBuilder(layers=[nuclei_config],
-                                              resolution=ngl_info.voxel_size)
-        )
+        additional_states.append(StateBuilderDefaultSettings([nuclei_config]))
     if synapses_layer:
         synapses_config = ImageLayerConfig(name=ngl_info.syn['name'],
                                            source=ngl_info.syn['path'])
-        additional_states.append(StateBuilder(layers=[synapses_config],
-                                              resolution=ngl_info.voxel_size))
+        additional_states.append(StateBuilder([synapses_config]))
         additional_data.append(None)
 
 
     # Build a state with the requested layers
-    standard_state = StateBuilder(layers=[img_config, seg_config],
-                                  resolution=ngl_info.voxel_size,
-                                  view_kws=ngl_info.view_options)
+    standard_state = StateBuilderDefaultSettings([img_config, seg_config])
     chained_sb = ChainedStateBuilder([standard_state] + additional_states)
 
     # Turn state into a dict, then add some last settings manually
