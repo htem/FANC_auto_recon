@@ -10,6 +10,7 @@ This app requires the following permissions:
   - channels:history
   - channels:read
   - chat:write
+  - users:read
 Save your app's auth token to your shell environment by adding a line
 like this to your shell startup file (e.g. ~/.bashrc, ~/.zshrc):
     export SLACK_BOT_TOKEN=xoxb-123456789012-...
@@ -17,9 +18,11 @@ like this to your shell startup file (e.g. ~/.bashrc, ~/.zshrc):
 
 import os
 import sys
+import json
 import time
 from datetime import datetime
 
+import requests
 import slack_sdk
 import numpy as np
 import pandas as pd
@@ -30,7 +33,6 @@ import fanc
 
 caveclient = CAVEclient('fanc_production_mar2021')
 all_tables = caveclient.materialize.get_tables()
-print(all_tables)
 default_proofreading_table = 'proofreading_status_jasper'
 
 if len(sys.argv) > 1 and sys.argv[1] in os.environ:
@@ -39,14 +41,17 @@ else:
     token = os.environ['SLACK_TOKEN_FANC_PROOFREADINGSTATUSBOT']
 slackclient = slack_sdk.WebClient(token=token)
 
+with open('slack_user_permissions.json', 'r') as f:
+    permissions = json.load(f)
+
 # Build some dicts that make it easy to look up IDs for users and channels
-#all_users = slackclient.users_list()['members']
-#userid_to_username = {
-#    user['id']: user['profile']['display_name'].lower()
-#    if user['profile']['display_name'] else user['profile']['real_name'].lower()
-#    for user in all_users
-#}
-#username_to_userid = {v: k for k, v in userid_to_username.items()}
+all_users = slackclient.users_list()['members']
+userid_to_username = {
+    user['id']: user['profile']['display_name'].lower()
+    if user['profile']['display_name'] else user['profile']['real_name'].lower()
+    for user in all_users
+}
+username_to_userid = {v: k for k, v in userid_to_username.items()}
 all_conversations = slackclient.conversations_list()['channels']
 channelname_to_channelid = {x['name']: x['id'] for x in all_conversations}
 channelid_to_channelname = {x['id']: x['name'] for x in all_conversations}
@@ -74,10 +79,56 @@ A segment ID followed by a `!` followed by an xyz point coordinate (typically co
 • If you want to add a large number of entries to the proofreading status table, you can contact Jasper directly instead of using this bot.
 """)
 
-#def is_proofread(segid: int, table_name: str) -> bool:
+def is_proofread(segid: int, table_name: str, return_previous_ids=False):
+    """
+    Determine whether the a segment has been marked as proofread
+
+    Returns
+    -------
+    int (if return_previous_ids is False)
+     0: Not marked as proofread
+     1: The given segment ID has been marked as proofread
+     2: A previous version of this segment was marked as proofread,
+        but this exact segment ID has not.
+    int or list (if return_previous_ids is True)
+     Same as above, but instead of returning the value 2 in the final case, a
+     list of the previous segment IDs that were marked as proofread are
+     returned.
+    """
+    now = datetime.utcnow()
+    try:
+        valid_id_matches = caveclient.materialize.live_live_query(
+            table_name,
+            now,
+            filter_equal_dict={table_name: {'valid_id': segid}},
+            #allow_missing_lookups=True
+        )
+        if len(valid_id_matches) > 0:
+            return 1
+    except requests.exceptions.HTTPError as e:
+        if 'returned no results' not in e.args[0]:
+            raise e
+
+    try:
+        root_id_matches = caveclient.materialize.live_live_query(
+            table_name,
+            now,
+            filter_equal_dict={table_name: {'pt_root_id': segid}},
+            #allow_missing_lookups=True
+        )
+        if len(root_id_matches) > 0:
+            if return_previous_ids:
+                return list(root_id_matches.valid_id.values)
+            else:
+                return 2
+    except requests.exceptions.HTTPError as e:
+        if 'returned no results' not in e.args[0]:
+            raise e
+
+    return 0
 
 
-def process_message(message: str, fake=False) -> str:
+def process_message(message: str, user: str, fake=False) -> str:
     """
     Process a slack message posted by a user, and return a text response.
 
@@ -109,54 +160,63 @@ def process_message(message: str, fake=False) -> str:
     except ValueError:
         return (f"ERROR: Could not convert the first word"
                 f" {tokens[0][:-1]} to int. Is it a segID?")
-    if tokens[0].endswith('?'):
-        # Query
-        now = datetime.utcnow()
-        try:
-            valid_id_matches = caveclient.materialize.live_live_query(
-                    table_name,
-                    now,
-                    filter_equal_dict={table_name: {'valid_id': segid}}
-            )
-        except Exception as e:
-            return f"`{type(e)}`\n```{e}```"
-        if len(valid_id_matches) > 0:
-            return "Found as a valid_id"
-        try:
-            root_id_matches = caveclient.materialize.live_live_query(
-                    table_name,
-                    now,
-                    filter_equal_dict={table_name: {'pt_root_id': segid}}
-            )
-        except Exception as e:
-            return f"`{type(e)}`\n```{e}```"
-        if len(root_id_matches) > 0:
-            return "Found as a root_id but not a valid_id"
 
-        return "Not found"
-    elif tokens[0].endswith('!'):
-        # Upload
+    if tokens[0].endswith('?'):  # Query
+        try:
+            proofreading_status = is_proofread(segid, table_name,
+                                               return_previous_ids=True)
+        except Exception as e:
+            return f"`{type(e)}`\n```{e}```"
+
+        if proofreading_status == 0: 
+            return f"Segment {segid} is not marked as proofread in `{table_name}`"
+        elif proofreading_status == 1:
+            return (f"Segment {segid} has been marked as proofread in"
+                    f" `{table_name}`.")
+        elif isinstance(proofreading_status, list) or proofreading_status == 2:
+            return (f"A previous version(s) of segment {segid} was found in"
+                    f" `{table_name}`: {proofreading_status}.\nThis means it"
+                    " was at some point marked as proofread but then edited"
+                    " afterward, and the new version has not yet been marked"
+                    " as proofread.")
+        else:
+            return ValueError('Expected proofreading_status to be 0, 1, or 2')
+
+    elif tokens[0].endswith('!'):  # Upload
+        # Permissions
+        table_permissions = permissions.get(table_name, None)
+        if table_permissions is None:
+            return f"ERROR: `{table_name}` not listed in permissions file."
+        cave_user_id = table_permissions.get(user, None)
+        if cave_user_id is None:
+            return ("You have not yet been given permissions to post to"
+                    f" `{table_name}`. Please send Jasper a DM on slack"
+                    " to request permissions.")
+
+        # Sanity checks
         if not caveclient.chunkedgraph.is_latest_roots(segid):
             return (f"ERROR: {segid} is not a current segment ID."
                     " Was the segment edited recently? Or did you"
                     " copy-paste the wrong thing?")
         if have_recently_uploaded(segid, table_name):
-            return (f"ERROR: I recently uploaded segment ID {segid}"
+            return (f"ERROR: I recently uploaded segment {segid}"
                     f" to `{table_name}`. I'm not going to upload"
                     " it again.")
-        # TODO TODO TODO add a check to see if the segid is already in the
-        # proofreading table, using live_live_query
+        if is_proofread(segid, table_name) == 1:
+            return (f"ERROR: {segid} is already marked as proofread in"
+                    f" table `{table_name}`. Taking no action.")
 
+        # Find soma
         soma = fanc.lookup.somas_from_segids(segid, timestamp='now')
         if len(soma) > 1:
-            return (f"ERROR: Segment ID {segid} has multiple entires"
+            return (f"ERROR: Segment {segid} has multiple entires"
                     " in the soma table, with the coordinates listed"
                     " below. Shame on you for marking a cell as"
                     " proofread when it still has two somas! (Or"
                     " there's a bug in my code.)\n\n"
                     f"{np.vstack(soma.pt_position)}")
         elif len(soma) == 0 and len(tokens) == 1:
-            return ("ERROR: Segment ID {segid} has no entry in the soma"
+            return ("ERROR: Segment {segid} has no entry in the soma"
                     " table.\n\nIf you clearly see a soma attached to"
                     " this object, probably the automated soma detection"
                     " algorithm missed this soma. If so, tag Sumiya"
@@ -178,12 +238,12 @@ def process_message(message: str, fake=False) -> str:
                         f"\n\n`{[i for i in tokens[1:]]}`")
             segid_from_point = fanc.lookup.segids_from_pts(pt)
             if not segid_from_point == segid:
-                return (f"ERROR: The provided point {point} is inside"
-                        f" segment ID {segid_from_point} which doesn't"
-                        f" match the segid you provided {segid}.")
+                return (f"ERROR: The provided point `{point}` is inside"
+                        f" segment {segid_from_point} which doesn't"
+                        f" match the segment ID you provided, {segid}.")
 
         elif len(soma) == 1 and len(tokens) > 1:
-            return (f"ERROR: Segment ID {segid} has an entry in the"
+            return (f"ERROR: Segment {segid} has an entry in the"
                     f" soma table at {list(np.hstack(soma.pt_position))}"
                     " but you provided additional information."
                     " Additional information is unexpected when the"
@@ -196,29 +256,29 @@ def process_message(message: str, fake=False) -> str:
             stage.add(
                 proofread=True,
                 pt_position=point,
-                user_id=2660,  # Hardcoded to be Jasper until I figure out a way to
-                               # determine the CAVE user ID automatically from the
-                               # Slack user name
+                user_id=cave_user_id,
                 valid_id=segid
             )
         except Exception as e:
-            return (f"ERROR: Staging failed with exception {type(e)} {e}")
+            return f"ERROR: Staging failed with error\n`{type(e)}`\n```{e}```"
 
         if fake:
-            return (f"Upload FAKE for segment ID {segid} and point"
-                    f" coordinate {point}.")
+            return (f"Upload FAKE for segment {segid} and point"
+                    f" coordinate `{point}`.")
         try:
             response = caveclient.annotation.upload_staged_annotations(stage)
             record_upload(segid, table_name)
-            return (f"Upload succeeded for segment ID {segid} and point"
-                    f" coordinate {point}.\n\nServer response: {response}")
+            return (f"Upload to `{table_name}` succeeded:\n"
+                    f"- Segment {segid}\n"
+                    f"- Point coordinate `{point}`\n"
+                    f"- Annotation ID: {response}")
         except Exception as e:
-            return (f"ERROR: Upload failed with exception {type(e)} {e}")
+            return f"ERROR: Upload failed with error\n`{type(e)}`\n```{e}```"
 
     else:
-        return ("NO ACTION: The first word in your message isn't a segment"
-                " ID terminated by a ! or a ?. Make a post containing the word"
-                " 'help' if needed.")
+        return ("ERROR: The first word in your message isn't a segment"
+                " ID terminated by a ! or a ?. Make a post containing"
+                " the word 'help' if you need instructions.")
     
 
 def fetch_messages_and_post_replies(verbosity=1, fake=False):
@@ -237,17 +297,19 @@ def fetch_messages_and_post_replies(verbosity=1, fake=False):
             # Skip if this message doesn't start with @proofreading-status-bot
             continue
 
-        if verbosity >= 1:
+        if verbosity >= 2:
+            print('Processing message:', message)
+        elif verbosity >= 1:
             print('Processing message with timestamp', message['ts'])
 
         if response is None:
             response = process_message(message['text'].strip('<@U04PUHVDSLX>'),
+                                       message['user'],
                                        fake=fake)
 
 
-        if verbosity >= 2:
-            print('Slack user post:', message)
-            print('Slack bot post:', response)
+        if verbosity >= 1:
+            print('Posting response:', response)
 
         slackclient.chat_postMessage(
             channel=channel_id,
