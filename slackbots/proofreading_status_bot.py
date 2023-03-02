@@ -150,7 +150,10 @@ def process_message(message: str, user: str, fake=False) -> str:
     if len(tokens) == 0:
         return ("NO ACTION: Your message is empty or I couldn't understand"
                 " it. Make a post containing the word 'help' if needed.")
-    print(f'TOKEN 0: {tokens[0]}')
+    if tokens[0] not in all_tables and tokens[0][-1] not in ['?', '!']:
+        return (f"ERROR: Could not understand first word `{tokens[0]}`. Make "
+                "a post containing the word 'help' if you need instructions.")
+
     if tokens[0] in all_tables:
         table_name = tokens.pop(0)
     else:
