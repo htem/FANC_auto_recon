@@ -33,7 +33,7 @@ import fanc
 
 caveclient = CAVEclient('fanc_production_mar2021')
 all_tables = caveclient.materialize.get_tables()
-default_proofreading_table = 'proofreading_status_jasper'
+default_proofreading_table = 'proofreading_status_table_v0'
 
 if len(sys.argv) > 1 and sys.argv[1] in os.environ:
     token = os.environ[sys.argv[1]]
