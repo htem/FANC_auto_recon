@@ -79,68 +79,6 @@ A segment ID followed by a `!` followed by an xyz point coordinate (typically co
 """)
 
 
-def is_proofread(segid: int,
-                 table_name: str = default_proofreading_table,
-                 return_previous_ids: bool = False) -> Union[int, list]:
-    """
-    Determine whether a segment has been marked as proofread.
-
-    Arguments
-    ---------
-    segid : int
-      The ID of the segment to query
-    table_name : str
-      The name of the CAVE proofreading table to quewry
-    return_previous_ids : bool
-      In case the queried segment is not marked as proofread but a
-      previous version of it is, whether to return the IDs of the
-      previous versions as a list or not.
-
-    Returns
-    -------
-    int (if return_previous_ids is False)
-      0: Not marked as proofread
-      1: The given segment ID has been marked as proofread
-      2: A previous version of this segment was marked as proofread,
-         but this exact segment ID has not.
-    int or list (if return_previous_ids is True)
-      Same as above, but instead of returning the int 2 in the final
-      case, a list of the previous segment IDs that were marked as
-      proofread is returned.
-    """
-    now = datetime.utcnow()
-    try:
-        valid_id_matches = caveclient.materialize.live_live_query(
-            table_name,
-            now,
-            filter_in_dict={table_name: {'valid_id': [segid]}},
-            #allow_missing_lookups=True
-        )
-        if len(valid_id_matches) > 0:
-            return 1
-    except requests.exceptions.HTTPError as e:
-        if 'returned no results' not in e.args[0]:
-            raise e
-
-    try:
-        root_id_matches = caveclient.materialize.live_live_query(
-            table_name,
-            now,
-            filter_in_dict={table_name: {'pt_root_id': [segid]}},
-            #allow_missing_lookups=True
-        )
-        if len(root_id_matches) > 0:
-            if return_previous_ids:
-                return list(root_id_matches.valid_id.values)
-            else:
-                return 2
-    except requests.exceptions.HTTPError as e:
-        if 'returned no results' not in e.args[0]:
-            raise e
-
-    return 0
-
-
 def process_message(message: str, user: str, fake=False) -> str:
     """
     Process a slack message posted by a user, and return a text response.
@@ -186,8 +124,8 @@ def process_message(message: str, user: str, fake=False) -> str:
 
     if tokens[0].endswith('?'):  # Query
         try:
-            proofreading_status = is_proofread(segid, table_name,
-                                               return_previous_ids=True)
+            proofreading_status = fanc.lookup.is_proofread(segid, table_name,
+                                                           return_previous_ids=True)
         except Exception as e:
             return f"`{type(e)}`\n```{e}```"
 
@@ -225,7 +163,7 @@ def process_message(message: str, user: str, fake=False) -> str:
             return (f"ERROR: I recently uploaded segment {segid}"
                     f" to `{table_name}`. I'm not going to upload"
                     " it again.")
-        if is_proofread(segid, table_name) == 1:
+        if fanc.lookup.is_proofread(segid, table_name) == 1:
             return (f"ERROR: {segid} is already marked as proofread in"
                     f" table `{table_name}`. Taking no action.")
 
