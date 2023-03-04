@@ -21,6 +21,7 @@ import sys
 import json
 import time
 from datetime import datetime
+from typing import Union
 
 import requests
 import slack_sdk
@@ -45,18 +46,16 @@ with open('slack_user_permissions.json', 'r') as f:
     permissions = json.load(f)
 
 # Build some dicts that make it easy to look up IDs for users and channels
-all_users = slackclient.users_list()['members']
-userid_to_username = {
-    user['id']: user['profile']['display_name'].lower()
-    if user['profile']['display_name'] else user['profile']['real_name'].lower()
-    for user in all_users
-}
-username_to_userid = {v: k for k, v in userid_to_username.items()}
-all_conversations = slackclient.conversations_list()['channels']
-channelname_to_channelid = {x['name']: x['id'] for x in all_conversations}
-channelid_to_channelname = {x['id']: x['name'] for x in all_conversations}
-
-channel_id = channelname_to_channelid['proofreading-status-bot']  # returns 'C04Q90KGGRH'
+#all_users = slackclient.users_list()['members']
+#userid_to_username = {
+#    user['id']: user['profile']['display_name'].lower()
+#    if user['profile']['display_name'] else user['profile']['real_name'].lower()
+#    for user in all_users
+#}
+#username_to_userid = {v: k for k, v in userid_to_username.items()}
+#all_conversations = slackclient.conversations_list()['channels']
+#channelname_to_channelid = {x['name']: x['id'] for x in all_conversations}
+#channelid_to_channelname = {x['id']: x['name'] for x in all_conversations}
 
 
 def show_help():
@@ -64,36 +63,50 @@ def show_help():
 """
 Valid messages must follow one of the following formats:
 
-`@proofreading-status-bot 648518346481082458?`
+`648518346481082458?`
 A segment ID followed by a `?` indicates that you want to know whether this segment ID is already in the proofreading table.
 
-`@proofreading-status-bot 648518346481082458!`
+`648518346481082458!`
 A segment ID followed by a `!` indicates that you want to mark this segment ID as being proofread. This message format only works if the segment ID has exactly one soma attached to it, in which case the soma's location will be used to anchor the annotation. If the segment ID is a descending neuron or sensory neuron and so it has no soma, use the format described in the section below.
 
-`@proofreading-status-bot 648518346481082458! 48848 114737 2690` or
-`@proofreading-status-bot 648518346481082458! 48848, 114737, 2690`
+`648518346481082458! 48848 114737 2690` or
+`648518346481082458! 48848, 114737, 2690`
 A segment ID followed by a `!` followed by an xyz point coordinate (typically copied from the top bar of neuroglancer) indicates that you want to mark this segment ID as being proofread, using the given xyz coordinate as a representative point inside the neuron's soma or large-diameter backbone.
 
 • These examples use the segment ID `648518346481082458` but you should substitute this with the segment ID that you're interested in.
-• If you want to confirm the bot is working properly, try sending the first example message to the channel and make sure you get a response.
+• If you want to confirm the bot is working properly, try sending the first example message to me and make sure you get a response.
 • If you want to add a large number of entries to the proofreading status table, you can contact Jasper directly instead of using this bot.
 """)
 
-def is_proofread(segid: int, table_name: str, return_previous_ids=False):
+
+def is_proofread(segid: int,
+                 table_name: str = default_proofreading_table,
+                 return_previous_ids: bool = False) -> Union[int, list]:
     """
-    Determine whether the a segment has been marked as proofread
+    Determine whether a segment has been marked as proofread.
+
+    Arguments
+    ---------
+    segid : int
+      The ID of the segment to query
+    table_name : str
+      The name of the CAVE proofreading table to quewry
+    return_previous_ids : bool
+      In case the queried segment is not marked as proofread but a
+      previous version of it is, whether to return the IDs of the
+      previous versions as a list or not.
 
     Returns
     -------
     int (if return_previous_ids is False)
-     0: Not marked as proofread
-     1: The given segment ID has been marked as proofread
-     2: A previous version of this segment was marked as proofread,
-        but this exact segment ID has not.
+      0: Not marked as proofread
+      1: The given segment ID has been marked as proofread
+      2: A previous version of this segment was marked as proofread,
+         but this exact segment ID has not.
     int or list (if return_previous_ids is True)
-     Same as above, but instead of returning the value 2 in the final case, a
-     list of the previous segment IDs that were marked as proofread are
-     returned.
+      Same as above, but instead of returning the int 2 in the final
+      case, a list of the previous segment IDs that were marked as
+      proofread is returned.
     """
     now = datetime.utcnow()
     try:
@@ -138,13 +151,18 @@ def process_message(message: str, user: str, fake=False) -> str:
     Arguments
     ---------
     message : str
-        The user's slack post, with the leading '@proofreading-status-bot' removed
+        The user's Slack message.
+    user : str
+        The user's Slack ID. This is a string that looks like 'ULH2UM0H4'
+        and is provided by Slack for each user.
 
     Returns
     -------
     response : str
         A message to tell the user the information they requested, or to
-        tell them the result of the upload operation their message triggered.
+        tell them the result of the upload operation their message
+        triggered, or to describe an error that was encountered when
+        processing their message.
     """
     tokens = message.strip(' ').split(' ')
     if len(tokens) == 0:
@@ -286,21 +304,22 @@ def process_message(message: str, user: str, fake=False) -> str:
                 " the word 'help' if you need instructions.")
     
 
-def fetch_messages_and_post_replies(verbosity=1, fake=False):
-    channel_data = slackclient.conversations_history(channel=channel_id)
+def fetch_messages_and_post_replies(channel, verbosity=1, fake=False):
+    channel_data = slackclient.conversations_history(channel=channel['id'])
     for message in channel_data['messages']:
         if message.get('subtype', None):
             # Skip if this is a system message (not something posted by a user)
             continue
-        if message.get('thread_ts', None): #message['ts']) != message['ts']:
+        if message.get('thread_ts', None):
             # Skip if this message has a reply already
+            continue
+        if not message['user'] == channel['user']:
+            # Skip if this message wasn't sent by the user,
+            # e.g. it was sent by the bot
             continue
         response = None
         if 'help' in message['text'].lower():
             response = show_help()
-        elif not message['text'].startswith('<@U04PUHVDSLX>'):
-            # Skip if this message doesn't start with @proofreading-status-bot
-            continue
 
         if verbosity >= 2:
             print('Processing message:', message)
@@ -308,28 +327,27 @@ def fetch_messages_and_post_replies(verbosity=1, fake=False):
             print('Processing message with timestamp', message['ts'])
 
         if response is None:
-            response = process_message(message['text'].strip('<@U04PUHVDSLX>'),
+            response = process_message(message['text'],
                                        message['user'],
                                        fake=fake)
-
 
         if verbosity >= 1:
             print('Posting response:', response)
 
         slackclient.chat_postMessage(
-            channel=channel_id,
+            channel=channel['id'],
             thread_ts=message['ts'],
             text=response
         )
 
 
-def record_upload(segid, table_name):
+def record_upload(segid, table_name) -> None:
     uploads_fn = f'proofreading_status_bot_uploads_{table_name}.txt'
     with open(uploads_fn, 'a') as f:
         f.write(f'{segid}\n')
 
 
-def have_recently_uploaded(segid, table_name):
+def have_recently_uploaded(segid, table_name) -> bool:
     uploads_fn = f'proofreading_status_bot_uploads_{table_name}.txt'
     with open(uploads_fn, 'r') as f:
         recent_uploads = [int(line.strip()) for line in f.readlines()]
@@ -345,12 +363,17 @@ if __name__ == '__main__':
 
     while True:
         print(datetime.now().strftime('%A %Y-%h-%d %H:%M:%S'))
-        try:
-            fetch_messages_and_post_replies(verbosity=2, fake=fake)
-        except Exception as e:
-            print('Encountered exception: {} {}'.format(type(e), e))
-            logfn = os.path.join('exceptions_proofreading_status_bot', datetime.now().strftime('%Y-%h-%d_%H-%M-%S') + '.txt')
-            with open(logfn, 'w') as f:
-                f.write('{}\n{}'.format(type(e), e))
-            time.sleep(50)
+        direct_message_channels = slackclient.conversations_list(types='im')
+        for channel in direct_message_channels['channels']:
+            if channel['user'] == 'USLACKBOT':
+                continue
+            try:
+                fetch_messages_and_post_replies(channel=channel, verbosity=2, fake=fake)
+            except Exception as e:
+                print('Encountered exception: {} {}'.format(type(e), e))
+                logfn = os.path.join('exceptions_proofreading_status_bot',
+                                     datetime.now().strftime('%Y-%h-%d_%H-%M-%S.txt'))
+                with open(logfn, 'w') as f:
+                    f.write('{}\n{}'.format(type(e), e))
+                time.sleep(50)
         time.sleep(10)
