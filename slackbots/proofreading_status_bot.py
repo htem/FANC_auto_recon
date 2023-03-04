@@ -100,7 +100,7 @@ def is_proofread(segid: int, table_name: str, return_previous_ids=False):
         valid_id_matches = caveclient.materialize.live_live_query(
             table_name,
             now,
-            filter_equal_dict={table_name: {'valid_id': segid}},
+            filter_in_dict={table_name: {'valid_id': [segid]}},
             #allow_missing_lookups=True
         )
         if len(valid_id_matches) > 0:
@@ -113,7 +113,7 @@ def is_proofread(segid: int, table_name: str, return_previous_ids=False):
         root_id_matches = caveclient.materialize.live_live_query(
             table_name,
             now,
-            filter_equal_dict={table_name: {'pt_root_id': segid}},
+            filter_in_dict={table_name: {'pt_root_id': [segid]}},
             #allow_missing_lookups=True
         )
         if len(root_id_matches) > 0:
