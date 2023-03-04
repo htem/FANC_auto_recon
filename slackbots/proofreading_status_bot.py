@@ -164,6 +164,8 @@ def process_message(message: str, user: str, fake=False) -> str:
         return (f"ERROR: Could not convert the first word"
                 f" {tokens[0][:-1]} to int. Is it a segID?")
 
+    caveclient.materialize.version = caveclient.materialize.most_recent_version()
+
     if tokens[0].endswith('?'):  # Query
         try:
             proofreading_status = is_proofread(segid, table_name,
