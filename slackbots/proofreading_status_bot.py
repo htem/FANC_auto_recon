@@ -231,7 +231,7 @@ def process_message(message: str, user: str, fake=False) -> str:
                     f" coordinate `{point}`.")
         try:
             response = caveclient.annotation.upload_staged_annotations(stage)
-            record_upload(segid, table_name)
+            record_upload(segid, cave_user_id, table_name)
             return (f"Upload to `{table_name}` succeeded:\n"
                     f"- Segment {segid}\n"
                     f"- Point coordinate `{point}`\n"
@@ -282,16 +282,16 @@ def fetch_messages_and_post_replies(channel, verbosity=1, fake=False):
         )
 
 
-def record_upload(segid, table_name) -> None:
+def record_upload(segid, user, table_name) -> None:
     uploads_fn = f'proofreading_status_bot_uploads_{table_name}.txt'
     with open(uploads_fn, 'a') as f:
-        f.write(f'{segid}\n')
+        f.write(f'{segid},{user}\n')
 
 
 def have_recently_uploaded(segid, table_name) -> bool:
     uploads_fn = f'proofreading_status_bot_uploads_{table_name}.txt'
     with open(uploads_fn, 'r') as f:
-        recent_uploads = [int(line.strip()) for line in f.readlines()]
+        recent_uploads = [int(line.strip().split(',')[0]) for line in f.readlines()]
     return segid in recent_uploads
 
 
