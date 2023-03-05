@@ -121,7 +121,7 @@ def process_message(message: str, user: str, fake=False) -> str:
         segid = int(tokens[0][:-1])
     except ValueError:
         return (f"ERROR: Could not convert the first word"
-                f" {tokens[0][:-1]} to int. Is it a segID?")
+                f" `{tokens[0][:-1]}` to int. Is it a segID?")
 
     caveclient.materialize.version = caveclient.materialize.most_recent_version()
 
@@ -180,11 +180,11 @@ def process_message(message: str, user: str, fake=False) -> str:
                     " there's a bug in my code.)\n\n"
                     f"{np.vstack(soma.pt_position)}")
         elif len(soma) == 0 and len(tokens) == 1:
-            return ("ERROR: Segment {segid} has no entry in the soma"
+            return (f"ERROR: Segment {segid} has no entry in the soma"
                     " table.\n\nIf you clearly see a soma attached to"
                     " this object, probably the automated soma detection"
-                    " algorithm missed this soma. If so, tag Sumiya"
-                    " Kuroda here and he can add it to the soma table."
+                    " algorithm missed this soma. If so, message Sumiya"
+                    " Kuroda and he can add it to the soma table."
                     "\n\nIf you're sure this is a descending neuron or"
                     " a sensory neuron, you can specify a point to"
                     "anchor the proofreading annotation. Call 'help'"
