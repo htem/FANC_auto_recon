@@ -40,11 +40,9 @@ slackclient = slack_sdk.WebClient(token=token)
 #    for user in all_users
 #}
 #username_to_userid = {v: k for k, v in userid_to_username.items()}
-all_conversations = slackclient.conversations_list()['channels']
-channelname_to_channelid = {x['name']: x['id'] for x in all_conversations}
-channelid_to_channelname = {x['id']: x['name'] for x in all_conversations}
-
-channel_id = channelname_to_channelid['connect-the-somas']  # returns 'C04EYRQCVS8'
+#all_conversations = slackclient.conversations_list()['channels']
+#channelname_to_channelid = {x['name']: x['id'] for x in all_conversations}
+#channelid_to_channelname = {x['id']: x['name'] for x in all_conversations}
 
 
 def fetch_orphaned_somas(y_range=[0, 160000], query_size=20, synapse_count_threshold=50):
@@ -117,13 +115,18 @@ def fetch_orphaned_somas(y_range=[0, 160000], query_size=20, synapse_count_thres
     return synapse_counts[synapse_counts <= synapse_count_threshold].reset_index()
 
 
-def serve_somas_to_eligible_messages(verbosity=1, fake=False):
-    channel_data = slackclient.conversations_history(channel=channel_id)
+def serve_somas_to_eligible_messages(channel, verbosity=1, fake=False):
+    channel_data = slackclient.conversations_history(channel=channel['id'])
     for message in channel_data['messages']:
-        if message.get('subtype', None): #in ['channel_join', 'channel_topic', 'channel_purpose']:
+        if message.get('subtype', None):
+            # Skip if this is a system message (not something posted by a user)
             continue
-        if message.get('thread_ts', None): #message['ts']) != message['ts']:
-            # If this message has a reply already
+        if message.get('thread_ts', None):
+            # Skip if this message has a reply already
+            continue
+        if not message['user'] == channel['user']:
+            # Skip if this message wasn't sent by the user,
+            # e.g. it was sent by the bot
             continue
         if '<@U04EW9C2MEX>' not in message['text']:
             continue
@@ -141,10 +144,8 @@ def serve_somas_to_eligible_messages(verbosity=1, fake=False):
         orphaned_somas = pd.Series(dtype='int64')
         while orphaned_somas.shape == (0,):
             orphaned_somas = fetch_orphaned_somas(**kwargs).values
-        text = "Segment IDs: {}\nSynapse counts: {}".format(
-                      list(orphaned_somas[:, 0]),
-                      list(orphaned_somas[:, 1])
-                  )
+        text = (f"Segment IDs: {list(orphaned_somas[:, 0])}\n"
+                f"Synapse counts: {list(orphaned_somas[:, 1])}")
         if verbosity >= 2:
             print('Slack user post:', message)
             print('Slack bot post:', text)
@@ -152,7 +153,7 @@ def serve_somas_to_eligible_messages(verbosity=1, fake=False):
             print('fake=True, not posting message')
             return
         slackclient.chat_postMessage(
-            channel=channel_id,
+            channel=channel['id'],
             thread_ts=message['ts'],
             text=text
         )
@@ -160,12 +161,16 @@ def serve_somas_to_eligible_messages(verbosity=1, fake=False):
 if __name__ == '__main__':
     while True:
         print(datetime.now().strftime('%A %Y-%h-%d %H:%M:%S'))
-        try:
-            serve_somas_to_eligible_messages(verbosity=2, fake=False)
-        except Exception as e:
-            print('Encountered exception: {} {}'.format(type(e), e))
-            logfn = os.path.join('exceptions_soma_bot', datetime.now().strftime('%Y-%h-%d_%H-%M-%S') + '.txt')
-            with open(logfn, 'w') as f:
-                f.write('{}\n{}'.format(type(e), e))
-            time.sleep(50)
+        direct_message_channels = slackclient.conversations_list(types='im')
+        for channel in direct_message_channels['channels']:
+            if channel['user'] == 'USLACKBOT':
+                continue
+            try:
+                serve_somas_to_eligible_messages(channel=channel, verbosity=2, fake=False)
+            except Exception as e:
+                print('Encountered exception: {} {}'.format(type(e), e))
+                logfn = os.path.join('exceptions_soma_bot', datetime.now().strftime('%Y-%h-%d_%H-%M-%S') + '.txt')
+                with open(logfn, 'w') as f:
+                    f.write('{}\n{}'.format(type(e), e))
+                time.sleep(50)
         time.sleep(10)
