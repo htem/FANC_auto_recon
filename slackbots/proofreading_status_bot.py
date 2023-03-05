@@ -10,9 +10,9 @@ Through Features > App Home > Show Tabs, select "Allow users to send
   Slash commands and messages from the messages tab" to enable DMs.
 Through Features > OAuth & Permissions > Scopes > Bot Token Scopes,
 give your bot these permissions:
-  channels:history
-  channels:read
   chat:write
+  im:read
+  im:history
 From Features > OAuth & Permissions > OAuth Tokens for Your Workspace,
   copy your app's auth token to your shell environment by adding a line
   like this to your shell startup file (e.g. ~/.bashrc, ~/.zshrc):

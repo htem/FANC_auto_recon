@@ -1,14 +1,21 @@
 #!/usr/bin/env python3
 """
-Slack API info:
-    https://api.slack.com/messaging/retrieving
-    https://api.slack.com/messaging/sending
 Install the slack python package with `pip install slack_sdk`
+Some useful Slack API info pages:
+  - https://api.slack.com/messaging/retrieving
+  - https://api.slack.com/messaging/sending
 
-View your slack apps:
-    https://api.slack.com/apps
-Save your app's auth token to your shell environment by adding a line like this
-to your shell startup file (e.g. ~/.bashrc, ~/.zshrc):
+View and configure your slack apps: https://api.slack.com/apps
+Through Features > App Home > Show Tabs, select "Allow users to send
+  Slash commands and messages from the messages tab" to enable DMs.
+Through Features > OAuth & Permissions > Scopes > Bot Token Scopes,
+give your bot these permissions:
+  chat:write
+  im:read
+  im:history
+From Features > OAuth & Permissions > OAuth Tokens for Your Workspace,
+  copy your app's auth token to your shell environment by adding a line
+  like this to your shell startup file (e.g. ~/.bashrc, ~/.zshrc):
     export SLACK_BOT_TOKEN=xoxb-123456789012-...
 """
 
