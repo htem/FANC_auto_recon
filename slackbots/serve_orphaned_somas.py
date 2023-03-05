@@ -52,6 +52,19 @@ slackclient = slack_sdk.WebClient(token=token)
 #channelid_to_channelname = {x['id']: x['name'] for x in all_conversations}
 
 
+def show_help():
+    return ("Send me a message with one of the following formats:\n\n"
+            "`@soma-bot T1` or `@soma-bot T2` or `@soma-bot T3`\n"
+            "This will request a list of orphaned somas within the"
+            " top third, middle third, or bottom third of the VNC."
+            " (These roughly correspond to T1+wing neuropil, T2+haltere"
+            " neuropil, and T3+abdominal ganglion.)\n\n"
+            "`@soma-bot`\n"
+            "This will request a list of orphaned somas using the"
+            " default settings, which currently is to find somas in"
+            " the top third or middle third of the VNC.")
+
+
 def fetch_orphaned_somas(y_range=[0, 160000], query_size=20, synapse_count_threshold=50):
     """
     Get a list of somas that have few postsynaptic sites associated with
@@ -135,11 +148,20 @@ def serve_somas_to_eligible_messages(channel, verbosity=1, fake=False):
             # Skip if this message wasn't sent by the user,
             # e.g. it was sent by the bot
             continue
+        if 'help' in message['text'].lower():
+            if verbosity >= 1:
+                print('Sending help message to user', message['user'])
+            slackclient.chat_postMessage(
+                channel=channel['id'],
+                thread_ts=message['ts'],
+                text=show_help()
+            )
+            return
         if '<@U04EW9C2MEX>' not in message['text']:
             continue
 
         if verbosity >= 1:
-            print('Serving somas to message with timestamp', message['ts'])
+            print('Serving somas to user', message['user'])
         kwargs = dict()
         if 'T1' in message['text'] and 'T2' not in message['text']:
             kwargs['y_range'] = 'T1'
