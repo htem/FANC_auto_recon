@@ -200,7 +200,7 @@ def process_message(message: str, user: str, fake=False) -> str:
                 return (f"ERROR: Could not convert the last 3 words to"
                         " integers. Are they point coordinates?"
                         f"\n\n`{[i for i in tokens[1:]]}`")
-            segid_from_point = fanc.lookup.segids_from_pts(pt)
+            segid_from_point = fanc.lookup.segids_from_pts(point)
             if not segid_from_point == segid:
                 return (f"ERROR: The provided point `{point}` is inside"
                         f" segment {segid_from_point} which doesn't"
