@@ -5,19 +5,19 @@ Upload data to CAVE tables
 See some examples at https://github.com/htem/FANC_auto_recon/blob/main/example_notebooks/update_cave_tables.ipynb
 """
 
+from datetime import datetime
+from textwrap import dedent
+
 import numpy as np
 import pandas as pd
-from datetime import datetime
+from requests.exceptions import HTTPError
 from caveclient import CAVEclient
 from caveclient.chunkedgraph import root_id_int_list_check
 from cloudvolume.lib import green, red
-from requests.exceptions import HTTPError
-from textwrap import dedent
+
 from .statebuilder import render_scene
 from .lookup import segids_from_pts
 
-CAVE_DATASETS = {'production': 'fanc_production_mar2021',
-                 'sandbox': 'fanc_sandbox'}
 
 class CAVEorganizer(object):
     """
