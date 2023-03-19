@@ -24,8 +24,14 @@ annotation_hierarchy = {
             'haltere motor neuron': {},
             'abdominal motor neuron': {}},
         'efferent non-motor neuron': {
-            'UM neuron': {}
-        }
+            'UM neuron': {
+                'T1 leg UM neuron': {},
+                'T2 leg UM neuron': {},
+                'T3 leg UM neuron': {},
+                'neck UM neuron': {},
+                'wing UM neuron': {},
+                'haltere UM neuron': {},
+                'abdominal UM neuron': {}}}
     },
     'projection pattern': {
         'local': {},
@@ -79,7 +85,7 @@ def guess_class(annotation: 'str') -> 'str':
 
 
 
-def validate_annotation_pair(annotation: str, annotation_class: str, raise_errors=True) -> bool:
+def is_valid_pair(annotation: str, annotation_class: str, raise_errors=True) -> bool:
     """
     Determine whether `annotation` is a valid annotation for the given
     `annotation_class`, according to the rules described at
