@@ -15,8 +15,7 @@ from caveclient import CAVEclient
 from caveclient.chunkedgraph import root_id_int_list_check
 from cloudvolume.lib import green, red
 
-from .statebuilder import render_scene
-from .lookup import segids_from_pts
+from . import lookup, statebuilder
 
 
 class CAVEorganizer(object):
@@ -220,7 +219,7 @@ class SomaTableOrganizer(object):
         stage.add_dataframe(df) # check whether the df has necessary columns
         stage.clear_annotations()
 
-        svIDs = svids_from_pts(df.pt_position)
+        svIDs = lookup.svids_from_pts(df.pt_position)
         rIDs = root_id_int_list_check(self._client.chunkedgraph.get_roots(svIDs))
 
         overlap = np.isin(rIDs, root_id_int_list_check(self._soma_table.pt_root_id.values))
@@ -261,7 +260,7 @@ class SomaTableOrganizer(object):
         else:
             raise ValueError("Either asPoint or asSphere should be True")
 
-        print(render_scene(annotations=annotations, nuclei=st.id.values, client=self._client))
+        print(statebuilder.render_scene(annotations=annotations, nuclei=st.id.values, client=self._client))
 
     def add_dataframe(self, df: pd.DataFrame, bath_size=10000):
         """
