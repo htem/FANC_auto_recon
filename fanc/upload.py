@@ -15,7 +15,64 @@ from caveclient import CAVEclient
 from caveclient.chunkedgraph import root_id_int_list_check
 from cloudvolume.lib import green, red
 
-from . import lookup, statebuilder
+from . import annotations, auth, lookup, statebuilder
+
+
+def annotate_neuron(neuron: 'segID or point',
+                    annotation: str,
+                    annotation_class: str,
+                    user_id: int,
+                    table_name='neuron_information') -> dict:
+    """
+    Upload information about a neuron to a CAVE table.
+
+    This function will validate that `annotation` is a valid annotation for the
+    given `annotation_class`, according to the rules described at
+    https://github.com/htem/FANC_auto_recon/wiki/Neuron-annotations#neuron_information
+
+    Arguments
+    ---------
+    neuron: int OR 3-length iterable of ints/floats
+        Segment ID or point coordinate of a neuron to upload information about
+
+    annotation: str
+        Annotation of the neuron
+
+    annotation_class: str
+        Class of the annotation
+
+    user_id: int
+        The CAVE user ID number to associate with this annotation
+
+    table_name: str
+        Name of the CAVE table to upload information to. Only works with tables
+        of schema "bound_double_tag_user"
+    """
+    client = auth.get_caveclient()
+    if isinstance(neuron, int):
+        if not client.chunkedgraph.is_latest_roots(neuron):
+            raise ValueError(f'{neuron} is not a current segment ID')
+        soma = lookup.somas_from_segids(neuron, timestamp='now')
+        # TODO some validation that we got 1 soma, and handle if we don't
+        point = list(np.hstack(soma.pt_position))
+    else:
+        if lookup.svids_from_pts(neuron) == 0:
+            raise ValueError(f'Point {neuron} is a location with no segmentation')
+
+    assert annotations.is_valid_pair(annotation, annotation_class, raise_errors=True)
+
+    # TODO some validation that this neuron doesn't already have an annotation of this class
+
+    stage = client.annotation.stage_annotations(table_name)
+    stage.add(
+        pt_position=point,
+        tag=annotation,
+        tag2=annotation_class,
+        user_id=user_id
+    )
+    response = client.annotation.upload_staged_annotations(stage)
+
+    return response
 
 
 class CAVEorganizer(object):
