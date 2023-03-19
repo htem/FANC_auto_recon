@@ -39,7 +39,8 @@ annotation_hierarchy = {
 def _dict_to_anytree(dict):
     """
     Given a dictionary containing a hierarchy of strings, return a dictionary
-    with each string as a key and the corresponding anytree.Node as the value."""
+    with each string as a key and the corresponding anytree.Node as the value.
+    """
     def _build_tree(annotations: dict, parent: dict = None):
         nodes = {}
         for annotation in annotations.keys():
@@ -62,6 +63,20 @@ def print_annotation_tree():
             print(f'{prefix}{node.name}')
     print_one_tree('primary class')
     print_one_tree('projection pattern')
+
+
+def guess_class(annotation: 'str') -> 'str':
+    """
+    Given an annotation, return the annotation class to which it belongs.
+    """
+    try:
+        annotation_node = annotation_tree[annotation]
+    except:
+        raise ValueError(f'Class of "{annotation}" could not be guessed.'
+                         f' See valid annotations at {help_url}')
+
+    return annotation_node.parent.name
+
 
 
 def validate_annotation_pair(annotation: str, annotation_class: str, raise_errors=True) -> bool:
