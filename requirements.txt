@@ -18,3 +18,4 @@ cloud-files
 urllib3
 trimesh
 pcg_skel
+anytree
