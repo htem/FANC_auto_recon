@@ -69,6 +69,10 @@ def fragment_dataframes(seg_ids, coords, segment_threshold=20, node_threshold=No
 
     primary_neuron = value_counts[value_counts[:, 1] == max(value_counts[:, 1]), 0]
     fragments = value_counts[value_counts[:, 0] != primary_neuron, :]
+    # This is jasper's implementation of the few lines above, might switch to this
+    #unique_segids, segid_counts = np.unique(seg_ids, return_counts=True)
+    #most_common_segid = unique_segids[segid_counts == segid_counts.max()][0]
+    points_needing_attention = coords[seg_ids != primary_neuron]
 
     if segment_threshold and not node_threshold:
         ids_to_use = fragments[np.argsort(-fragments[:, 1])[0:segment_threshold], 0]
@@ -81,7 +85,7 @@ def fragment_dataframes(seg_ids, coords, segment_threshold=20, node_threshold=No
         ids_to_use = seg_ids
 
     skeleton_df = pd.DataFrame(columns=['pt_root_id', 'pt_position'])
-    skeleton_df.pt_position = [i for i in coords]
+    skeleton_df.pt_position = [i for i in points_needing_attention] #coords]
     cmap = cm.get_cmap('Blues_r', len(ids_to_use))
     sk_colors = [colors.rgb2hex(cmap(i)) for i in range(cmap.N)]
 
