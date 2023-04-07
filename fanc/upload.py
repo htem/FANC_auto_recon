@@ -354,7 +354,7 @@ def add_soma(points=None, is_neuron=True, nucleus_id=None):
         upload_df.loc[0] = [points, nucleus_id]
     else:
         upload_df.loc[0] = [points, np.nan]
-    # sto.add_dataframe(upload_df)
+    sto.add_dataframe(upload_df)
     # transfer_segmentation()
 
 
