@@ -13,6 +13,7 @@ import pandas as pd
 from requests.exceptions import HTTPError
 from caveclient import CAVEclient
 from caveclient.chunkedgraph import root_id_int_list_check
+from cloudvolume import CloudVolume
 from cloudvolume.lib import green, red
 
 from . import annotations, auth, lookup, statebuilder
@@ -75,69 +76,6 @@ def annotate_neuron(neuron: 'segID or point',
     return response
 
 
-class CAVEorganizer(object):
-    """
-    A manager for all the functions that interact with data on CAVE.
-    You need a client to instantiate a organizer:
-
-    client = CAVEclient(datastack_name='my_datastack')
-    organizer = CAVEorganizer(client)
-
-    Then,
-    * organizer.update_soma allows you to upload new manually-detected somas to the soma table
-    """
-    def __init__(
-        self,
-        client,
-        datastack_name=None,
-        server_address=None,
-        auth_token_file=None,
-        auth_token_key=None,
-        auth_token=None,
-        global_only=False,
-        pool_maxsize=None,
-        pool_block=None,
-        desired_resolution=None,
-        info_cache=None
-    ):
-        if client is None:
-            self.client = CAVEclient(datastack_name=datastack_name,
-                                     server_address=server_address,
-                                     auth_token_file=auth_token_file,
-                                     auth_token_key=auth_token_key,
-                                     auth_token=auth_token,
-                                     global_only=global_only,
-                                     pool_maxsize=pool_maxsize,
-                                     pool_block=pool_block,
-                                     desired_resolution=desired_resolution,
-                                     info_cache=info_cache)
-        else:
-            self._client = client
-        self._reset_services()
-
-    def _reset_services(self):
-        self._update_soma = None
-
-    @property
-    def client(self):
-        return self._client
-
-    def get_tables(self, datastack_name=None, version=None):
-        return self._client.materialize.get_tables(datastack_name=datastack_name, 
-                                                   version=version)
-
-    def get_info(self, datastack_name=None):
-        return self._client.info.get_datastack_info(datastack_name=datastack_name)
-
-    @property
-    def update_soma(self):
-        if self._update_soma is None:
-            self._update_soma = SomaTableOrganizer(
-                client=self._client
-            )
-        return self._update_soma
-
-
 def xyz_StringSeries2List(StringSeries: pd.Series):
     pts = StringSeries.str.strip('()').str.split(',',expand=True)
     return pts.astype(int).values.tolist()
@@ -183,7 +121,7 @@ class SomaTableOrganizer(object):
         txt_msg = """\
             Ready to update soma table: {} and subset soma table: {}
             Please make sure you have separate soma in each annotation and have all information required: {}.
-            When you upload somas locating slightly outside the dataset and dorsal, use the coordinates on z=10 slice.""".format(self._soma_table_name, self._subset_table_name, self._required_props())
+            When you upload somas locating outside the dataset, use the coordinates on the final slice.""".format(self._soma_table_name, self._subset_table_name, self._required_props())
         print(dedent(txt_msg))
 
     @property
@@ -256,6 +194,21 @@ class SomaTableOrganizer(object):
         else:
             MaxExistingID =initial_digit*10**(digit-1)
         return [MaxExistingID + i for i in range(1, 1+length)]
+    
+    def _get_nuc_ids(self, pts, nucleus_segmentation_layer=None):
+        info = self._client.info.get_datastack_info()
+        if nucleus_segmentation_layer==None:
+            nucleus_segmentation_layer = self._client.annotation.get_table_metadata(info['soma_table'])['flat_segmentation_source']
+        nuclei_cv = CloudVolume( # mip4
+            nucleus_segmentation_layer,
+            progress=False,
+            cache=False, # to aviod conflicts with LocalTaskQueue
+            use_https=True,
+            autocrop=True, # crop exceeded volumes of request
+            bounded=False
+        )
+        nid = lookup.segids_from_pts_cv(pts, nuclei_cv, return_roots=False, progress=False)
+        return nid
 
     def _check_change(self, table_name, timestamp=datetime.utcnow()):
         try:
@@ -319,21 +272,32 @@ class SomaTableOrganizer(object):
 
         print(statebuilder.render_scene(annotations=annotations, nuclei=st.id.values, client=self._client))
 
-    def add_dataframe(self, df: pd.DataFrame, bath_size=10000):
+    def add_dataframe(self, df: pd.DataFrame, batch_size=10000):
         """
         Add dataframe to both soma table and subset table.
 
         ---Arguments---
         df: pandas.DataFrame
             A dataframe with coordinates of new somata that you want to upload
-        bath_size: int (default 10000)
+        batch_size: int (default 10000)
             How many annotations you upload in each batch. The CAVE server does not
             allow users to upload more than 10000 annotations at a time.
         """
         print("Checking the format of your table...")
         self.update_tables()
         df_i = df.reset_index(drop=True)
-        df_i['id'] = self._get_man_id_column(len(df_i))
+        id_missing_idx = np.where(df_i['id'].isna())[0]
+
+        new_man_ids = self._get_man_id_column(len(id_missing_idx))
+        new_nuc_ids = self._get_nuc_ids(df_i['pt_position'].loc[id_missing_idx])
+        j=0
+        for i, idx in enumerate(id_missing_idx):
+            if new_nuc_ids[i] != 0:
+                df_i.at[idx, 'id'] = new_nuc_ids[i]
+            else:
+                df_i.at[idx, 'id'] = new_man_ids[j]
+                j += 1
+        df_i["id"] = pd.to_numeric(df_i["id"])
         self._validate(df_i)
         print("Ready to upload...")
 
@@ -352,7 +316,7 @@ class SomaTableOrganizer(object):
             stage.clear_annotations()
 
         else:
-            minidfs = [df_i.loc[i:i+bath_size-1, :] for i in range(0, len(df_i), bath_size)]
+            minidfs = [df_i.loc[i:i+batch_size-1, :] for i in range(0, len(df_i), batch_size)]
             stage = self._client.annotation.stage_annotations(self._soma_table_name, schema_name="nucleus_detection", id_field=True)
             for dftmp in minidfs:
                 stage.add_dataframe(dftmp)
@@ -362,7 +326,7 @@ class SomaTableOrganizer(object):
             df_is = df_i.reindex(columns=['id'])
             df_is['target_id'] = df_is['id']
             # df_is = df_is.rename(columns={'id': 'target_id'})
-            minidfs = [df_is.loc[i:i+bath_size-1, :] for i in range(0, len(df_is), bath_size)]
+            minidfs = [df_is.loc[i:i+batch_size-1, :] for i in range(0, len(df_is), batch_size)]
             stage = self._client.annotation.stage_annotations(self._subset_table_name, schema_name="simple_reference", id_field=True)
             for dftmp in minidfs:
                 stage.add_dataframe(dftmp)
@@ -371,6 +335,42 @@ class SomaTableOrganizer(object):
 
         # self.update_tables()
         print(green("Successfully uploaded!"))
+
+
+def transfer_segmentation(from_layer, to_layer):
+    # copy and paste segmentations 
+    pass
+
+
+def add_soma(points=None, is_neuron=True, nucleus_id=None):
+    sto = SomaTableOrganizer(client=auth.get_caveclient())
+    if is_neuron:
+        sto.initialize(subset_table_name='neuron')
+    else:
+        sto.initialize(subset_table_name='glia')
+    pd.DataFrame()
+    upload_df = pd.DataFrame(columns=list('ABC'))
+    if nucleus_id!=None:
+        upload_df.loc[0] = [points, nucleus_id]
+    else:
+        upload_df.loc[0] = [points, np.nan]
+    # sto.add_dataframe(upload_df)
+    # transfer_segmentation()
+
+
+def add_soma_df(points: pd.DataFrame, is_neuron=True, pt_position_column='pt_position', id_column='id'):
+    sto = SomaTableOrganizer(client=auth.get_caveclient())
+    if is_neuron:
+        sto.initialize(subset_table_name='neuron')
+    else:
+        sto.initialize(subset_table_name='glia')
+    
+    if len(points.columns)<2:
+        points['id'] = np.nan
+
+    points = points.rename(columns={pt_position_column: 'pt_position', id_column: 'id'})
+    sto.add_dataframe(points)
+    # transfer_segmentation()
 
 
 class UploadUnsuccessful(Exception):
