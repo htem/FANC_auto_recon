@@ -322,6 +322,7 @@ class GSPointLoader(object):
 
 
 def segids_from_pts_cv(pts,
+                       cv=auth.get_cloudvolume(),
                        n=100000,
                        max_tries=3,
                        return_roots=True,
@@ -357,7 +358,6 @@ def segids_from_pts_cv(pts,
     root IDs or supervoxel IDs for queried coordinates as int64
     """
 
-    cv = auth.get_cloudvolume()
     if hasattr(cv, 'agglomerate'):
         cv.agglomerate = False
 
