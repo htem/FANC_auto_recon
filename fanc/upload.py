@@ -65,6 +65,7 @@ def annotate_neuron(neuron: 'segID or point',
     else:
         if lookup.svids_from_pts(neuron) == 0:
             raise ValueError(f'Point {neuron} is a location with no segmentation')
+        point = neuron
 
     assert annotations.is_valid_pair(annotation, annotation_class, raise_errors=True)
 
