@@ -49,12 +49,11 @@ def _dict_to_anytree(dict):
     Given a dictionary containing a hierarchy of strings, return a dictionary
     with each string as a key and the corresponding anytree.Node as the value.
     """
-    def _build_tree(annotations: dict, parent: dict = None):
-        nodes = {}
+    def _build_tree(annotations: dict, parent: dict = None, nodes: dict = {}):
         for annotation in annotations.keys():
             node = anytree.Node(annotation, parent=parent)
-            nodes[annotation] = node
-            nodes.update(_build_tree(annotations[annotation], parent=node))
+            nodes[annotation] = nodes.get(annotation, []) + [node]
+            _build_tree(annotations[annotation], parent=node, nodes=nodes)
         return nodes
     
     return _build_tree(dict)
@@ -67,7 +66,7 @@ def print_annotation_tree():
     Print the annotation hierarchy
     """
     def print_one_tree(root: str):
-        for prefix, _, node in anytree.RenderTree(annotation_tree[root]):
+        for prefix, _, node in anytree.RenderTree(annotation_tree[root][0]):
             print(f'{prefix}{node.name}')
     print_one_tree('primary class')
     print_one_tree('projection pattern')
@@ -78,12 +77,18 @@ def guess_class(annotation: 'str') -> 'str':
     Given an annotation, return the annotation class to which it belongs.
     """
     try:
-        annotation_node = annotation_tree[annotation]
+        annotation_nodes = annotation_tree[annotation]
     except:
         raise ValueError(f'Class of "{annotation}" could not be guessed.'
                          f' See valid annotations at {help_url}')
 
-    return annotation_node.parent.name
+    if len(annotation_nodes) > 1:
+        raise ValueError(f'Class of "{annotation}" could not be guessed'
+                         ' because it has multiple possible classes.'
+                         f' See the annotation scheme at {help_url}')
+
+
+    return annotation_nodes[0].parent.name
 
 
 
@@ -97,7 +102,7 @@ def is_valid_pair(annotation: str, annotation_class: str, raise_errors=True) -> 
         return True
     
     try:
-        class_node = annotation_tree[annotation_class]
+        class_nodes = annotation_tree[annotation_class]
     except:
         if raise_errors:
             raise ValueError(f'Annotation class "{annotation_class}" not'
@@ -105,21 +110,33 @@ def is_valid_pair(annotation: str, annotation_class: str, raise_errors=True) -> 
         else:
             return False
     try:
-        annotation_node = annotation_tree[annotation]
+        annotation_nodes = annotation_tree[annotation]
     except:
         if raise_errors:
             raise ValueError(f'Annotation "{annotation}" not recognized.'
                              f' See valid annotations at {help_url}')
         else:
             return False
-    
-    if annotation_node not in class_node.children:
-        if raise_errors:
+
+    for class_node in class_nodes:
+        for annotation_node in annotation_nodes:
+            if annotation_node in class_node.children:
+                return True
+
+    if raise_errors:
+        if len(annotation_nodes) == 1:
             raise ValueError(f'Annotation "{annotation}" belongs to class'
-                             f' "{annotation_node.parent.name}" but you'
+                             f' "{annotation_nodes[0].parent.name}" but you'
                              f' specified class "{annotation_class}". See the'
                              f' annotation scheme described at {help_url}')
         else:
-            return False
+            valid_classes = [n.parent.name for n in annotation_nodes]
+            raise ValueError(f'Annotation "{annotation}" belongs to classes'
+                             f' "{valid_classes}" but you specified class'
+                             f' "{annotation_class}". See the annotation scheme'
+                             f' described at {help_url}')
+
+    else:
+        return False
     
     return True
