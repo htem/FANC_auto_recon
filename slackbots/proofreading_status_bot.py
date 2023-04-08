@@ -187,7 +187,7 @@ def process_message(message: str, user: str, fake=False) -> str:
                     " Kuroda and he can add it to the soma table."
                     "\n\nIf you're sure this is a descending neuron or"
                     " a sensory neuron, you can specify a point to"
-                    "anchor the proofreading annotation. Call 'help'"
+                    " anchor the proofreading annotation. Call 'help'"
                     " for details.")
         elif len(soma) == 0 and len(tokens) != 4:
             return ("ERROR: You did not provide a segment ID followed"
