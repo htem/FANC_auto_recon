@@ -343,13 +343,29 @@ def transfer_segmentation(from_layer, to_layer):
 
 
 def add_soma(points=None, is_neuron=True, nucleus_id=None):
+    """
+    Upload one new soma to a corresponding CAVE table.
+
+    Arguments
+    ---------
+    points: list OR np.array
+        A point coordinate of a soma to upload
+
+    is_neuron: bool
+        True, if it is neuron
+
+    nucleus_id: int or np.uint64
+        A nucleus ID that you want to use to annotate the soma. If you don't have preference, 
+        you can use None (by default). The code then will check the nucleus ID by looking up the same coordinate 
+        on the nucleus segmentation, and use the nucleus ID that it finds. If it cannot find anything, 
+        then the code will generate a "meaningless" artificial annotation ID for this soma.
+    """
     sto = SomaTableOrganizer(client=auth.get_caveclient())
     if is_neuron:
         sto.initialize(subset_table_name='neuron')
     else:
         sto.initialize(subset_table_name='glia')
-    pd.DataFrame()
-    upload_df = pd.DataFrame(columns=list('ABC'))
+    upload_df = pd.DataFrame(columns=['pt_position', 'id'])
     if nucleus_id!=None:
         upload_df.loc[0] = [points, nucleus_id]
     else:
@@ -359,6 +375,28 @@ def add_soma(points=None, is_neuron=True, nucleus_id=None):
 
 
 def add_soma_df(points: pd.DataFrame, is_neuron=True, pt_position_column='pt_position', id_column='id'):
+    """
+    Upload multiple new soma to a corresponding CAVE table.
+
+    Arguments
+    ---------
+    points: pd.DataFrame
+        Point coordinates (with or without IDs that you want to use) of somata to upload
+
+    is_neuron: bool
+        True, if it is neuron
+
+    pt_position_column: str
+        If points has a column of point coordinates and use a non-standarized name (i.e., not 'pt_position'), 
+        you need to tell the name of the column to this code.
+
+    id_column: str
+        If points has a column of IDs and use a non-standarized name (i.e., not 'id'),  you need to tell the 
+        name of the column to this code. If you don't have preference, you can use np.nan (by default). 
+        The code then will check the nucleus IDs by looking up the same coordinates on the nucleus segmentation, 
+        and use the nucleus IDs that it finds. If it cannot find anything, then the code will generate 
+        "meaningless" artificial annotation IDs for this soma.
+    """
     sto = SomaTableOrganizer(client=auth.get_caveclient())
     if is_neuron:
         sto.initialize(subset_table_name='neuron')
