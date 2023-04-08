@@ -123,14 +123,15 @@ def render_scene(neurons=None,
         - A string specifying the name of a CAVE table from which to
           pull neurons
 
-    annotations: Nx3 numpy array OR dict OR list of dicts
+    annotations: Nx3 numpy array OR DataFrame OR dict OR list of dicts
         Data (often point coordinates) you want displayed in an annotation layer.
         If Nx3 numpy array, each row must specify a point coordinate (xyz order).
+        If DataFrame, must have column 'pt_position', and optionally 'radius'.
         If dict, format must be
           {'name': str,
            'type': 'points' OR 'spheres',
            'data': numpy array OR DataFrame}
-        where data is formatted appropriately for the specified type.
+        where 'data' is formatted appropriately for the specified 'type'.
         Currently supported types and their corresponding data:
         - 'points': data must be an Nx3 numpy array or a DataFrame with a
                     column named 'pt_position'
@@ -270,11 +271,20 @@ def render_scene(neurons=None,
     additional_data = []
     if annotations is not None:
         if isinstance(annotations, np.ndarray):
-            annotations = {
-                'name': 'points',
-                'type': 'points',
-                'data': pd.DataFrame({'pt_position': [pt for pt in annotations]})
-            }
+            annotations = pd.DataFrame({'pt_position': [pt for pt in annotations]})
+        if isinstance(annotations, pd.DataFrame):
+            if 'radius' in annotations.columns:
+                annotations = {
+                    'name': 'spheres',
+                    'type': 'spheres',
+                    'data': annotations
+                }
+            else:
+                annotations = {
+                    'name': 'points',
+                    'type': 'points',
+                    'data': annotations
+                }
         if isinstance(annotations, dict):
             annotations = [annotations]
 
