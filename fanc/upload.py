@@ -29,6 +29,8 @@ def annotate_neuron(neuron: 'segID or point',
     This function will validate that `annotation` is a valid annotation for the
     given `annotation_class`, according to the rules described at
     https://github.com/htem/FANC_auto_recon/wiki/Neuron-annotations#neuron_information
+    and then post the `annotation, annotation_class` pair to the specified CAVE
+    table.
 
     Arguments
     ---------
@@ -47,6 +49,11 @@ def annotate_neuron(neuron: 'segID or point',
     table_name: str
         Name of the CAVE table to upload information to. Only works with tables
         of schema "bound_double_tag_user"
+
+    Returns
+    -------
+    dict: Response from server containing information about the
+          success or failure of the upload
     """
     client = auth.get_caveclient()
     if isinstance(neuron, int):
