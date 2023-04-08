@@ -10,7 +10,9 @@ annotation_hierarchy = {
             'chordotonal neuron': {},
             'bristle neuron': {},
             'hair plate neuron': {},
-            'campaniform sensillum neuron': {}},
+            'campaniform sensillum neuron': {},
+            'descending neuron': {},
+            'ascending neuron': {}},
         'central neuron': {
             'descending neuron': {},
             'ascending neuron': {},
