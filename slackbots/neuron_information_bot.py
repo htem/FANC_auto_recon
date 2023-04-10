@@ -17,12 +17,6 @@ From Features > OAuth & Permissions > OAuth Tokens for Your Workspace,
   copy your app's auth token to your shell environment by adding a line
   like this to your shell startup file (e.g. ~/.bashrc, ~/.zshrc):
     export SLACK_BOT_TOKEN=xoxb-123456789012-...
-
-TODO:
-- Parse argument into segid, tag, and tag2
-- Validate that tag+tag2 is a valid pair
-- Post
-- Query
 """
 
 import os
@@ -52,18 +46,6 @@ slackclient = slack_sdk.WebClient(token=token)
 
 with open('slack_user_permissions.json', 'r') as f:
     permissions = json.load(f)
-
-# Build some dicts that make it easy to look up IDs for users and channels
-#all_users = slackclient.users_list()['members']
-#userid_to_username = {
-#    user['id']: user['profile']['display_name'].lower()
-#    if user['profile']['display_name'] else user['profile']['real_name'].lower()
-#    for user in all_users
-#}
-#username_to_userid = {v: k for k, v in userid_to_username.items()}
-#all_conversations = slackclient.conversations_list()['channels']
-#channelname_to_channelid = {x['name']: x['id'] for x in all_conversations}
-#channelid_to_channelname = {x['id']: x['name'] for x in all_conversations}
 
 
 def show_help():
@@ -113,14 +95,6 @@ def process_message(message: str, user: str, fake=False) -> str:
     if len(tokens) == 0:
         return ("NO ACTION: Your message is empty or I couldn't understand"
                 " it. Make a post containing the word 'help' if needed.")
-    #if tokens[0] not in all_tables and tokens[0][-1] not in ['?', '!']:
-    #    return (f"ERROR: Could not understand first word `{tokens[0]}`. Make "
-    #            "a post containing the word 'help' if you need instructions.")
-
-    #if tokens[0] in all_tables:
-    #    table_name = tokens.pop(0)
-    #else:
-    #    table_name = default_proofreading_table
     try:
         segid = int(tokens[0][:-1])
     except ValueError:
@@ -169,6 +143,29 @@ def process_message(message: str, user: str, fake=False) -> str:
                     f" to `{table_name}`. I'm not going to upload"
                     " it again.")
 
+        # Parse and validate annotations
+        # For some reason the '>' character typed into slack
+        # is reaching this code as '&gt;'
+        if len(tokens) < 4 or '&gt;' not in tokens:
+            return ("ERROR: To upload neuron information, your message"
+                    " must have the format `{segid}! {annotation} >"
+                    " {annotation_class}`. Run 'help' for examples.")
+        annotation_tokens = ' '.join(tokens[1:]).split('&gt;')
+        if len(annotation_tokens) != 2:
+            return (f"ERROR: Could not parse `{' '.join(tokens[1:])}`"
+                    " into an annotation and annotation_class.")
+        annotation_class = annotation_tokens[0].strip()
+        annotation = annotation_tokens[1].strip()
+        try:
+            fanc.annotations.is_valid_pair(annotation, annotation_class,
+                                           raise_errors=True)
+        except Exception as e:
+            return f"`{type(e)}`\n```{e}```"
+
+        # TODO make sure that the segid doesn't already have an annotation of
+        # this same class by doing a live_live_query
+
+
         # Find soma
         soma = fanc.lookup.somas_from_segids(segid, timestamp='now')
         if len(soma) > 1:
@@ -185,29 +182,6 @@ def process_message(message: str, user: str, fake=False) -> str:
                     "\n\nIf you're sure this is a descending neuron or"
                     " a sensory neuron, you can specify a point to"
                     "anchor the annotation. Call 'help' for details.")
-        elif len(soma) == 0 and len(tokens) != 4:
-            return ("ERROR: You did not provide a segment ID followed"
-                    " by an xyz point coordinate, at least not in the"
-                    " expected format.")
-        elif len(soma) == 0 and len(tokens) == 4:
-            try:
-                point = [float(i.strip(',')) for i in tokens[1:]]
-            except ValueError:
-                return (f"ERROR: Could not convert the last 3 words to"
-                        " integers. Are they point coordinates?"
-                        f"\n\n`{[i for i in tokens[1:]]}`")
-            segid_from_point = fanc.lookup.segids_from_pts(point)
-            if not segid_from_point == segid:
-                return (f"ERROR: The provided point `{point}` is inside"
-                        f" segment {segid_from_point} which doesn't"
-                        f" match the segment ID you provided, {segid}.")
-
-        elif len(soma) == 1 and len(tokens) > 1:
-            return (f"ERROR: Segment {segid} has an entry in the"
-                    f" soma table at {list(np.hstack(soma.pt_position))}"
-                    " but you provided additional information."
-                    " Additional information is unexpected when the"
-                    " segment has a soma, so I didn't do anything.")
         else:
             point = list(np.hstack(soma.pt_position))
 
@@ -218,14 +192,13 @@ def process_message(message: str, user: str, fake=False) -> str:
                 tag2=annotation_class,
                 pt_position=point,
                 user_id=cave_user_id,
-                valid_id=segid
             )
         except Exception as e:
             return f"ERROR: Staging failed with error\n`{type(e)}`\n```{e}```"
 
         if fake:
-            return (f"Upload FAKE for segment {segid} and point"
-                    f" coordinate `{point}`.")
+            return (f"FAKE: Would upload segment {segid}, point coordinate "
+                    f"`{point}`, annotations `{annotation_class} > {annotation}`.")
         try:
             response = caveclient.annotation.upload_staged_annotations(stage)
             record_upload(segid, cave_user_id, table_name)
@@ -282,13 +255,15 @@ def fetch_messages_and_post_replies(channel, verbosity=1, fake=False):
 
 
 def record_upload(segid, user, table_name) -> None:
-    uploads_fn = f'neuron_information_bot_uploads_{table_name}.txt'
+    # TODO record the annotation as well
+    uploads_fn = f'neuron_information_bot_uploads_to_{table_name}.txt'
     with open(uploads_fn, 'a') as f:
         f.write(f'{segid},{user}\n')
 
 
 def have_recently_uploaded(segid, table_name) -> bool:
-    uploads_fn = f'neuron_information_bot_uploads_{table_name}.txt'
+    # TODO check whether the same annotation pair was uploaded
+    uploads_fn = f'neuron_information_bot_uploads_to_{table_name}.txt'
     with open(uploads_fn, 'r') as f:
         recent_uploads = [int(line.strip().split(',')[0]) for line in f.readlines()]
     return segid in recent_uploads
