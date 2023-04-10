@@ -99,7 +99,7 @@ def is_valid_pair(annotation: str, annotation_class: str, raise_errors=True) -> 
     https://github.com/htem/FANC_auto_recon/wiki/Neuron-annotations#neuron_information
     """
     if annotation_class == 'neuron identity':
-        return True
+        return annotation not in annotation_tree
     
     try:
         class_nodes = annotation_tree[annotation_class]
