@@ -124,17 +124,19 @@ def is_valid_pair(annotation: str, annotation_class: str, raise_errors=True) -> 
                 return True
 
     if raise_errors:
+        parent_names = [node.parent.name
+                        if node.parent is not None else '<no class>'
+                        for node in annotation_nodes]
         if len(annotation_nodes) == 1:
             raise ValueError(f'Annotation "{annotation}" belongs to class'
-                             f' "{annotation_nodes[0].parent.name}" but you'
-                             f' specified class "{annotation_class}". See the'
-                             f' annotation scheme described at {help_url}')
+                             f' "{parent_names[0]}" but you specified class'
+                             f' "{annotation_class}". See the annotation'
+                             f' scheme described at {help_url}')
         else:
-            valid_classes = [n.parent.name for n in annotation_nodes]
             raise ValueError(f'Annotation "{annotation}" belongs to classes'
-                             f' "{valid_classes}" but you specified class'
-                             f' "{annotation_class}". See the annotation scheme'
-                             f' described at {help_url}')
+                             f' {parent_names} but you specified class'
+                             f' "{annotation_class}". See the annotation'
+                             f' scheme described at {help_url}')
 
     else:
         return False
