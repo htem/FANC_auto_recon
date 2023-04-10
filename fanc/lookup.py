@@ -80,6 +80,55 @@ def is_proofread(segid: int,
     return 0
 
 
+def get_annotations(segid: int,
+                    table_name: str = 'neuron_information',
+                    return_as='list') -> Union[list, pd.DataFrame]:
+    """
+    Get a cell's annotations from a CAVE table.
+
+    Arguments
+    ---------
+    segid: int
+      The segment ID to query
+
+    table_name: str (default 'neuron_information')
+      The name of the CAVE table to query. If `return_as` is set to
+      'list', the table must have a column named 'tag'.
+
+    return_as: str
+      'list' (default)
+        Return the `tag` column of the CAVE table, as a list of strings
+      'dataframe'
+        Return the entire dataframe from CAVE
+
+    Returns
+    -------
+    list of strings OR pd.DataFrame, depending on `return_as`
+    """
+    client = auth.get_caveclient()
+    now = datetime.utcnow()
+    try:
+        table = client.materialize.live_live_query(
+            table_name,
+            now,
+            filter_in_dict={table_name: {'pt_root_id': [segid]}},
+        )
+    except requests.exceptions.HTTPError as e:
+        if 'returned no results' not in e.args[0]:
+            raise e
+
+    if return_as == 'dataframe':
+        return table
+    elif return_as != 'list':
+        raise ValueError(f"'return_as' must be 'list' or 'dataframe'"
+                         f" but was '{return_as}'")
+    try:
+        # Return tags as list
+        return [anno for anno in table.tag]
+    except:
+        raise AttributeError(f"Table '{table_name}' has no column"
+                             f" named 'tag'")
+
 
 def svids_from_pts(pts, service_url=default_svid_lookup_url):
     """
