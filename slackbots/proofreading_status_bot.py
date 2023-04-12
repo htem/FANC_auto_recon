@@ -64,21 +64,38 @@ with open('slack_user_permissions.json', 'r') as f:
 def show_help():
     return (
 """
-Valid messages must follow one of the following formats:
+Hello! I can help you get or upload information about which neurons in FANC have been proofread. FANC has has two proofreading tables, `proofread_first_pass` and `proofread_second_pass`. Before you proceed, please read these descriptions carefully:
+
+`proofread_first_pass`:
+```
+This table lists cells that have received a "first pass" of proofreading, meaning someone has spent at least ~10 minutes proofreading it, the cell has no obvious large merge errors remaining, and all the thick branches have been extended to so that the neuron's backbone is relatively complete. **Users should not hesitate to add entries to this "first pass" table for any cell that is in reasonable shape!** (We have a separate table, "proofread_second_pass", that indicates neurons that are basically complete, where we want to be more selective about only posting really well-proofread neurons.) All users can add entries to this table.
+```
+`proofread_second_pass`:
+```
+This table lists cells that have received a "second pass" of focused proofreading work to ensure that the cell's anatomy and connectivity are quite accurately reconstructed. **Users should only add cells to this table if they're confident that any remaining proofreading on this neuron would only cause trivial, almost unnoticeable changes to its morphology and connectivity.** (For cells that are in decent shape but have not received extensive attention, consider adding the cell to the table "proofread_first_pass" instead.) Only authorized users (typically only project leaders or proofreaders with >1 year of experience) can add entries to this table.
+```
+
+You can send me a message that looks like one of the `example messages below` to get or upload proofreading status information.
 
 `648518346481082458?`
-A segment ID followed by a `?` indicates that you want to know whether this segment ID is already in the proofreading table.
+A segment ID followed by a "?" indicates that you want to know whether this segment ID has already been marked as proofread.
 
 `648518346481082458!`
-A segment ID followed by a `!` indicates that you want to mark this segment ID as being proofread. This message format only works if the segment ID has exactly one soma attached to it, in which case the soma's location will be used to anchor the annotation. If the segment ID is a descending neuron or sensory neuron and so it has no soma, use the format described in the section below.
+A segment ID followed by a "!" indicates that you want to mark this segment ID as "first pass" proofread.
+
+`648518346481082458!!`
+A segment ID followed by a "!!" indicates that you want to mark this segment ID as "second pass" proofread.
+
+The "!" and "!!" commands above only work if the segment ID has exactly one soma attached to it, in which case the soma's location will be used to anchor the annotation. If the segment ID is a descending neuron or sensory neuron and so it has no soma, use the following type of command:
 
 `648518346481082458! 48848 114737 2690` or
 `648518346481082458! 48848, 114737, 2690`
-A segment ID followed by a `!` followed by an xyz point coordinate (typically copied from the top bar of neuroglancer) indicates that you want to mark this segment ID as being proofread, using the given xyz coordinate as a representative point inside the neuron's soma or large-diameter backbone.
+To mark a *neuron with no soma* as proofread, provide an xyz point coordinate (typically copied from the top bar of neuroglancer) to use as a representative point. This should be a point inside the neuron's large-diameter backbone that is unlikely to be affected by any future edits to this neuron. You can use either "!" to mark the neuron as "first pass" proofread, or use "!!" to mark it as "second pass" proofread.
 
-• These examples use the segment ID `648518346481082458` but you should substitute this with the segment ID that you're interested in.
-• If you want to confirm the bot is working properly, try sending the first example message to me and make sure you get a response.
-• If you want to add a large number of entries to the proofreading status table, you can contact Jasper directly instead of using this bot.
+
+• These examples use the segment ID 648518346481082458 but you should substitute this with the segment ID that you're interested in.
+• If you want to confirm I'm working properly, try sending me the first example message, `648518346481082458?`, and make sure you get a response.
+• If you want to mark a large number of segments as proofread, you can send a message to Jasper on Slack instead of using this bot.
 """)
 
 
@@ -115,6 +132,10 @@ def process_message(message: str, user: str, fake=False) -> str:
 
     if tokens[0] in all_tables:
         table_name = tokens.pop(0)
+    elif tokens[0].endswith('!!'):
+        table_name = 'proofread_second_pass'
+        # Convert !! to ! so both upload commands now end in just one !
+        tokens[0] = tokens[0][:-1]
     else:
         table_name = default_proofreading_table
     try:
@@ -227,8 +248,8 @@ def process_message(message: str, user: str, fake=False) -> str:
             return f"ERROR: Staging failed with error\n`{type(e)}`\n```{e}```"
 
         if fake:
-            return (f"Upload FAKE for segment {segid} and point"
-                    f" coordinate `{point}`.")
+            return (f"FAKE: Would upload segment {segid} and point"
+                    f" coordinate `{point}` to `{table_name}`.")
         try:
             response = caveclient.annotation.upload_staged_annotations(stage)
             record_upload(segid, cave_user_id, table_name)
