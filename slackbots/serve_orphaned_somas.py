@@ -40,7 +40,7 @@ else:
 slackclient = slack_sdk.WebClient(token=token)
 
 # Build some dicts that make it easy to look up IDs for users and channels
-#all_users = client.users_list()['members']
+#all_users = slackclient.users_list()['members']
 #userid_to_username = {
 #    user['id']: user['profile']['display_name'].lower()
 #    if user['profile']['display_name'] else user['profile']['real_name'].lower()
