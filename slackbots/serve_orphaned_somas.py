@@ -190,7 +190,15 @@ def serve_somas_to_eligible_messages(channel, verbosity=1, fake=False):
 if __name__ == '__main__':
     while True:
         print(datetime.now().strftime('%A %Y-%h-%d %H:%M:%S'))
-        direct_message_channels = slackclient.conversations_list(types='im')
+        try:
+            direct_message_channels = slackclient.conversations_list(types='im')
+        except Exception as e:
+            print('Encountered exception: {} {}'.format(type(e), e))
+            logfn = os.path.join('exceptions_soma_bot', datetime.now().strftime('%Y-%h-%d_%H-%M-%S.txt'))
+            with open(logfn, 'w') as f:
+                f.write('{}\n{}'.format(type(e), e))
+            time.sleep(50)
+            continue
         for channel in direct_message_channels['channels']:
             if channel['user'] == 'USLACKBOT':
                 continue
@@ -198,7 +206,7 @@ if __name__ == '__main__':
                 serve_somas_to_eligible_messages(channel=channel, verbosity=2, fake=False)
             except Exception as e:
                 print('Encountered exception: {} {}'.format(type(e), e))
-                logfn = os.path.join('exceptions_soma_bot', datetime.now().strftime('%Y-%h-%d_%H-%M-%S') + '.txt')
+                logfn = os.path.join('exceptions_soma_bot', datetime.now().strftime('%Y-%h-%d_%H-%M-%S.txt'))
                 with open(logfn, 'w') as f:
                     f.write('{}\n{}'.format(type(e), e))
                 time.sleep(50)
