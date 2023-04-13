@@ -37,7 +37,11 @@ import fanc
 
 caveclient = CAVEclient('fanc_production_mar2021')
 all_tables = caveclient.materialize.get_tables()
-default_proofreading_table = 'proofread_first_pass'
+# If there are multiple proofreading tables indicating different levels of
+# completion, the line below must list them in order of least complete
+# proofreading status to most complete proofreading status
+proofreading_tables = ['proofread_first_pass', 'proofread_second_pass']
+default_proofreading_table = proofreading_tables[0]
 
 if len(sys.argv) > 1 and sys.argv[1] in os.environ:
     token = os.environ[sys.argv[1]]
@@ -90,7 +94,7 @@ The "!" and "!!" commands above only work if the segment ID has exactly one soma
 
 `648518346481082458! 48848 114737 2690` or
 `648518346481082458! 48848, 114737, 2690`
-To mark a *neuron with no soma* as proofread, provide an xyz point coordinate (typically copied from the top bar of neuroglancer) to use as a representative point. This should be a point inside the neuron's large-diameter backbone that is unlikely to be affected by any future edits to this neuron. You can use either "!" to mark the neuron as "first pass" proofread, or use "!!" to mark it as "second pass" proofread.
+To mark a *neuron with no soma* as proofread, provide an xyz point coordinate (typically copied from the top bar of neuroglancer) to use as a representative point. This should be a point inside the neuron's large-diameter backbone that is unlikely to be affected by any future edits to this neuron. (Like before, you can use either "!" to mark the neuron as "first pass" proofread, or use "!!" to mark it as "second pass" proofread.)
 
 
 • These examples use the segment ID 648518346481082458 but you should substitute this with the segment ID that you're interested in.
@@ -133,7 +137,7 @@ def process_message(message: str, user: str, fake=False) -> str:
     if tokens[0] in all_tables:
         table_name = tokens.pop(0)
     elif tokens[0].endswith('!!'):
-        table_name = 'proofread_second_pass'
+        table_name = proofreading_tables[1]
         # Convert !! to ! so both upload commands now end in just one !
         tokens[0] = tokens[0][:-1]
     else:
@@ -147,25 +151,30 @@ def process_message(message: str, user: str, fake=False) -> str:
     caveclient.materialize.version = caveclient.materialize.most_recent_version()
 
     if tokens[0].endswith('?'):  # Query
-        try:
-            proofreading_status = fanc.lookup.is_proofread(segid, table_name,
-                                                           return_previous_ids=True)
-        except Exception as e:
-            return f"`{type(e)}`\n```{e}```"
+        # Loop through tables backwards, so if segment is found in the later
+        # tables, a message will be returned and the earlier tables won't be
+        # searched
+        for table in proofreading_tables[::-1]:
+            try:
+                query_result = fanc.lookup.is_proofread(segid, table,
+                                                         return_previous_ids=True)
+            except Exception as e:
+                return f"`{type(e)}`\n```{e}```"
 
-        if proofreading_status == 0: 
-            return f"Segment {segid} is not marked as proofread in `{table_name}`"
-        elif proofreading_status == 1:
-            return (f"Segment {segid} has been marked as proofread in"
-                    f" `{table_name}`.")
-        elif isinstance(proofreading_status, list) or proofreading_status == 2:
-            return (f"A previous version(s) of segment {segid} was found in"
-                    f" `{table_name}`: {proofreading_status}.\nThis means it"
-                    " was at some point marked as proofread but then edited"
-                    " afterward, and the new version has not yet been marked"
-                    " as proofread.")
-        else:
-            return ValueError('Expected proofreading_status to be 0, 1, or 2')
+            if query_result == 1:
+                return (f"Yes, segment {segid} is `{table}`.")
+            elif isinstance(query_result, list):
+                return (f"A previous version(s) of segment {segid} was found in"
+                        f" `{table_name}`: {proofreading_status}.\nThis means it"
+                        " was marked as proofread at some point but then edited"
+                        " afterward, and the new version has not yet been marked"
+                        " as proofread.")
+
+            if query_result != 0:
+                return ValueError(f'Unexpected query results from'
+                                  f' table `{table}`:\n{query_result}')
+
+        return f"No, segment {segid} is not marked as proofread."
 
     elif tokens[0].endswith('!'):  # Upload
         # Permissions
