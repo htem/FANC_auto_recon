@@ -142,3 +142,34 @@ def is_valid_pair(annotation: str, annotation_class: str, raise_errors=True) -> 
         return False
     
     return True
+
+def is_allowed_to_post(segid, annotation, annotation_class,
+                       table_name='neuron_information',
+                       raise_errors=True) -> bool:
+    """
+    Determine whether a particular segment is allowed to be annotated
+    with the given annotation+annotation_class.
+
+    In addition to checking `is_valid_pair(annotation, annotation_class)`,
+    we will make sure that this segment doesn't already have this
+    annotation or a similar one. For instance, if a segment is already
+    annotated with `primary class > motor neuron`, it is forbidden to
+    annotate it with `primary class > central neuron` since a cell can
+    be a motor neuron OR a central neuron but not both. It is also
+    obviously forbidden to annotate it a second time with `primary class
+    > motor neuron`. This function implements these sorts of rules
+    concerning redundancy and mutual exclusivity for all relevant
+    annotation classes.
+
+    Returns
+    -------
+    bool
+    - True: This segment MAY be annotated with the
+      annotation+annotation_class pair in the given CAVE table without
+      violating any rules about redundancy or mutual exclusivity.
+    - False: The proposed annotation+annotation_class MAY NOT be
+      applied to the segment without violating a rule. If `raise_errors`
+      is True, an exception with an informative error message will be
+      raised instead of returning False.
+    """
+    pass
