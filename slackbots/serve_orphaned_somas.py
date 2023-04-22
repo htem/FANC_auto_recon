@@ -75,7 +75,7 @@ def fetch_orphaned_somas(y_range=[0, 160000], query_size=30, synapse_count_thres
     that have a small enough synapse count will be returned. As such,
     different calls to this function will return different numbers of
     somas. As of Dec 2022, calling this function with the default
-    parameters typically returns between 2 and 6 somas.
+    parameters typically returns between 2 and 8 somas.
 
     --- Arguments ---
     y_range : list of ints (default [0, 160000]) or str
@@ -94,7 +94,7 @@ def fetch_orphaned_somas(y_range=[0, 160000], query_size=30, synapse_count_thres
         160000 : Just below T2
         223000 : The bottom of the dataset
 
-    query_size : int (default 20)
+    query_size : int (default 30)
       Request postsynaptic site counts for this many somas. Larger queries take
       more time.
 
