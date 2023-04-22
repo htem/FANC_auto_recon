@@ -65,7 +65,7 @@ def show_help():
             " the top third or middle third of the VNC.")
 
 
-def fetch_orphaned_somas(y_range=[0, 160000], query_size=20, synapse_count_threshold=50):
+def fetch_orphaned_somas(y_range=[0, 160000], query_size=30, synapse_count_threshold=50):
     """
     Get a list of somas that have few postsynaptic sites associated with
     them, which likely means they are falsely split from their arbor and
