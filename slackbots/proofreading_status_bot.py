@@ -165,8 +165,8 @@ def process_message(message: str, user: str, fake=False) -> str:
                 return (f"Yes, segment {segid} is `{table}`.")
             elif isinstance(query_result, list):
                 return (f"A previous version(s) of segment {segid} was found in"
-                        f" `{table_name}`: {proofreading_status}.\nThis means it"
-                        " was marked as proofread at some point but then edited"
+                        f" `{table_name}`: {query_result}.\nThis means it was"
+                        " marked as proofread at some point but then edited"
                         " afterward, and the new version has not yet been marked"
                         " as proofread.")
 
