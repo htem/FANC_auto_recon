@@ -2,7 +2,10 @@
 
 import anytree
 
+from . import lookup
+
 help_url = 'https://github.com/htem/FANC_auto_recon/wiki/Neuron-annotations#neuron_information'
+help_msg = 'See the annotation scheme described at ' + help_url
 
 annotation_hierarchy = {
     'primary class': {
@@ -40,7 +43,8 @@ annotation_hierarchy = {
         'intersegmental': {},
         'unilateral': {},
         'bilateral': {}
-    }
+    },
+    'neuron identity': {}
 }
 
 
@@ -79,34 +83,37 @@ def guess_class(annotation: 'str') -> 'str':
     try:
         annotation_nodes = annotation_tree[annotation]
     except:
-        raise ValueError(f'Class of "{annotation}" could not be guessed.'
-                         f' See valid annotations at {help_url}')
+        raise ValueError(f'Class of "{annotation}" could not be guessed. {help_msg}')
 
     if len(annotation_nodes) > 1:
         raise ValueError(f'Class of "{annotation}" could not be guessed'
-                         ' because it has multiple possible classes.'
-                         f' See the annotation scheme at {help_url}')
+                         f' because it has multiple possible classes. {help_msg}')
 
 
     return annotation_nodes[0].parent.name
 
 
 
-def is_valid_pair(annotation: str, annotation_class: str, raise_errors=True) -> bool:
+def is_valid_pair(annotation_class: str, annotation: str, raise_errors=True) -> bool:
     """
     Determine whether `annotation` is a valid annotation for the given
     `annotation_class`, according to the rules described at
     https://github.com/htem/FANC_auto_recon/wiki/Neuron-annotations#neuron_information
     """
     if annotation_class == 'neuron identity':
-        return annotation not in annotation_tree
+        if annotation in annotation_tree:
+            if raise_errors:
+                raise ValueError(f'The term "{annotation}" is a class,'
+                                 f' not an identity. {help_msg}')
+            return False
+        return True
     
     try:
         class_nodes = annotation_tree[annotation_class]
     except:
         if raise_errors:
             raise ValueError(f'Annotation class "{annotation_class}" not'
-                             f' recognized. See valid classes at {help_url}')
+                             f' recognized. {help_msg}')
         else:
             return False
     try:
@@ -114,7 +121,7 @@ def is_valid_pair(annotation: str, annotation_class: str, raise_errors=True) -> 
     except:
         if raise_errors:
             raise ValueError(f'Annotation "{annotation}" not recognized.'
-                             f' See valid annotations at {help_url}')
+                             f' {help_msg}')
         else:
             return False
 
@@ -130,36 +137,38 @@ def is_valid_pair(annotation: str, annotation_class: str, raise_errors=True) -> 
         if len(annotation_nodes) == 1:
             raise ValueError(f'Annotation "{annotation}" belongs to class'
                              f' "{parent_names[0]}" but you specified class'
-                             f' "{annotation_class}". See the annotation'
-                             f' scheme described at {help_url}')
+                             f' "{annotation_class}". {help_msg}')
         else:
             raise ValueError(f'Annotation "{annotation}" belongs to classes'
                              f' {parent_names} but you specified class'
-                             f' "{annotation_class}". See the annotation'
-                             f' scheme described at {help_url}')
+                             f' "{annotation_class}". {help_msg}')
 
     else:
         return False
     
     return True
 
-def is_allowed_to_post(segid, annotation, annotation_class,
+def is_allowed_to_post(segid, annotation_class, annotation,
                        table_name='neuron_information',
                        raise_errors=True) -> bool:
     """
     Determine whether a particular segment is allowed to be annotated
-    with the given annotation+annotation_class.
+    with the given annotation+annotation_class pair.
 
-    In addition to checking `is_valid_pair(annotation, annotation_class)`,
-    we will make sure that this segment doesn't already have this
-    annotation or a similar one. For instance, if a segment is already
-    annotated with `primary class > motor neuron`, it is forbidden to
-    annotate it with `primary class > central neuron` since a cell can
-    be a motor neuron OR a central neuron but not both. It is also
-    obviously forbidden to annotate it a second time with `primary class
-    > motor neuron`. This function implements these sorts of rules
-    concerning redundancy and mutual exclusivity for all relevant
-    annotation classes.
+    In addition to checking `is_valid_pair(annotation_class, annotation)`,
+    this function checks the following rules:
+    1. The given annotation pair may not be posted if the segment already has
+    any annotation pair with the same annotation_class. This prevents exact
+    duplicates, and also prevents a class from having multiple subclasses. This
+    rule is not enforced for a few classes that are allowed to have multiple
+    subannotations:
+      - 'neuron identity'
+      - 'projection pattern'
+    2. The given annotation pair may only be posted if its annotation_class is
+    at the root of the annotation tree (e.g. 'primary class'), or if its
+    annotation_class is already an annotation on the segment. This ensures
+    that each annotation adds detail/subclass information onto an existing
+    annotation, or onto the root of the annotation tree.
 
     Returns
     -------
@@ -172,4 +181,59 @@ def is_allowed_to_post(segid, annotation, annotation_class,
       is True, an exception with an informative error message will be
       raised instead of returning False.
     """
-    pass
+    if not is_valid_pair(annotation_class, annotation, raise_errors=raise_errors):
+        return False
+
+    existing_annos = lookup.get_annotations(segid, table_name=table_name,
+                                            return_as='dataframe')
+    # Rule 1
+    multiple_subclasses_allowed = [
+        'neuron identity', 'projection pattern', 'sensory neuron'
+    ]
+    if annotation_class in multiple_subclasses_allowed:
+        # Check if any tag,tag2 pair is the same as annotation,annotation_class
+        if not existing_annos.loc[
+                (existing_annos.tag == annotation) &
+                (existing_annos.tag2 == annotation_class)].empty:
+            if raise_errors:
+                raise ValueError(f'Segment {segid} already has this exact'
+                                 ' annotation pair.')
+            return False
+        # Multiple subclasses are only allowed if they don't violate the
+        # following mutual exclusivity rules. For example, a neuron can't be
+        # annotated with both 'unilateral' and 'bilateral'.
+        exclusivity_groups = [
+            # Exclusivity groups within 'projection pattern':
+            {'unilateral', 'bilateral'},
+            {'local', 'intersegmental'},
+            # Exclusivity groups within 'sensory_neuron':
+            {'ascending neuron', 'descending neuron'},
+            {'chordotonal neuron', 'bristle neuron', 'hair plate neuron', 'campaniform sensillum neuron'}
+        ]
+        for group in exclusivity_groups:
+            if annotation in group:
+                # Check if any annotation in this group already exists
+                if not existing_annos.loc[existing_annos.tag.isin(group)].empty:
+                    if raise_errors:
+                        raise ValueError(f'Segment {segid} already has an'
+                                         f' annotation in the group'
+                                         f' {group}. {help_msg}')
+                    return False
+        return True
+    elif not existing_annos.loc[existing_annos.tag2 == annotation_class].empty:
+        if raise_errors:
+            raise ValueError(f'Segment {segid} already has an annotation with'
+                             f' class "{annotation_class}". {help_msg}')
+        return False
+
+    # Rule 2
+    root_classes = list(annotation_hierarchy.keys())
+    if (annotation_class not in root_classes and
+            existing_annos.loc[existing_annos.tag == annotation_class].empty):
+        if raise_errors:
+            raise ValueError(f'Segment {segid} must be annotated with'
+                             f' "{annotation_class}" before this term can be'
+                             f' used as an annotation class. {help_msg}')
+        return False
+
+    return True

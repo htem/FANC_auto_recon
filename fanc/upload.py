@@ -19,8 +19,8 @@ from . import annotations, auth, lookup, statebuilder
 
 
 def annotate_neuron(neuron: 'segID or point',
-                    annotation: str,
                     annotation_class: str,
+                    annotation: str,
                     user_id: int,
                     table_name='neuron_information') -> dict:
     """
@@ -29,7 +29,7 @@ def annotate_neuron(neuron: 'segID or point',
     This function will validate that `annotation` is a valid annotation for the
     given `annotation_class`, according to the rules described at
     https://github.com/htem/FANC_auto_recon/wiki/Neuron-annotations#neuron_information
-    and then post the `annotation, annotation_class` pair to the specified CAVE
+    and then post the `annotation_class, annotation` pair to the specified CAVE
     table.
 
     Arguments
@@ -37,11 +37,11 @@ def annotate_neuron(neuron: 'segID or point',
     neuron: int OR 3-length iterable of ints/floats
         Segment ID or point coordinate of a neuron to upload information about
 
-    annotation: str
-        Annotation of the neuron
-
     annotation_class: str
         Class of the annotation
+
+    annotation: str
+        Term to annotate the neuron with
 
     user_id: int
         The CAVE user ID number to associate with this annotation
@@ -67,7 +67,7 @@ def annotate_neuron(neuron: 'segID or point',
             raise ValueError(f'Point {neuron} is a location with no segmentation')
         point = neuron
 
-    assert annotations.is_valid_pair(annotation, annotation_class, raise_errors=True)
+    assert annotations.is_valid_pair(annotation_class, annotation, raise_errors=True)
 
     # TODO some validation that this neuron doesn't already have an annotation of this class
 

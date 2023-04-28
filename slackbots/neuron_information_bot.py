@@ -157,14 +157,10 @@ def process_message(message: str, user: str, fake=False) -> str:
         annotation_class = annotation_tokens[0].strip()
         annotation = annotation_tokens[1].strip()
         try:
-            fanc.annotations.is_valid_pair(annotation, annotation_class,
-                                           raise_errors=True)
+            fanc.annotations.is_allowed_to_post(annotation_class, annotation,
+                                                raise_errors=True)
         except Exception as e:
             return f"`{type(e)}`\n```{e}```"
-
-        # TODO make sure that the segid doesn't already have an annotation of
-        # this same class by doing a live_live_query
-
 
         # Find soma
         soma = fanc.lookup.somas_from_segids(segid, timestamp='now')
