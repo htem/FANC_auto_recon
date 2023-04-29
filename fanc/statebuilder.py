@@ -100,7 +100,7 @@ def render_scene(neurons=None,
                  annotations=None,
                  annotation_units='voxels',
                  outlines_layer=True,
-                 nuclei_layer=True,
+                 nuclei_layer=False,
                  synapses_layer=False,
                  return_as='url',
                  **kwargs):
