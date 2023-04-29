@@ -21,12 +21,48 @@ from . import auth, catmaid, lookup
 from .transforms import realignment
 
 
-def skel2scene(skid, project=13, segment_threshold=10, node_threshold=None, return_as='url', dataset='production'):
-    catmaid.connect(project_id=project)
+def skel2scene(skid, hide_primary_neuron_points=True,
+               segment_threshold=10, node_threshold=None,
+               return_as='url', dataset='production', catmaid_project=13):
+    """
+    Create a neuroglancer scene containing a skeleton from CATMAID, and the
+    segments from the automated reconstruction that overlap with each skeleton
+    point. Very useful for quickly proofreading any neuron that has already
+    been traced in CATMAID.
+
+    Arguments
+    ---------
+    skid: int
+      The CATMAID skeleton ID of the neuron of interest
+
+    hide_primary_neuron_points: bool, default True
+      If False, all skeleton points will be shown.
+      If True, the skeleton points within the segment of your neuron of
+      interest will be hidden so that you only see the skeleton points that
+      aren't yet attached to your neuron's segment.
+
+    segment_threshold: int, default 10
+      See `fragment_dataframes` docstring
+
+    node_threshold: int, default None
+      See `fragment_dataframes` docstring
+
+    return_as: str, default 'url'
+      See `render_scene` docstring
+
+    dataset: str, default 'production'
+      Which version of the FANC segmentation to use. The default, 'production',
+      is the main community dataset and it's unlikely you'll want to change this.
+
+    project: int, default 13
+      The CATMAID project ID. The default, 13, is the main community project
+      and it's unlikely you'll need to change this.
+    """
+    catmaid.connect(project_id=catmaid_project)
     try:
         n = pymaid.get_neurons(skid)
     except:
-        return 'No matching skeleton ID in project {}'.format(project)
+        return 'No matching skeleton ID in project {}'.format(catmaid_project)
 
     n.downsample(inplace=True)
 
@@ -36,7 +72,8 @@ def skel2scene(skid, project=13, segment_threshold=10, node_threshold=None, retu
     neuron_df, skeleton_df = fragment_dataframes(seg_ids,
                                                  points,
                                                  segment_threshold=segment_threshold,
-                                                 node_threshold=node_threshold)
+                                                 node_threshold=node_threshold,
+                                                 hide_primary_neuron_points=hide_primary_neuron_points)
     annotations = [{'name': 'skeleton coords',
                     'type': 'points',
                     'data': skeleton_df}]
@@ -56,12 +93,17 @@ def skel2seg(neuron,
     return lookup.segids_from_pts(points, cv=target_volume), points
 
 
-def fragment_dataframes(seg_ids, coords, segment_threshold=20, node_threshold=None):
+def fragment_dataframes(seg_ids, coords,
+                        segment_threshold=20,
+                        node_threshold=None,
+                        hide_primary_neuron_points=False):
     ''' Generate dataframes for skeleton nodes, and subsequent neuron fragments
         seg_ids: list,array      List of rootIDs associated with the skeleton
         coords:  nx3 array       skeleton coords in voxel space
         segment_threshold: int   if not None, the number of segments to include in the dataframe. Will include the most overlapping segment IDs
-        node_threshold: int      if not None, the number of nodes required for a segment ID to be included'''
+        node_threshold: int      if not None, the number of nodes required for a segment ID to be included
+        hide_primary_neuron_points: bool  if True, will not include the primary neuron in the skeleton dataframe
+    '''
 
     ids, counts = np.unique(seg_ids, return_counts=True)
     value_counts = np.array(list(zip(ids, counts)), dtype=int)
@@ -72,7 +114,8 @@ def fragment_dataframes(seg_ids, coords, segment_threshold=20, node_threshold=No
     # This is jasper's implementation of the few lines above, might switch to this
     #unique_segids, segid_counts = np.unique(seg_ids, return_counts=True)
     #most_common_segid = unique_segids[segid_counts == segid_counts.max()][0]
-    points_needing_attention = coords[seg_ids != primary_neuron]
+    if hide_primary_neuron_points:
+        coords = coords[seg_ids != primary_neuron]
 
     if segment_threshold and not node_threshold:
         ids_to_use = fragments[np.argsort(-fragments[:, 1])[0:segment_threshold], 0]
@@ -85,7 +128,7 @@ def fragment_dataframes(seg_ids, coords, segment_threshold=20, node_threshold=No
         ids_to_use = seg_ids
 
     skeleton_df = pd.DataFrame(columns=['pt_root_id', 'pt_position'])
-    skeleton_df.pt_position = [i for i in points_needing_attention] #coords]
+    skeleton_df.pt_position = [i for i in coords]
     cmap = cm.get_cmap('Blues_r', len(ids_to_use))
     sk_colors = [colors.rgb2hex(cmap(i)) for i in range(cmap.N)]
 
