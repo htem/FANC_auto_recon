@@ -222,9 +222,11 @@ def somas_from_segids(segid,
     try: iter(segid)
     except: segid = [segid]
 
+    client = auth.get_caveclient()
     if timestamp in ['now', 'live']:
         timestamp = datetime.utcnow()
-    client = auth.get_caveclient()
+    elif timestamp is None:
+        timestamp = client.materialize.get_timestamp()
     if not all(client.chunkedgraph.is_latest_roots(list(segid), timestamp=timestamp)):
         raise KeyError('A given ID(s) is not valid at the given timestamp.'
                        ' Use updated IDs or provide the timestamp where'
