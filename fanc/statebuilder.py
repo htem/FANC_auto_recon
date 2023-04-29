@@ -206,14 +206,17 @@ def render_scene(neurons=None,
     elif isinstance(neurons, str):
         # str -> DataFrame
         neurons = client.materialize.query_table(neurons, materialization_version=materialization_version)
+
     if isinstance(neurons, pd.Series):
-        # pd.Series -> pd.DataFrame or list
+        # pd.Series -> np.ndarray (if points) or pd.DataFrame (if root IDs)
         try:
-            # If Series contains point coordinates instead of rootIDs, lookup rootIDs
+            # If Series contains iterables, they must be point coordinates
             iter(neurons[0])
-            neurons = lookup.segids_from_pts(neurons.values)
+            neurons = np.vstack(neurons)
+            # Then let the section below turn them into root IDs
         except:
-            neurons = pd.DataFrame(neurons)
+            # Otherwise the series must contain root IDs
+            neurons = neurons.to_frame(name='pt_root_id')
     if isinstance(neurons, np.ndarray):
         # np.array -> list
         if np.any(neurons < 10000000000000000):
@@ -272,6 +275,8 @@ def render_scene(neurons=None,
     if annotations is not None:
         if isinstance(annotations, np.ndarray):
             annotations = pd.DataFrame({'pt_position': [pt for pt in annotations]})
+        if isinstance(annotations, pd.Series):
+            annotations = annotations.to_frame(name='pt_position')
         if isinstance(annotations, pd.DataFrame):
             if 'radius' in annotations.columns:
                 annotations = {
@@ -289,17 +294,24 @@ def render_scene(neurons=None,
             annotations = [annotations]
 
         for i in annotations:
+            data = None
             if isinstance(i['data'], np.ndarray):
-                i['data'] = pd.DataFrame({'pt_position': [pt for pt in i['data']]})
+                data = pd.DataFrame({'pt_position': [pt for pt in i['data']]})
+            elif isinstance(i['data'], pd.Series):
+                data = i['data'].to_frame(name='pt_position')
+            elif isinstance(i['data'], pd.DataFrame):
+                data = i['data']
+            else:
+                raise TypeError('Could not convert annotation data to DataFrame')
 
-            if 'pt_root_id' in i['data'].columns:
+            if 'pt_root_id' in data.columns:
                 segid_column = 'pt_root_id'
             else:
                 segid_column = None
 
             if annotation_units in ['nm', 'nanometer', 'nanometers']:
-                i['data'].pt_position = [row for row in
-                                         np.vstack(i['data'].pt_position) / ngl_info.voxel_size]
+                data.pt_position = [row for row in
+                                    np.vstack(data.pt_position) / ngl_info.voxel_size]
 
             if i['type'] == 'points':
                 anno_mapper = PointMapper(point_column='pt_position',
@@ -315,7 +327,7 @@ def render_scene(neurons=None,
             additional_states.append(
                 StateBuilderDefaultSettings([anno_layer])
             )
-            additional_data.append(i['data'])
+            additional_data.append(data)
     if nuclei_layer:
         nuclei_config = SegmentationLayerConfig(name=ngl_info.nuclei['name'],
                                                 source=ngl_info.nuclei['path'],
