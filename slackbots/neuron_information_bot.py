@@ -91,6 +91,9 @@ def process_message(message: str, user: str, fake=False) -> str:
         triggered, or to describe an error that was encountered when
         processing their message.
     """
+    # For some reason the '>' character typed into slack
+    # is reaching this code as '&gt;', so revert it for readability.
+    message = message.replace('&gt;', '>')
     tokens = message.strip(' ').split(' ')
     if len(tokens) == 0:
         return ("NO ACTION: Your message is empty or I couldn't understand"
@@ -144,21 +147,19 @@ def process_message(message: str, user: str, fake=False) -> str:
                     " it again.")
 
         # Parse and validate annotations
-        # For some reason the '>' character typed into slack
-        # is reaching this code as '&gt;'
-        if len(tokens) < 4 or '&gt;' not in tokens:
+        if len(tokens) < 4 or '>' not in tokens:
             return ("ERROR: To upload neuron information, your message"
                     " must have the format `{segid}! {annotation} >"
                     " {annotation_class}`. Run 'help' for examples.")
-        annotation_tokens = ' '.join(tokens[1:]).split('&gt;')
+        annotation_tokens = ' '.join(tokens[1:]).split('>')
         if len(annotation_tokens) != 2:
             return (f"ERROR: Could not parse `{' '.join(tokens[1:])}`"
                     " into an annotation and annotation_class.")
         annotation_class = annotation_tokens[0].strip()
         annotation = annotation_tokens[1].strip()
         try:
-            fanc.annotations.is_allowed_to_post(annotation_class, annotation,
-                                                raise_errors=True)
+            fanc.annotations.is_allowed_to_post(segid, annotation_class,
+                                                annotation, raise_errors=True)
         except Exception as e:
             return f"`{type(e)}`\n```{e}```"
 
@@ -169,7 +170,7 @@ def process_message(message: str, user: str, fake=False) -> str:
                     " in the soma table, with the coordinates listed"
                     " below. Cannot add annotations.\n\n"
                     f"{np.vstack(soma.pt_position)}")
-        elif len(soma) == 0 and len(tokens) == 1:
+        elif len(soma) == 0:
             return (f"ERROR: Segment {segid} has no entry in the soma"
                     " table.\n\nIf you clearly see a soma attached to"
                     " this object, probably the automated soma detection"
@@ -177,7 +178,7 @@ def process_message(message: str, user: str, fake=False) -> str:
                     " Kuroda and he can add it to the soma table."
                     "\n\nIf you're sure this is a descending neuron or"
                     " a sensory neuron, you can specify a point to"
-                    "anchor the annotation. Call 'help' for details.")
+                    " anchor the annotation. Call 'help' for details.")
         else:
             point = list(np.hstack(soma.pt_position))
 
