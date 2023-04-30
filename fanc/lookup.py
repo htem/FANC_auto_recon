@@ -197,6 +197,88 @@ def segids_from_pts(pts,
     return cv.get_roots(svids, timestamp=timestamp)
 
 
+anchor_point_sources = ['somas_dec2022', 'peripheral_nerves', 'neck_connective']
+def anchor_point(segid, source_tables=anchor_point_sources,
+                 timestamp=None, force_resolve_duplicates=False) -> np.array:
+    """
+    Return a representative "anchor" point for each of the given
+    segment ID(s).
+
+    The returned point is expected to be a stable identifier for the
+    segment, meaning that correct proofreading operations should not
+    disconnect this point from the main body of the segment.
+
+    Arguments
+    ---------
+    segid: int, or iterable of ints
+      The ID(s) of the segment(s) to look up anchor points for.
+
+    source_tables: iterable of str
+      An list of names of CAVE tables to search for anchor points. This list
+      must be ordered by priority, as the first table that contains a point for
+      this segment will have its point used.
+
+    force_resolve_duplicates: bool (default False)
+      If multiple anchor points are found within a single table for a given
+      segment ID, whether to resolve the duplicate somewhat arbitrarily by
+      taking the one with the smallest x coordinate. If False, an exception
+      will be raised instead of trying to resolve the duplicate.
+
+    timestamp: None or datetime or 'now' (default None)
+      The timestamp to use to query the CAVE tables.
+
+    Returns
+    -------
+    points: np.ndarray (3-length vector or Nx3 array)
+      If segid is an int, returns a single xyz point coordinate with shape (3,).
+      If segid is iterable, returns an Nx3 array of xyz point coordinates.
+        Order is preserved (that is, points[n] is the  point for segid[n]).
+    """
+    try: iter(segid)
+    except:
+        return anchor_point(
+            [segid], source_tables=source_tables, timestamp=timestamp,
+            force_resolve_duplicates=force_resolve_duplicates
+        )[0]
+
+    client = auth.get_caveclient()
+    if timestamp in ['now', 'live']:
+        timestamp = datetime.utcnow()
+    elif timestamp is None:
+        timestamp = client.materialize.get_timestamp()
+
+    anchor_points = pd.Series(index=segid, dtype=object)
+
+    for table in source_tables:
+        unanchored_ids = anchor_points[anchor_points.isna()].index.values
+        points = client.materialize.live_live_query(
+            table,
+            filter_in_dict={table: {'pt_root_id': unanchored_ids}},
+            timestamp=timestamp
+        )
+        for seg, point in points.groupby('pt_root_id'):
+            if len(point) > 1:
+                if table == 'somas_dec2022':
+                    raise ValueError('Multiple somas points found for segid'
+                                     f' {seg} in table "{table}".')
+                elif not force_resolve_duplicates:
+                    raise ValueError('Multiple anchor points found for segid'
+                                     f' {seg} in table "{table}". Set'
+                                     ' force_resolve_duplicates=True to force'
+                                     ' one to be chosen.')
+                point = point.sort_values('pt_position',
+                                          key=lambda x: x.str[0])
+            anchor_points.loc[seg] = point['pt_position'].iloc[0]
+        if not any(anchor_points.isna()):
+            break
+
+    if any(anchor_points.isna()):
+        raise ValueError(f'No anchor point found for segid(s)'
+                         f' {anchor_points[anchor_points.isna()].index.values}'
+                         f' in tables {source_tables}')
+    return np.vstack(anchor_points[segid])
+
+
 # TODO implement the raise kwargs
 def somas_from_segids(segid,
                       table='default_soma_table',
