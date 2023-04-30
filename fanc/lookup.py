@@ -136,9 +136,11 @@ def svids_from_pts(pts, service_url=default_svid_lookup_url):
 
     This function relies on an external service hosted on services.itanna.io,
     created and maintained by Eric Perlman, which provides very fast svid
-    lookups. I
+    lookups. If this service is down, you can try the slower version
+    instead, `fanc.lookup.segids_from_pts_cv()`.
 
-    --- Arguments ---
+    Arguments
+    ---------
     pts: Nx3 iterable (list / tuple / np.array / pd.Series)
       Points to query. Provide these in xyz order and in mip0 voxel coordinates.
 
@@ -282,7 +284,7 @@ def anchor_point(segid, source_tables=anchor_point_sources,
 # TODO implement the raise kwargs
 def somas_from_segids(segid,
                       table='default_soma_table',
-                      get_columns=['id', 'volume', 'pt_root_id', 'pt_position'],
+                      select_columns=['id', 'volume', 'pt_root_id', 'pt_position'],
                       timestamp=None,
                       raise_not_found=True,
                       raise_multiple=True):
@@ -316,17 +318,17 @@ def somas_from_segids(segid,
 
     if table in [None, 'default_soma_table']:
         table = client.info.get_datastack_info()['soma_table']
-        get_columns = None  # Feature not currently supported on reference tables
+        select_columns = None  # Feature not currently supported on reference tables
     elif table in ['all', 'somas']:
         table = 'somas_dec2022'
     elif table in ['neurons', 'neuron']:
         table = 'neuron_somas_dec2022'
-        get_columns = None  # Feature not currently supported on reference tables
+        select_columns = None  # Feature not currently supported on reference tables
     elif table == 'glia':
         table = 'glia_somas_dec2022'
-        get_columns = None  # Feature not currently supported on reference tables
+        select_columns = None  # Feature not currently supported on reference tables
     somas = client.materialize.query_table(table,
-                                           select_columns=get_columns,
+                                           select_columns=select_columns,
                                            timestamp=timestamp)
     return somas.loc[somas.pt_root_id.isin(segid)]
 
