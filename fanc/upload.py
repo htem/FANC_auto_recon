@@ -22,7 +22,8 @@ def annotate_neuron(neuron: 'segID or point',
                     annotation_class: str,
                     annotation: str,
                     user_id: int,
-                    table_name='neuron_information') -> dict:
+                    table_name='neuron_information',
+                    force_resolve_duplicate_anchor_points=False) -> dict:
     """
     Upload information about a neuron to a CAVE table.
 
@@ -47,8 +48,12 @@ def annotate_neuron(neuron: 'segID or point',
         The CAVE user ID number to associate with this annotation
 
     table_name: str
-        Name of the CAVE table to upload information to. Only works with tables
-        of schema "bound_double_tag_user"
+        Name of the CAVE table to upload information to. Only works
+        with tables of schema "bound_double_tag_user".
+
+    force_resolve_duplicate_anchor_points: bool
+        This argument is passed to `lookup.anchor_point`, see its
+        docstring for details.
 
     Returns
     -------
@@ -59,17 +64,20 @@ def annotate_neuron(neuron: 'segID or point',
     if isinstance(neuron, int):
         if not client.chunkedgraph.is_latest_roots(neuron):
             raise ValueError(f'{neuron} is not a current segment ID')
-        soma = lookup.somas_from_segids(neuron, timestamp='now')
-        # TODO some validation that we got 1 soma, and handle if we don't
-        point = list(np.hstack(soma.pt_position))
+        segid = neuron
+        point = lookup.anchor_point(neuron, force_resolve_duplicates=force_resolve_duplicate_anchor_points)
     else:
-        if lookup.svids_from_pts(neuron) == 0:
-            raise ValueError(f'Point {neuron} is a location with no segmentation')
-        point = neuron
+        try:
+            iter(neuron)
+            segid = lookup.segids_from_pts(neuron)[0]
+            if segid == 0:
+                raise ValueError(f'Point {neuron} is a location with no segmentation')
+            point = lookup.anchor_point(segid, force_resolve_duplicates=force_resolve_duplicate_anchor_points)
+            print(f'Found segID {segid} with anchor point {point}.')
+        except TypeError:
+            raise TypeError('First argument must be a segID or a point coordinate')
 
-    assert annotations.is_valid_pair(annotation_class, annotation, raise_errors=True)
-
-    # TODO some validation that this neuron doesn't already have an annotation of this class
+    assert annotations.is_allowed_to_post(segid, annotation_class, annotation, raise_errors=True)
 
     stage = client.annotation.stage_annotations(table_name)
     stage.add(
