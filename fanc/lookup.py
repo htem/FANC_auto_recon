@@ -165,7 +165,7 @@ def svids_from_pts(pts, service_url=default_svid_lookup_url):
 
 
 def segids_from_pts(pts,
-                    timestamp=None,
+                    timestamp='now',
                     service_url=default_svid_lookup_url,
                     **kwargs):
     """
@@ -175,10 +175,10 @@ def segids_from_pts(pts,
     --- Arguments ---
     pts: Nx3 iterable (list / tuple / np.array / pd.Series)
       Points to query. Provide these in xyz order and in mip0 voxel coordinates.
-    timestamp: None or datetime
-      If None, look up the current rootID corresponding to the point location.
-      Otherwise, look up the rootID for the point location at the given time in
-      the past.
+    timestamp: 'now' or None or datetime
+      If 'now' or None, look up the current rootID corresponding to the point
+      location. Otherwise, look up the rootID for the point location at the
+      specified time in the past.
 
     --- Additional kwargs ---
     cv: cloudvolume.CloudVolume
@@ -190,18 +190,23 @@ def segids_from_pts(pts,
     Order is preserved - the segID corresponding to the Nth point in
     the argument will be the Nth value in the returned array.
     """
+    if timestamp == 'now':
+        # cv.get_roots interprets timestamp=None as requesting the latest root
+        timestamp = None
+
     svids = svids_from_pts(pts, service_url=service_url)
 
     if 'cv' in kwargs:
         cv = kwargs['cv']
     else:
         cv = auth.get_cloudvolume()
+
     return cv.get_roots(svids, timestamp=timestamp)
 
 
 anchor_point_sources = ['somas_dec2022', 'peripheral_nerves', 'neck_connective']
 def anchor_point(segid, source_tables=anchor_point_sources,
-                 timestamp=None, force_resolve_duplicates=False) -> np.array:
+                 timestamp='now', force_resolve_duplicates=False) -> np.array:
     """
     Return a representative "anchor" point for each of the given
     segment ID(s).
@@ -226,8 +231,11 @@ def anchor_point(segid, source_tables=anchor_point_sources,
       taking the one with the smallest x coordinate. If False, an exception
       will be raised instead of trying to resolve the duplicate.
 
-    timestamp: None or datetime or 'now' (default None)
+    timestamp: None or 'now' or datetime (default 'now')
       The timestamp to use to query the CAVE tables.
+      If None, use the timestamp of the latest materialization.
+      If 'now', use the current time.
+      If datetime, use that time.
 
     Returns
     -------
@@ -285,23 +293,45 @@ def anchor_point(segid, source_tables=anchor_point_sources,
 def somas_from_segids(segid,
                       table='default_soma_table',
                       select_columns=['id', 'volume', 'pt_root_id', 'pt_position'],
-                      timestamp=None,
+                      timestamp='now',
                       raise_not_found=True,
                       raise_multiple=True):
     """
     Given a segID (ID of an object from the full dataset segmentation),
     return information about its soma listed in the soma table.
 
-    --- Arguments ---
+    Arguments
+    ---------
+
+    segid: int or iterable of ints
+      The ID(s) of the segment(s) to look up soma information for.
+
+    table: str (default 'default_soma_table')
+      The name or nickname of the soma table to query. Available nicknames:
+        'default_soma_table' or 'neuron' or 'neurons' -> neuron_somas_dec2022
+        'all' or 'somas' -> somas_dec2022
+        'glia' -> glia_somas_dec2022
+
+    select_columns: list of str (default ['id', 'volume', 'pt_root_id', 'pt_position'])
+      The columns to get from the soma table.
+
+    timestamp: None or 'now' or datetime (default 'now')
+      The timestamp to use to query the CAVE tables.
+      If None, use the timestamp of the latest materialization.
+      If 'now', use the current time.
+      If datetime, use that time.
+
     raise_not_found: bool (default True)
       If no entry is found in the soma table for the given segID, raise an
       exception. Otherwise, return None.
+
     raise_not_found: bool (default True)
       If multiple entries are found in the soma table for the given segID,
       raise an exception. Otherwise, return all soma table entries
 
-    --- Returns ---
-    pd.DataFrame
+    Returns
+    -------
+    pd.DataFrame containing the soma table entries for the given segID(s).
     """
     try: iter(segid)
     except: segid = [segid]
@@ -311,6 +341,7 @@ def somas_from_segids(segid,
         timestamp = datetime.utcnow()
     elif timestamp is None:
         timestamp = client.materialize.get_timestamp()
+
     if not all(client.chunkedgraph.is_latest_roots(list(segid), timestamp=timestamp)):
         raise KeyError('A given ID(s) is not valid at the given timestamp.'
                        ' Use updated IDs or provide the timestamp where'
