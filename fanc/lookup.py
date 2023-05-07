@@ -80,9 +80,9 @@ def is_proofread(segid: int,
     return 0
 
 
-def get_annotations(segid: int,
-                    table_name: str = 'neuron_information',
-                    return_as='list') -> Union[list, pd.DataFrame]:
+def annotations(segid: int,
+                table_name: str = 'neuron_information',
+                return_as='list') -> Union[list, pd.DataFrame]:
     """
     Get a cell's annotations from a CAVE table.
 

@@ -111,9 +111,9 @@ def process_message(message: str, user: str, fake=False) -> str:
         if len(tokens) > 1 and tokens[1].lower() in ['all', 'everything', 'verbose']:
             return_as = 'dataframe'
         try:
-            info = fanc.lookup.get_annotations(segid,
-                                               table_name=table_name,
-                                               return_as=return_as)
+            info = fanc.lookup.annotations(segid,
+                                           table_name=table_name,
+                                           return_as=return_as)
         except Exception as e:
             return f"`{type(e)}`\n```{e}```"
         if return_as == 'dataframe':
