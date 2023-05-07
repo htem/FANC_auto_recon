@@ -23,7 +23,7 @@ def annotate_neuron(neuron: 'segID or point',
                     annotation: str,
                     user_id: int,
                     table_name='neuron_information',
-                    force_resolve_duplicate_anchor_points=False) -> dict:
+                    resolve_duplicate_anchor_points=False) -> dict:
     """
     Upload information about a neuron to a CAVE table.
 
@@ -51,7 +51,7 @@ def annotate_neuron(neuron: 'segID or point',
         Name of the CAVE table to upload information to. Only works
         with tables of schema "bound_double_tag_user".
 
-    force_resolve_duplicate_anchor_points: bool
+    resolve_duplicate_anchor_points: bool or int
         This argument is passed to `lookup.anchor_point`, see its
         docstring for details.
 
@@ -65,14 +65,14 @@ def annotate_neuron(neuron: 'segID or point',
         if not client.chunkedgraph.is_latest_roots(neuron):
             raise ValueError(f'{neuron} is not a current segment ID')
         segid = neuron
-        point = lookup.anchor_point(neuron, force_resolve_duplicates=force_resolve_duplicate_anchor_points)
+        point = lookup.anchor_point(neuron, resolve_duplicates=resolve_duplicate_anchor_points)
     else:
         try:
             iter(neuron)
             segid = lookup.segids_from_pts(neuron)[0]
             if segid == 0:
                 raise ValueError(f'Point {neuron} is a location with no segmentation')
-            point = lookup.anchor_point(segid, force_resolve_duplicates=force_resolve_duplicate_anchor_points)
+            point = lookup.anchor_point(segid, resolve_duplicates=resolve_duplicate_anchor_points)
             print(f'Found segID {segid} with anchor point {point}.')
         except TypeError:
             raise TypeError('First argument must be a segID or a point coordinate')

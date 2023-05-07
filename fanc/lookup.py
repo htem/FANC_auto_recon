@@ -206,7 +206,7 @@ def segids_from_pts(pts,
 
 anchor_point_sources = ['somas_dec2022', 'peripheral_nerves', 'neck_connective']
 def anchor_point(segid, source_tables=anchor_point_sources,
-                 timestamp='now', force_resolve_duplicates=False) -> np.array:
+                 timestamp='now', resolve_duplicates=False) -> np.array:
     """
     Return a representative "anchor" point for each of the given
     segment ID(s).
@@ -225,17 +225,20 @@ def anchor_point(segid, source_tables=anchor_point_sources,
       must be ordered by priority, as the first table that contains a point for
       this segment will have its point used.
 
-    force_resolve_duplicates: bool (default False)
-      If multiple anchor points are found within a single table for a given
-      segment ID, whether to resolve the duplicate somewhat arbitrarily by
-      taking the one with the smallest x coordinate. If False, an exception
-      will be raised instead of trying to resolve the duplicate.
-
     timestamp: None or 'now' or datetime (default 'now')
       The timestamp to use to query the CAVE tables.
       If None, use the timestamp of the latest materialization.
       If 'now', use the current time.
       If datetime, use that time.
+
+    resolve_duplicates: bool or int (default False)
+      This argument specifies what to do if multiple anchor points are found
+      within a single table for a single segment ID. Possible values and behaviors:
+      - False: an exception will be raised instead of trying to resolve anything.
+      - True: the point with the smallest x coordinate will be used.
+      - An integer from 1 to the number of points found: The Nth point (1-indexed!!)
+        will be used, when the points are sorted by x coordinate. Setting
+        `resolve_duplicates=1` gives the same behavior as `resolve_duplicates=True`.
 
     Returns
     -------
@@ -248,7 +251,7 @@ def anchor_point(segid, source_tables=anchor_point_sources,
     except:
         return anchor_point(
             [segid], source_tables=source_tables, timestamp=timestamp,
-            force_resolve_duplicates=force_resolve_duplicates
+            resolve_duplicates=resolve_duplicates
         )[0]
 
     client = auth.get_caveclient()
@@ -268,17 +271,31 @@ def anchor_point(segid, source_tables=anchor_point_sources,
         )
         for seg, point in points.groupby('pt_root_id'):
             if len(point) > 1:
+                # Sort points by x coordinate
+                point = point.sort_values('pt_position', key=lambda x: x.str[0])
                 if table == 'somas_dec2022':
                     raise ValueError('Multiple somas points found for segid'
                                      f' {seg} in table "{table}".')
-                elif not force_resolve_duplicates:
+                elif not resolve_duplicates:
                     raise ValueError('Multiple anchor points found for segid'
-                                     f' {seg} in table "{table}". Set'
-                                     ' force_resolve_duplicates=True to force'
-                                     ' one to be chosen.')
-                point = point.sort_values('pt_position',
-                                          key=lambda x: x.str[0])
-            anchor_points.loc[seg] = point['pt_position'].iloc[0]
+                                     f' {seg} in table "{table}":\n'
+                                     f'{np.vstack(point.pt_position)}.\nSet'
+                                     ' resolve_duplicates to choose one.')
+                if resolve_duplicates is True:
+                    # default behavior is to resolve duplicates by taking the
+                    # first point (the one with the smallest x coordinate)
+                    resolve_duplicates = 1
+                if isinstance(resolve_duplicates, int):
+                    # change from 1-indexing (which the user can specify)
+                    # to 0-indexing (which we must use with iloc)
+                    resolve_duplicates -= 1
+                if resolve_duplicates >= len(point):
+                    raise ValueError('resolve_duplicates is greater than'
+                                     f' {len(point)}, the number of points found'
+                                     f' for segid {seg} in table "{table}".')
+                anchor_points.loc[seg] = point['pt_position'].iloc[resolve_duplicates]
+            else:
+                anchor_points.loc[seg] = point['pt_position'].iloc[0]
         if not any(anchor_points.isna()):
             break
 
