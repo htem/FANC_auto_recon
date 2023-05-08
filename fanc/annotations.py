@@ -13,13 +13,8 @@ annotation_hierarchy = {
             'chordotonal neuron': {},
             'bristle neuron': {},
             'hair plate neuron': {},
-            'campaniform sensillum neuron': {},
-            'descending neuron': {},
-            'ascending neuron': {}},
-        'central neuron': {
-            'descending neuron': {},
-            'ascending neuron': {},
-            'VNC interneuron': {}},
+            'campaniform sensillum neuron': {}},
+        'central neuron': {},
         'motor neuron': {
             'T1 leg motor neuron': {},
             'T2 leg motor neuron': {},
@@ -36,14 +31,16 @@ annotation_hierarchy = {
                 'neck UM neuron': {},
                 'wing UM neuron': {},
                 'haltere UM neuron': {},
-                'abdominal UM neuron': {}}}
-    },
-    'projection pattern': {
+                'abdominal UM neuron': {}}}},
+    'anterior-posterior projection pattern': {
+        'descending': {},
+        'ascending': {},
         'local': {},
-        'intersegmental': {},
+        'intersegmental': {}},
+    'left-right projection pattern': {
         'unilateral': {},
-        'bilateral': {}
-    },
+        'bilateral': {},
+        'midplane': {}},
     'neuron identity': {}
 }
 
@@ -73,7 +70,8 @@ def print_annotation_tree():
         for prefix, _, node in anytree.RenderTree(annotation_tree[root][0]):
             print(f'{prefix}{node.name}')
     print_one_tree('primary class')
-    print_one_tree('projection pattern')
+    print_one_tree('anterior-posterior projection pattern')
+    print_one_tree('left-right projection pattern')
 
 
 def guess_class(annotation: 'str') -> 'str':
@@ -164,11 +162,11 @@ def is_allowed_to_post(segid, annotation_class, annotation,
     subannotations:
       - 'neuron identity'
       - 'projection pattern'
-    2. The given annotation pair may only be posted if its annotation_class is
-    at the root of the annotation tree (e.g. 'primary class'), or if its
+    2. The given annotation pair may only be posted if its annotation_class
+    is at the root of the annotation tree (e.g. 'primary class'), or if its
     annotation_class is already an annotation on the segment. This ensures
-    that each annotation adds detail/subclass information onto an existing
-    annotation, or onto the root of the annotation tree.
+    that each post either starts from the root of the annotation tree, or adds
+    detail/subclass information to an annotation already on the segment.
 
     Returns
     -------
@@ -188,7 +186,7 @@ def is_allowed_to_post(segid, annotation_class, annotation,
                                         return_as='dataframe')
     # Rule 1
     multiple_subclasses_allowed = [
-        'neuron identity', 'projection pattern', 'sensory neuron'
+        'neuron identity'
     ]
     if annotation_class in multiple_subclasses_allowed:
         # Check if any tag,tag2 pair is the same as annotation,annotation_class
@@ -199,27 +197,27 @@ def is_allowed_to_post(segid, annotation_class, annotation,
                 raise ValueError(f'Segment {segid} already has this exact'
                                  ' annotation pair.')
             return False
+        #------
+        # The block of code below is not currently used due to a refactoring of
+        # the annotation tree, but it might be useful to bring back later
+        #------
         # Multiple subclasses are only allowed if they don't violate the
         # following mutual exclusivity rules. For example, a neuron can't be
         # annotated with both 'unilateral' and 'bilateral'.
-        exclusivity_groups = [
-            # Exclusivity groups within 'projection pattern':
-            {'unilateral', 'bilateral'},
-            {'local', 'intersegmental'},
-            # Exclusivity groups within 'sensory_neuron':
-            {'ascending neuron', 'descending neuron'},
-            {'chordotonal neuron', 'bristle neuron', 'hair plate neuron', 'campaniform sensillum neuron'}
-        ]
-        for group in exclusivity_groups:
-            if annotation in group:
-                # Check if any annotation in this group already exists
-                if not existing_annos.loc[existing_annos.tag.isin(group)].empty:
-                    if raise_errors:
-                        raise ValueError(f'Segment {segid} already has an'
-                                         f' annotation in the group'
-                                         f' {group}. {help_msg}')
-                    return False
-        return True
+        #exclusivity_groups = [
+        #    # Exclusivity groups within 'projection pattern':
+        #    {'unilateral', 'bilateral'},
+        #    {'local', 'intersegmental', 'ascending', 'descending'}
+        #]
+        #for group in exclusivity_groups:
+        #    if annotation in group:
+        #        # Check if any annotation in this group already exists
+        #        if not existing_annos.loc[existing_annos.tag.isin(group)].empty:
+        #            if raise_errors:
+        #                raise ValueError(f'Segment {segid} already has an'
+        #                                 f' annotation in the group'
+        #                                 f' {group}. {help_msg}')
+        #            return False
     elif not existing_annos.loc[existing_annos.tag2 == annotation_class].empty:
         if raise_errors:
             raise ValueError(f'Segment {segid} already has an annotation with'
