@@ -275,7 +275,16 @@ if __name__ == '__main__':
 
     while True:
         print(datetime.now().strftime('%A %Y-%h-%d %H:%M:%S'))
-        direct_message_channels = slackclient.conversations_list(types='im')
+        try:
+            direct_message_channels = slackclient.conversations_list(types='im')
+        except Exception as e:
+            print('Encountered exception: {} {}'.format(type(e), e))
+            logfn = os.path.join('exceptions_neuron_information_bot',
+                                 datetime.now().strftime('%Y-%h-%d_%H-%M-%S.txt'))
+            with open(logfn, 'w') as f:
+                f.write('{}\n{}'.format(type(e), e))
+            time.sleep(50)
+            continue
         for channel in direct_message_channels['channels']:
             if channel['user'] == 'USLACKBOT':
                 continue
