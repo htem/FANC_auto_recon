@@ -16,9 +16,10 @@ annotation_hierarchy = {
             'campaniform sensillum neuron': {}},
         'central neuron': {},
         'motor neuron': {
-            'T1 leg motor neuron': {},
-            'T2 leg motor neuron': {},
-            'T3 leg motor neuron': {},
+            'leg motor neuron': {
+                'T1 leg motor neuron': {},
+                'T2 leg motor neuron': {},
+                'T3 leg motor neuron': {}},
             'neck motor neuron': {},
             'wing motor neuron': {},
             'haltere motor neuron': {},
