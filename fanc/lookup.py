@@ -18,8 +18,7 @@ default_svid_lookup_url = 'https://services.itanna.io/app/transform-service/quer
 
 def proofreading_status(segid: int or list[int],
                         table_names: str or list[str] = default_proofreading_tables,
-                        timestamp='now',
-                        slow_mode=True) -> bool or str or tuple(str, list):
+                        timestamp='now') -> bool or str or tuple(str, list):
     """
     Determine whether a segment has been marked as proofread.
 
@@ -66,22 +65,11 @@ def proofreading_status(segid: int or list[int],
 
     results = pd.Series(index=segid, data=None, dtype=object)
     for table_name in table_names[::-1]:
-        if slow_mode:
-            valid_id_matches = client.materialize.live_live_query(table_name, timestamp)
-        else:
-            valid_id_matches = client.materialize.live_live_query(table_name, timestamp,
-                filter_in_dict={table_name: {'valid_id': results.index[results.isna()].to_list()}})
-
-        results.loc[results.isna() & results.index.isin(valid_id_matches.valid_id)] = table_name
+        table = client.materialize.live_live_query(table_name, timestamp)
+        results.loc[results.isna() & results.index.isin(table.valid_id)] = table_name
         if results.notna().all():
             return results.loc[segid].to_list()
-
-        if slow_mode:
-            root_id_matches = client.materialize.live_live_query(table_name, timestamp)
-        else:
-            root_id_matches = client.materialize.live_live_query(table_name, timestamp,
-                filter_in_dict={table_name: {'pt_root_id': results.index[results.isna()].to_list()}})
-        results.loc[results.isna()] = root_id_matches.groupby('pt_root_id')['valid_id'].apply(lambda x: (table_name, list(x)))
+        results.loc[results.isna()] = table.groupby('pt_root_id')['valid_id'].apply(lambda x: (table_name, list(x)))
         if results.notna().all():
             return results.loc[segid].to_list()
 
