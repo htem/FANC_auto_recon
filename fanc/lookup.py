@@ -160,7 +160,7 @@ def svids_from_pts(pts, service_url=default_svid_lookup_url):
 
     Arguments
     ---------
-    pts: Nx3 iterable (list / tuple / np.array / pd.Series)
+    pts: Nx3 iterable (list / tuple / np.ndarray / pd.Series)
       Points to query. Provide these in xyz order and in mip0 voxel coordinates.
 
     --- Returns ---
@@ -192,7 +192,7 @@ def segids_from_pts(pts,
     at a specified timestamp.
 
     --- Arguments ---
-    pts: Nx3 iterable (list / tuple / np.array / pd.Series)
+    pts: Nx3 iterable (list / tuple / np.ndarray / pd.Series)
       Points to query. Provide these in xyz order and in mip0 voxel coordinates.
     timestamp: 'now' or None or datetime
       If 'now' or None, look up the current rootID corresponding to the point
@@ -226,7 +226,7 @@ def segids_from_pts(pts,
 anchor_point_sources = ['somas_dec2022', 'peripheral_nerves', 'neck_connective']
 def anchor_point(segid, source_tables=anchor_point_sources,
                  timestamp='now', resolve_duplicates=False,
-                 slow_mode=True) -> np.array:
+                 slow_mode=True) -> np.ndarray:
     """
     Return a representative "anchor" point for each of the given
     segment ID(s).
