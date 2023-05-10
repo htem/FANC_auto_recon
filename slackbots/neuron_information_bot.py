@@ -117,10 +117,12 @@ def process_message(message: str, user: str, fake=False) -> str:
         except Exception as e:
             return f"`{type(e)}`\n```{e}```"
         if return_as == 'dataframe':
-            info.drop(columns=['id', 'valid', 'pt_supervoxel_id', 'pt_root_id',
+            info.drop(columns=['id', 'valid', 'pt_supervoxel_id',
+                               'pt_root_id', 'deleted', 'superceded_id',
                                'pt_position'], inplace=True)
             info.rename(columns={'tag': 'annotation',
                                  'tag2': 'annotation_class'}, inplace=True)
+            info['created'] = info.created.apply(lambda x: x.date())
             return ('```' + info.to_string(index=False) + '```')
         else:
             return ('```' + '\n'.join(info) + '```')
@@ -141,10 +143,6 @@ def process_message(message: str, user: str, fake=False) -> str:
             return (f"ERROR: {segid} is not a current segment ID."
                     " Was the segment edited recently? Or did you"
                     " copy-paste the wrong thing?")
-        if have_recently_uploaded(segid, table_name):
-            return (f"ERROR: I recently uploaded segment {segid}"
-                    f" to `{table_name}`. I'm not going to upload"
-                    " it again.")
 
         # Parse and validate annotations
         if len(tokens) < 4 or '>' not in tokens:
@@ -157,56 +155,31 @@ def process_message(message: str, user: str, fake=False) -> str:
                     " into an annotation and annotation_class.")
         annotation_class = annotation_tokens[0].strip()
         annotation = annotation_tokens[1].strip()
-        try:
-            fanc.annotations.is_allowed_to_post(segid, annotation_class,
-                                                annotation, raise_errors=True)
-        except Exception as e:
-            return f"`{type(e)}`\n```{e}```"
-
-        # Find soma
-        soma = fanc.lookup.somas_from_segids(segid, timestamp='now')
-        if len(soma) > 1:
-            return (f"ERROR: Segment {segid} has multiple entires"
-                    " in the soma table, with the coordinates listed"
-                    " below. Cannot add annotations.\n\n"
-                    f"{np.vstack(soma.pt_position)}")
-        elif len(soma) == 0:
-            return (f"ERROR: Segment {segid} has no entry in the soma"
-                    " table.\n\nIf you clearly see a soma attached to"
-                    " this object, probably the automated soma detection"
-                    " algorithm missed this soma. If so, message Sumiya"
-                    " Kuroda and he can add it to the soma table."
-                    "\n\nIf you're sure this is a descending neuron or"
-                    " a sensory neuron, you can specify a point to"
-                    " anchor the annotation. Call 'help' for details.")
-        else:
-            point = list(np.hstack(soma.pt_position))
-
-        stage = caveclient.annotation.stage_annotations(table_name)
-        try:
-            stage.add(
-                tag=annotation,
-                tag2=annotation_class,
-                pt_position=point,
-                user_id=cave_user_id,
-            )
-        except Exception as e:
-            return f"ERROR: Staging failed with error\n`{type(e)}`\n```{e}```"
 
         if fake:
-            return (f"FAKE: Would upload segment {segid}, point coordinate "
-                    f"`{point}`, annotations `{annotation_class} > {annotation}`.")
+            try:
+                fanc.annotations.is_allowed_to_post(segid, annotation_class, annotation)
+                point = list(fanc.lookup.anchor_point(segid))
+            except Exception as e:
+                return f"`{type(e)}`\n```{e}```"
+            return (f"FAKE: Would upload segment {segid}, point {point}"
+                    f", annotations `{annotation_class} > {annotation}`.")
+
         try:
-            response = caveclient.annotation.upload_staged_annotations(stage)
-            record_upload(segid, cave_user_id, table_name)
+            response = fanc.upload.annotate_neuron(segid, annotation_class,
+                                                   annotation, cave_user_id)
+            record_upload(segid, annotation, annotation_class,
+                          cave_user_id, table_name)
+            uploaded_data = caveclient.annotation.get_annotation(table_name,
+                                                                 response)[0]
             return (f"Upload to `{table_name}` succeeded:\n"
                     f"- Segment {segid}\n"
-                    f"- Point coordinate `{point}`\n"
+                    f"- Point coordinate `{uploaded_data['pt_position']}`\n"
                     f"- Annotation: `{annotation}`\n"
                     f"- Annotation class: `{annotation_class}`\n"
-                    f"- Annotation ID: {response}")
+                    f"- Annotation ID: {response[0]}")
         except Exception as e:
-            return f"ERROR: Upload failed with error\n`{type(e)}`\n```{e}```"
+            return f"ERROR: Annotation failed due to\n`{type(e)}`\n```{e}```"
 
     else:
         return ("ERROR: The first word in your message isn't a segment"
@@ -251,19 +224,10 @@ def fetch_messages_and_post_replies(channel, verbosity=1, fake=False):
         )
 
 
-def record_upload(segid, user, table_name) -> None:
-    # TODO record the annotation as well
+def record_upload(segid, tag, tag2, user_id, table_name) -> None:
     uploads_fn = f'neuron_information_bot_uploads_to_{table_name}.txt'
     with open(uploads_fn, 'a') as f:
-        f.write(f'{segid},{user}\n')
-
-
-def have_recently_uploaded(segid, table_name) -> bool:
-    # TODO check whether the same annotation pair was uploaded
-    uploads_fn = f'neuron_information_bot_uploads_to_{table_name}.txt'
-    with open(uploads_fn, 'r') as f:
-        recent_uploads = [int(line.strip().split(',')[0]) for line in f.readlines()]
-    return segid in recent_uploads
+        f.write(f'{segid},{tag},{tag2},{user_id}\n')
 
 
 if __name__ == '__main__':
