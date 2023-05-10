@@ -59,11 +59,10 @@ Get information:
 
 Upload annotations:
 (Before contributing your own annotations, you are REQUIRED to read the description of the "neuron_information" table at https://cave.fanc-fly.com/annotation/views/aligned_volume/fanc_v4/table/neuron_information AND read the list of valid annotations at https://github.com/htem/FANC_auto_recon/wiki/Neuron-annotations )
-- `648518346481082458! primary class > central neuron` -> annotate that the indicated segment's "primary class" is "central neuron".
-- `648518346481082458! central neuron > ascending neuron` -> annotate that the indicated segment's "central neuron" subtype is "ascending neuron".
-- `648518346481082458! projection pattern > intersegmental` -> annotate that the indicated segment projects to multiple segments (T1 / T2 / T3 / abdominal ganglion) of the VNC.
+- `648518346481082458! primary class > central neuron` -> annotate that the indicated segment's "primary class" is "central neuron" (as opposed to "sensory neuron" or "motor neuron").
+- `648518346489818455! left-right projection pattern > bilateral` -> annotate that segment 648518346489818455 projects bilaterally, i.e. has synaptic connections on both sides of the VNC's midplane.
 
-Uploading currently only works on neurons with somas. Will work on sensory and descending neurons soon.
+This bot is a work in progress - notably, you can't yet annotate most sensory neurons because the `peripheral_nerves` table is not complete yet. This will be addressed soon.
 Feel free to contact Jasper with any questions or bug reports.
 """)
 
