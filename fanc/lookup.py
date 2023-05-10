@@ -16,9 +16,10 @@ default_proofreading_tables = ['proofread_first_pass', 'proofread_second_pass']
 default_svid_lookup_url = 'https://services.itanna.io/app/transform-service/query/dataset/fanc_v4/s/2/values_array_string_response/'
 
 
-def is_proofread(segid: int or list[int],
-                 table_names: str or list[str] = default_proofreading_tables,
-                 timestamp='now', slow_mode=True) -> bool or str or tuple(str, list):
+def proofreading_status(segid: int or list[int],
+                        table_names: str or list[str] = default_proofreading_tables,
+                        timestamp='now',
+                        slow_mode=True) -> bool or str or tuple(str, list):
     """
     Determine whether a segment has been marked as proofread.
 
@@ -38,16 +39,16 @@ def is_proofread(segid: int or list[int],
 
     Returns
     -------
-    False: The given segment ID has not been marked as proofread in any of the
+    None: The given segment ID has not been marked as proofread in any of the
       given tables.
     str: The name of the proofreading table in which the segment is marked as
       proofread.
-    tuple (str, list): The name of the proofreading table in which an earlier
+    2-tuple of (str, list): The name of the proofreading table in which an earlier
       version of this the segment was marked as proofread, and a list
       containing the previous segment ID(s) that were marked as proofread.
     """
     if isinstance(segid, int):
-        return is_proofread([segid], table_names=table_names, timestamp=timestamp)[0]
+        return proofreading_status([segid], table_names=table_names, timestamp=timestamp)[0]
 
     client = auth.get_caveclient()
     if timestamp in ['now', 'live']:
@@ -84,7 +85,7 @@ def is_proofread(segid: int or list[int],
         if results.notna().all():
             return results.loc[segid].to_list()
 
-    results.loc[results.isna()] = False
+    results.loc[results.isna()] = None
     return results.loc[segid].to_list()
 
 
