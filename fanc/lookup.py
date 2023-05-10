@@ -3,7 +3,6 @@
 import collections
 from concurrent import futures
 from datetime import datetime
-from typing import Union
 
 import numpy as np
 import pandas as pd
@@ -13,76 +12,86 @@ import cloudvolume
 
 from . import auth
 
-default_proofreading_table = 'proofreading_status_table_v0'
+default_proofreading_tables = ['proofread_first_pass', 'proofread_second_pass']
 default_svid_lookup_url = 'https://services.itanna.io/app/transform-service/query/dataset/fanc_v4/s/2/values_array_string_response/'
 
 
-def is_proofread(segid: int,
-                 table_name: str = default_proofreading_table,
-                 return_previous_ids: bool = False) -> Union[int, list]:
+def is_proofread(segid: int or list[int],
+                 table_names: str or list[str] = default_proofreading_tables,
+                 timestamp='now', slow_mode=True) -> bool or str or tuple(str, list):
     """
     Determine whether a segment has been marked as proofread.
 
     Arguments
     ---------
-    segid : int
+    segid: int
       The ID of the segment to query
-    table_name : str
-      The name of the CAVE proofreading table to quewry
-    return_previous_ids : bool
-      In case the queried segment is not marked as proofread but a
-      previous version of it is, whether to return the IDs of the
-      previous versions as a list or not.
+
+    table_names: str, or list of str
+      The name(s) of the CAVE proofreading table(s) to query
+
+    timestamp : datetime, str, or None (default 'now')
+      The timestamp at which to query the segment's proofreading status.
+      If None, use the timestamp of the latest materialization.
+      If 'now', use the current time.
+      If datetime, use the time specified by the user.
 
     Returns
     -------
-    int (if return_previous_ids is False)
-      0: Not marked as proofread
-      1: The given segment ID has been marked as proofread
-      2: A previous version of this segment was marked as proofread,
-         but this exact segment ID has not.
-    int or list (if return_previous_ids is True)
-      Same as above, but instead of returning the int 2 in the final
-      case, a list of the previous segment IDs that were marked as
-      proofread is returned.
+    False: The given segment ID has not been marked as proofread in any of the
+      given tables.
+    str: The name of the proofreading table in which the segment is marked as
+      proofread.
+    tuple (str, list): The name of the proofreading table in which an earlier
+      version of this the segment was marked as proofread, and a list
+      containing the previous segment ID(s) that were marked as proofread.
     """
+    if isinstance(segid, int):
+        return is_proofread([segid], table_names=table_names, timestamp=timestamp)[0]
+
     client = auth.get_caveclient()
-    now = datetime.utcnow()
-    try:
-        valid_id_matches = client.materialize.live_live_query(
-            table_name,
-            now,
-            filter_in_dict={table_name: {'valid_id': [segid]}},
-            #allow_missing_lookups=True
-        )
-        if len(valid_id_matches) > 0:
-            return 1
-    except requests.exceptions.HTTPError as e:
-        if 'returned no results' not in e.args[0]:
-            raise e
+    if timestamp in ['now', 'live']:
+        timestamp = datetime.utcnow()
+    elif timestamp is None:
+        timestamp = client.materialize.get_timestamp()
 
-    try:
-        root_id_matches = client.materialize.live_live_query(
-            table_name,
-            now,
-            filter_in_dict={table_name: {'pt_root_id': [segid]}},
-            #allow_missing_lookups=True
-        )
-        if len(root_id_matches) > 0:
-            if return_previous_ids:
-                return list(root_id_matches.valid_id.values)
-            else:
-                return 2
-    except requests.exceptions.HTTPError as e:
-        if 'returned no results' not in e.args[0]:
-            raise e
+    if not all(client.chunkedgraph.is_latest_roots(segid, timestamp=timestamp)):
+        raise KeyError('A given ID(s) is not valid at the given timestamp.'
+                       ' Use updated IDs or provide the timestamp where'
+                       ' the ID(s) is valid.')
 
-    return 0
+    if isinstance(table_names, str):
+        table_names = [table_names]
+
+    results = pd.Series(index=segid, data=None, dtype=object)
+    for table_name in table_names[::-1]:
+        if slow_mode:
+            valid_id_matches = client.materialize.live_live_query(table_name, timestamp)
+        else:
+            valid_id_matches = client.materialize.live_live_query(table_name, timestamp,
+                filter_in_dict={table_name: {'valid_id': results.index[results.isna()].to_list()}})
+
+        results.loc[results.isna() & results.index.isin(valid_id_matches.valid_id)] = table_name
+        if results.notna().all():
+            return results.loc[segid].to_list()
+
+        if slow_mode:
+            root_id_matches = client.materialize.live_live_query(table_name, timestamp)
+        else:
+            root_id_matches = client.materialize.live_live_query(table_name, timestamp,
+                filter_in_dict={table_name: {'pt_root_id': results.index[results.isna()].to_list()}})
+        results.loc[results.isna()] = root_id_matches.groupby('pt_root_id')['valid_id'].apply(lambda x: (table_name, list(x)))
+        if results.notna().all():
+            return results.loc[segid].to_list()
+
+    results.loc[results.isna()] = False
+    return results.loc[segid].to_list()
 
 
-def annotations(segid: int,
+def annotations(segid: int or list[int],
                 table_name: str = 'neuron_information',
-                return_as='list') -> Union[list, pd.DataFrame]:
+                return_as='list',
+                slow_mode=True) -> list or pd.DataFrame:
     """
     Get a cell's annotations from a CAVE table.
 
@@ -105,14 +114,24 @@ def annotations(segid: int,
     -------
     list of strings OR pd.DataFrame, depending on `return_as`
     """
+    if isinstance(segid, int) and return_as == 'list':
+        return annotations([segid], table_name=table_name, return_as='list',
+                           slow_mode=slow_mode)[0]
+    elif isinstance(segid, int):
+        segid = [segid]
+
     client = auth.get_caveclient()
     now = datetime.utcnow()
     try:
-        table = client.materialize.live_live_query(
-            table_name,
-            now,
-            filter_in_dict={table_name: {'pt_root_id': [segid]}},
-        )
+        if slow_mode:
+            table = client.materialize.live_live_query(table_name, now)
+            table = table.loc[table.pt_root_id.isin(segid)]
+        else:
+            table = client.materialize.live_live_query(
+                table_name,
+                now,
+                filter_in_dict={table_name: {'pt_root_id': segid}},
+            )
     except requests.exceptions.HTTPError as e:
         if 'returned no results' not in e.args[0]:
             raise e
@@ -124,10 +143,10 @@ def annotations(segid: int,
                          f" but was '{return_as}'")
     try:
         # Return tags as list
-        return [anno for anno in table.tag]
-    except:
-        raise AttributeError(f"Table '{table_name}' has no column"
-                             f" named 'tag'")
+        return [[anno for anno in table.loc[table.pt_root_id == s, 'tag']]
+                 for s in segid]
+    except KeyError:
+        raise KeyError(f"Table '{table_name}' has no column named 'tag'")
 
 
 def svids_from_pts(pts, service_url=default_svid_lookup_url):
@@ -206,7 +225,8 @@ def segids_from_pts(pts,
 
 anchor_point_sources = ['somas_dec2022', 'peripheral_nerves', 'neck_connective']
 def anchor_point(segid, source_tables=anchor_point_sources,
-                 timestamp='now', resolve_duplicates=False) -> np.array:
+                 timestamp='now', resolve_duplicates=False,
+                 slow_mode=True) -> np.array:
     """
     Return a representative "anchor" point for each of the given
     segment ID(s).
@@ -260,15 +280,25 @@ def anchor_point(segid, source_tables=anchor_point_sources,
     elif timestamp is None:
         timestamp = client.materialize.get_timestamp()
 
+    if not all(client.chunkedgraph.is_latest_roots(segid, timestamp=timestamp)):
+        raise KeyError('A given ID(s) is not valid at the given timestamp.'
+                       ' Use updated IDs or provide the timestamp where'
+                       ' the ID(s) is valid.')
+
     anchor_points = pd.Series(index=segid, dtype=object)
 
     for table in source_tables:
         unanchored_ids = anchor_points[anchor_points.isna()].index.values
-        points = client.materialize.live_live_query(
-            table,
-            filter_in_dict={table: {'pt_root_id': unanchored_ids}},
-            timestamp=timestamp
-        )
+        if slow_mode:
+            points = client.materialize.live_live_query(table,
+                                                        timestamp=timestamp)
+            points = points.loc[points.pt_root_id.isin(unanchored_ids)]
+        else:
+            points = client.materialize.live_live_query(
+                table,
+                filter_in_dict={table: {'pt_root_id': unanchored_ids}},
+                timestamp=timestamp
+            )
         for seg, point in points.groupby('pt_root_id'):
             if len(point) > 1:
                 # Sort points by x coordinate
@@ -359,7 +389,7 @@ def somas_from_segids(segid,
     elif timestamp is None:
         timestamp = client.materialize.get_timestamp()
 
-    if not all(client.chunkedgraph.is_latest_roots(list(segid), timestamp=timestamp)):
+    if not all(client.chunkedgraph.is_latest_roots(segid, timestamp=timestamp)):
         raise KeyError('A given ID(s) is not valid at the given timestamp.'
                        ' Use updated IDs or provide the timestamp where'
                        ' the ID(s) is valid.')
