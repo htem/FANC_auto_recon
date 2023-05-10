@@ -24,7 +24,6 @@ import sys
 import json
 import time
 from datetime import datetime
-from typing import Union
 
 import requests
 import slack_sdk
@@ -41,7 +40,6 @@ all_tables = caveclient.materialize.get_tables()
 # completion, the line below must list them in order of least complete
 # proofreading status to most complete proofreading status
 proofreading_tables = ['proofread_first_pass', 'proofread_second_pass']
-default_proofreading_table = proofreading_tables[0]
 
 if len(sys.argv) > 1 and sys.argv[1] in os.environ:
     token = os.environ[sys.argv[1]]
@@ -51,18 +49,6 @@ slackclient = slack_sdk.WebClient(token=token)
 
 with open('slack_user_permissions.json', 'r') as f:
     permissions = json.load(f)
-
-# Build some dicts that make it easy to look up IDs for users and channels
-#all_users = slackclient.users_list()['members']
-#userid_to_username = {
-#    user['id']: user['profile']['display_name'].lower()
-#    if user['profile']['display_name'] else user['profile']['real_name'].lower()
-#    for user in all_users
-#}
-#username_to_userid = {v: k for k, v in userid_to_username.items()}
-#all_conversations = slackclient.conversations_list()['channels']
-#channelname_to_channelid = {x['name']: x['id'] for x in all_conversations}
-#channelid_to_channelname = {x['id']: x['name'] for x in all_conversations}
 
 
 def show_help():
@@ -140,8 +126,11 @@ def process_message(message: str, user: str, fake=False) -> str:
         table_name = proofreading_tables[1]
         # Convert !! to ! so both upload commands now end in just one !
         tokens[0] = tokens[0][:-1]
+    elif tokens[0].endswith('!'):
+        table_name = proofreading_tables[0]
     else:
-        table_name = default_proofreading_table
+        table_name = proofreading_tables
+
     try:
         segid = int(tokens[0][:-1])
     except ValueError:
@@ -151,30 +140,24 @@ def process_message(message: str, user: str, fake=False) -> str:
     caveclient.materialize.version = caveclient.materialize.most_recent_version()
 
     if tokens[0].endswith('?'):  # Query
-        # Loop through tables backwards, so if segment is found in the later
-        # tables, a message will be returned and the earlier tables won't be
-        # searched
-        for table in proofreading_tables[::-1]:
-            try:
-                query_result = fanc.lookup.is_proofread(segid, table,
-                                                         return_previous_ids=True)
-            except Exception as e:
-                return f"`{type(e)}`\n```{e}```"
+        try:
+            status = fanc.lookup.proofreading_status(segid, table_name)
+        except Exception as e:
+            return f"`{type(e)}`\n```{e}```"
 
-            if query_result == 1:
-                return (f"Yes, segment {segid} is `{table}`.")
-            elif isinstance(query_result, list):
-                return (f"A previous version(s) of segment {segid} was found in"
-                        f" `{table_name}`: {query_result}.\nThis means it was"
-                        " marked as proofread at some point but then edited"
-                        " afterward, and the new version has not yet been marked"
-                        " as proofread.")
+        if isinstance(status, str):
+            return (f"Yes, segment {segid} is in `{status}`.")
+        elif isinstance(status, tuple):
+            return (f"A previous version(s) of segment {segid} was found in"
+                    f" `{status[0]}`: {status[1]}.\nThis means it was"
+                    " marked as proofread at some point but then edited"
+                    " afterward, and the new version has not yet been marked"
+                    " as proofread.")
+        elif status is None:
+            return f"No, segment {segid} is not marked as proofread."
 
-            if query_result != 0:
-                return ValueError(f'Unexpected query results from'
-                                  f' table `{table}`:\n{query_result}')
+        return ValueError(f'Unexpected query results:\n```{status}```')
 
-        return f"No, segment {segid} is not marked as proofread."
 
     elif tokens[0].endswith('!'):  # Upload
         # Permissions
@@ -196,34 +179,18 @@ def process_message(message: str, user: str, fake=False) -> str:
             return (f"ERROR: I recently uploaded segment {segid}"
                     f" to `{table_name}`. I'm not going to upload"
                     " it again.")
-        if fanc.lookup.is_proofread(segid, table_name) == 1:
+        if fanc.lookup.proofreading_status(segid, table_name) == table_name:
             return (f"ERROR: {segid} is already marked as proofread in"
                     f" table `{table_name}`. Taking no action.")
 
-        # Find soma
-        soma = fanc.lookup.somas_from_segids(segid, timestamp='now')
-        if len(soma) > 1:
-            return (f"ERROR: Segment {segid} has multiple entires"
-                    " in the soma table, with the coordinates listed"
-                    " below. Shame on you for marking a cell as"
-                    " proofread when it still has two somas! (Or"
-                    " there's a bug in my code.)\n\n"
-                    f"{np.vstack(soma.pt_position)}")
-        elif len(soma) == 0 and len(tokens) == 1:
-            return (f"ERROR: Segment {segid} has no entry in the soma"
-                    " table.\n\nIf you clearly see a soma attached to"
-                    " this object, probably the automated soma detection"
-                    " algorithm missed this soma. If so, message Sumiya"
-                    " Kuroda and he can add it to the soma table."
-                    "\n\nIf you're sure this is a descending neuron or"
-                    " a sensory neuron, you can specify a point to"
-                    " anchor the proofreading annotation. Call 'help'"
-                    " for details.")
-        elif len(soma) == 0 and len(tokens) != 4:
-            return ("ERROR: You did not provide a segment ID followed"
-                    " by an xyz point coordinate, at least not in the"
-                    " expected format.")
-        elif len(soma) == 0 and len(tokens) == 4:
+        try:
+            point = fanc.lookup.anchor_point(segid)
+        except Exception as e:
+            if len(tokens) == 1:
+                return (f"`{type(e)}`\n```{e}```\nIf you would like to provide an"
+                        " anchor point, see the instructions in the help function.")
+            elif len(tokens) != 4:
+                return "Anchor point not provided correctly."
             try:
                 point = [float(i.strip(',')) for i in tokens[1:]]
             except ValueError:
@@ -235,15 +202,13 @@ def process_message(message: str, user: str, fake=False) -> str:
                 return (f"ERROR: The provided point `{point}` is inside"
                         f" segment {segid_from_point} which doesn't"
                         f" match the segment ID you provided, {segid}.")
-
-        elif len(soma) == 1 and len(tokens) > 1:
-            return (f"ERROR: Segment {segid} has an entry in the"
-                    f" soma table at {list(np.hstack(soma.pt_position))}"
+            # Drop the last 3 tokens
+            tokens = tokens[:-3]
+        if len(tokens) > 1 and len(point) > 0:
+            return (f"ERROR: Segment {segid} has an anchor point at {point}"
                     " but you provided additional information."
                     " Additional information is unexpected when the"
-                    " segment has a soma, so I didn't do anything.")
-        else:
-            point = list(np.hstack(soma.pt_position))
+                    " segment has an anchor point, so I didn't do anything.")
 
         stage = caveclient.annotation.stage_annotations(table_name)
         try:
@@ -265,7 +230,7 @@ def process_message(message: str, user: str, fake=False) -> str:
             return (f"Upload to `{table_name}` succeeded:\n"
                     f"- Segment {segid}\n"
                     f"- Point coordinate `{point}`\n"
-                    f"- Annotation ID: {response}")
+                    f"- Annotation ID: {response[0]}")
         except Exception as e:
             return f"ERROR: Upload failed with error\n`{type(e)}`\n```{e}```"
 
