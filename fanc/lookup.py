@@ -18,7 +18,7 @@ default_svid_lookup_url = 'https://services.itanna.io/app/transform-service/quer
 
 def proofreading_status(segid: int or list[int],
                         table_names: str or list[str] = default_proofreading_tables,
-                        timestamp='now') -> bool or str or tuple(str, list):
+                        timestamp='now') -> None or str or tuple(str, list):
     """
     Determine whether a segment has been marked as proofread.
 
