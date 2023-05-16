@@ -80,7 +80,7 @@ def proofreading_status(segid: int or list[int],
 def annotations(segid: int or list[int],
                 table_name: str = 'neuron_information',
                 return_as='list',
-                slow_mode=True) -> list or pd.DataFrame:
+                slow_mode=False) -> list or pd.DataFrame:
     """
     Get a cell's annotations from a CAVE table.
 
@@ -215,7 +215,7 @@ def segids_from_pts(pts,
 anchor_point_sources = ['somas_dec2022', 'peripheral_nerves', 'neck_connective']
 def anchor_point(segid, source_tables=anchor_point_sources,
                  timestamp='now', resolve_duplicates=False,
-                 slow_mode=True) -> np.ndarray:
+                 slow_mode=False) -> np.ndarray:
     """
     Return a representative "anchor" point for each of the given
     segment ID(s).
