@@ -112,6 +112,7 @@ def process_message(message: str, user: str, fake=False) -> str:
         triggered, or to describe an error that was encountered when
         processing their message.
     """
+    #return "I am currently down for maintenance. Please try again later."
     tokens = message.strip(' ').split(' ')
     if len(tokens) == 0:
         return ("NO ACTION: Your message is empty or I couldn't understand"
@@ -143,7 +144,7 @@ def process_message(message: str, user: str, fake=False) -> str:
         try:
             status = fanc.lookup.proofreading_status(segid, table_name)
         except Exception as e:
-            return f"`{type(e)}`\n```{e}```"
+            return f"Query failed with `{type(e)}`\n```{e}```"
 
         if isinstance(status, str):
             return (f"Yes, segment {segid} is in `{status}`.")
@@ -171,17 +172,21 @@ def process_message(message: str, user: str, fake=False) -> str:
                     " to request permissions.")
 
         # Sanity checks
-        if not caveclient.chunkedgraph.is_latest_roots(segid):
-            return (f"ERROR: {segid} is not a current segment ID."
-                    " Was the segment edited recently? Or did you"
-                    " copy-paste the wrong thing?")
-        if have_recently_uploaded(segid, table_name):
-            return (f"ERROR: I recently uploaded segment {segid}"
-                    f" to `{table_name}`. I'm not going to upload"
-                    " it again.")
-        if fanc.lookup.proofreading_status(segid, table_name) == table_name:
-            return (f"ERROR: {segid} is already marked as proofread in"
-                    f" table `{table_name}`. Taking no action.")
+        try:
+            if not caveclient.chunkedgraph.is_latest_roots(segid):
+                return (f"ERROR: {segid} is not a current segment ID."
+                        " Was the segment edited recently? Or did you"
+                        " copy-paste the wrong thing?")
+            if have_recently_uploaded(segid, table_name):
+                return (f"ERROR: I recently uploaded segment {segid}"
+                        f" to `{table_name}`. I'm not going to upload"
+                        " it again.")
+            if fanc.lookup.proofreading_status(segid, table_name) == table_name:
+                return (f"ERROR: {segid} is already marked as proofread in"
+                        f" table `{table_name}`. Taking no action.")
+        except Exception as e:
+            return f"Validation steps failed with `{type(e)}`\n```{e}```"
+
 
         try:
             point = fanc.lookup.anchor_point(segid)
