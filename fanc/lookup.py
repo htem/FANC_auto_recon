@@ -46,7 +46,7 @@ def proofreading_status(segid: int or list[int],
       version of this the segment was marked as proofread, and a list
       containing the previous segment ID(s) that were marked as proofread.
     """
-    if isinstance(segid, int):
+    if isinstance(segid, (int, np.integer)):
         return proofreading_status([segid], table_names=table_names, timestamp=timestamp)[0]
 
     client = auth.get_caveclient()
@@ -103,10 +103,10 @@ def annotations(segid: int or list[int],
     -------
     list of strings OR pd.DataFrame, depending on `return_as`
     """
-    if isinstance(segid, int) and return_as == 'list':
+    if isinstance(segid, (int, np.integer)) and return_as == 'list':
         return annotations([segid], table_name=table_name, return_as='list',
                            slow_mode=slow_mode)[0]
-    elif isinstance(segid, int):
+    elif isinstance(segid, (int, np.integer)):
         segid = [segid]
 
     client = auth.get_caveclient()
