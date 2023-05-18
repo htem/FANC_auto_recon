@@ -115,10 +115,11 @@ def process_message(message: str, user: str, fake=False) -> str:
                                            return_as=return_as)
         except Exception as e:
             return f"`{type(e)}`\n```{e}```"
+        if len(info) == 0:
+            return "No annotations found."
         if return_as == 'dataframe':
             info.drop(columns=['id', 'valid', 'pt_supervoxel_id',
-                               'pt_root_id', 'deleted', 'superceded_id',
-                               'pt_position'], inplace=True)
+                               'pt_root_id', 'pt_position'], inplace=True)
             info.rename(columns={'tag': 'annotation',
                                  'tag2': 'annotation_class'}, inplace=True)
             info['created'] = info.created.apply(lambda x: x.date())
