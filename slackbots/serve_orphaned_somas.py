@@ -165,6 +165,7 @@ def serve_somas_to_eligible_messages(channel, verbosity=1, fake=False):
         kwargs = dict()
         if 'T1' in message['text'] and 'T2' not in message['text']:
             kwargs['y_range'] = 'T1'
+            kwargs['query_size'] = 60
         elif 'T2' in message['text'] and 'T1' not in message['text']:
             kwargs['y_range'] = 'T2'
         elif 'T3' in message['text']:
