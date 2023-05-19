@@ -120,7 +120,9 @@ def process_message(message: str, user: str, fake=False) -> str:
         if return_as == 'dataframe':
             info.drop(columns=['id', 'valid', 'pt_supervoxel_id',
                                'pt_root_id', 'pt_position', 'deleted',
-                               'superceded_id'], inplace=True)
+                               'superceded_id'],
+                      errors='ignore',
+                      inplace=True)
             info.rename(columns={'tag': 'annotation',
                                  'tag2': 'annotation_class'}, inplace=True)
             info['created'] = info.created.apply(lambda x: x.date())
