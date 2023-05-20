@@ -194,7 +194,7 @@ def segids_from_pts(pts,
       default one. Not common to need this.
 
     --- Returns ---
-    The requested segIDs as a numpy array of uint64 values
+    The requested segIDs as a numpy array of int64 values
     Order is preserved - the segID corresponding to the Nth point in
     the argument will be the Nth value in the returned array.
     """
@@ -588,11 +588,9 @@ def segids_from_pts_cv(pts,
 
             if fail_check == max_tries:
                 failed.append(i)
-
-    sv_id_full = np.concatenate(sv_ids)
+    sv_ids = np.concatenate(sv_ids)
 
     if return_roots:
-        root_ids = cv.get_roots(sv_id_full, timestamp=timestamp)
-        return root_ids
+        return cv.get_roots(sv_ids, timestamp=timestamp).astype(np.int64)
     else:
-        return sv_id_full
+        return sv_ids.astype(np.int64)
