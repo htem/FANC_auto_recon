@@ -209,7 +209,7 @@ def segids_from_pts(pts,
     else:
         cv = auth.get_cloudvolume()
 
-    return cv.get_roots(svids, timestamp=timestamp)
+    return cv.get_roots(svids, timestamp=timestamp).astype(np.int64)
 
 
 anchor_point_sources = ['somas_dec2022', 'peripheral_nerves', 'neck_connective']
