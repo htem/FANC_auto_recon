@@ -218,7 +218,7 @@ class SomaTableOrganizer(object):
         nuclei_cv = CloudVolume( # mip4
             nucleus_segmentation_layer,
             progress=False,
-            cache=False, # to aviod conflicts with LocalTaskQueue
+            cache=False, # to avoid conflicts with LocalTaskQueue
             use_https=True,
             autocrop=True, # crop exceeded volumes of request
             bounded=False
@@ -368,13 +368,15 @@ def add_soma(points=None, is_neuron=True, nucleus_id=None):
         A point coordinate of a soma to upload
 
     is_neuron: bool
-        True, if it is neuron
+        Whether the soma belongs to a neuron (True) or a glia (False).
 
     nucleus_id: int or np.uint64
-        A nucleus ID that you want to use to annotate the soma. If you don't have preference, 
-        you can use None (by default). The code then will check the nucleus ID by looking up the same coordinate 
-        on the nucleus segmentation, and use the nucleus ID that it finds. If it cannot find anything, 
-        then the code will generate a "meaningless" artificial annotation ID for this soma.
+        A nucleus ID that you want to use to annotate the soma. If you don't
+        have preference, you can use None (by default). The code then will
+        check the nucleus ID by looking up the same coordinate on the nucleus
+        segmentation, and use the nucleus ID that it finds. If it cannot find
+        anything, then the code will generate a "meaningless" artificial
+        annotation ID for this soma.
     """
     sto = SomaTableOrganizer(client=auth.get_caveclient())
     if is_neuron:
@@ -382,7 +384,7 @@ def add_soma(points=None, is_neuron=True, nucleus_id=None):
     else:
         sto.initialize(subset_table_name='glia')
     upload_df = pd.DataFrame(columns=['pt_position', 'id'])
-    if nucleus_id!=None:
+    if nucleus_id is not None:
         upload_df.loc[0] = [points, nucleus_id]
     else:
         upload_df.loc[0] = [points, np.nan]
