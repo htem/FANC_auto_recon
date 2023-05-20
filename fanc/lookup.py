@@ -174,6 +174,10 @@ def svids_from_pts(pts, service_url=default_svid_lookup_url):
     if isinstance(pts, pd.Series):
         pts = np.vstack(pts)
 
+    if len(pts) == 3:
+        try: iter(pts[0])
+        except: return svids_from_pts([pts], service_url=service_url)[0]
+
     pts = np.array(pts, dtype=np.uint32)
     if pts.ndim == 1:
         pts = pts.reshape(-1, 3)
@@ -223,7 +227,11 @@ def segids_from_pts(pts,
     else:
         cv = auth.get_cloudvolume()
 
-    return cv.get_roots(svids, timestamp=timestamp).astype(np.int64)
+    try:
+        iter(svids)
+        return cv.get_roots(svids, timestamp=timestamp).astype(np.int64)
+    except:
+        return cv.get_roots(svids, timestamp=timestamp).astype(np.int64)[0]
 
 
 anchor_point_sources = ['somas_dec2022', 'peripheral_nerves', 'neck_connective']
