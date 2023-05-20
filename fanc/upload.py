@@ -343,25 +343,33 @@ def transfer_segmentation(from_layer, to_layer):
     pass
 
 
-def add_soma(points=None, is_neuron=True, nucleus_id=None):
+def add_soma(point=None, is_neuron=True, nucleus_id=None):
     """
     Upload one new soma to a corresponding CAVE table.
 
     Arguments
     ---------
-    points: list OR np.array
-        A point coordinate of a soma to upload
+    point: 3-length iterable
+        A point coordinate of a soma to upload, in xyz order.
+        This point:
+        - must be in the segmentation (that is, not in a location
+          where the segmentation is 0 due to knifemarks).
+        - should be as close to the center of the neuron's
+          nucleus as possible.
+        - does NOT have to overlap with the nucleus_id object
+          that you specify (optional, see below).
 
     is_neuron: bool
         Whether the soma belongs to a neuron (True) or a glia (False).
 
     nucleus_id: int or np.uint64
-        A nucleus ID that you want to use to annotate the soma. If you don't
-        have preference, you can use None (by default). The code then will
-        check the nucleus ID by looking up the same coordinate on the nucleus
-        segmentation, and use the nucleus ID that it finds. If it cannot find
-        anything, then the code will generate a "meaningless" artificial
-        annotation ID for this soma.
+        An ID of an object in the FANC nucleus segmentation
+        (precomputed://gs://lee-lab_female-adult-nerve-cord/alignmentV4/nuclei/nuclei_seg_Mar2022)
+        to represent this soma. If left as None, this function will try looking
+        in the nucleus segmentation at the provided point coordinate for a
+        nucleus ID to use. If there is no nucleus segmentation there, a
+        "meaningless" ID (that doesn't correspond to any object in the nucleus
+        segmentation) will be used for the soma annotation instead.
     """
     sto = SomaTableOrganizer(client=auth.get_caveclient())
     if is_neuron:
@@ -369,10 +377,11 @@ def add_soma(points=None, is_neuron=True, nucleus_id=None):
     else:
         sto.initialize(subset_table_name='glia')
     upload_df = pd.DataFrame(columns=['pt_position', 'id'])
+    point = np.array(point)
     if nucleus_id is not None:
-        upload_df.loc[0] = [points, nucleus_id]
+        upload_df.loc[0] = [point, nucleus_id]
     else:
-        upload_df.loc[0] = [points, np.nan]
+        upload_df.loc[0] = [point, np.nan]
     sto.add_dataframe(upload_df)
     # transfer_segmentation()
 
