@@ -518,7 +518,7 @@ class GSPointLoader(object):
 
 
 def segids_from_pts_cv(pts,
-                       cv=auth.get_cloudvolume(),
+                       cv=None,
                        n=100000,
                        max_tries=3,
                        return_roots=True,
@@ -526,20 +526,20 @@ def segids_from_pts_cv(pts,
                        progress=True,
                        timestamp=None):
     """
-    Query cloudvolume object for root or supervoxel IDs.
+    Query a cloudvolume for root or supervoxel IDs.
 
     This method is slower than segIDs_from_pts, but does not depend on
     the supervoxel ID lookup service created by Eric Perlman and hosted on
     services.itanna.io. As such, this function might be useful if that service
     is not available for some reason.
 
-    This function may not actually work as-is (it threw errors when tested in
-    December 2022) but presumably it's close to working, because it did work in
-    the past, so we can try to revive it if the need arises.
-
-    --- Arguments ---
-    pts: Nx3 numpy array or pandas Series
+    Arguments
+    ---------
+    pts: Nx3 numpy array or pd.Series
       Points to query, in xyz order and in mip0 coordinates.
+    cv: cloudvolume.CloudVolume or None
+      The cloudvolume object to query. If None, will query from the
+      latest proofread FANC segmentation.
     n: int (default 100,000)
       number of coordinates to query in a single batch. Default is 100000,
       which seems to prevent server errors.
@@ -547,12 +547,14 @@ def segids_from_pts_cv(pts,
       number of attempts per batch. Usually if it fails 3 times, something is
       wrong and more attempts won't work.
     return_roots: bool (detault True)
-      If true, will look up root ids from supervoxel ids. Otherwise, supervoxel
+      If True, will look up root ids from supervoxel ids. Otherwise, supervoxel
       ids will be returned.
 
     --- Returns ---
     root IDs or supervoxel IDs for queried coordinates as int64
     """
+    if cv is None:
+        cv = auth.get_cloudvolume()
 
     if hasattr(cv, 'agglomerate'):
         cv.agglomerate = False
