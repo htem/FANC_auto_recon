@@ -341,6 +341,49 @@ def anchor_point(segid, source_tables=anchor_point_sources,
     return np.vstack(anchor_points[segid])
 
 
+def nucleusid_from_pt(pt, nucleus_segmentation_path=None):
+    """
+    Query the nucleus segmentation for the nucleus ID at the given point(s).
+
+    Arguments
+    ---------
+    pt: 3-length iterable, or Nx3 np.ndarray/pd.Series
+      The xyz point coordinate(s) to query the nucleus segmentation at.
+    nucleus_segmentation_path: str (default None)
+      If None, use FANC's nucleus segmentation layer. Or provide a path to a
+      nucleus segmentation you want to query.
+
+    Returns
+    -------
+    np.int64 (if pt is a single point) OR
+    N-length np.ndarray of np.int64 (if point is an Nx3 array)
+    """
+    if isinstance(pt, pd.Series):
+        if pt.empty:
+            return None
+        pt = np.vstack(pt)
+    elif not isinstance(pt, np.ndarray):
+        pt = np.array(pt)
+    if pt.ndim == 1:
+        return nucleusid_from_pt(pt[np.newaxis, :], nucleus_segmentation_path)[0]
+
+
+    if nucleus_segmentation_path is None:
+        client = auth.get_caveclient()
+        table_name = client.info.get_datastack_info()['soma_table']
+        table_info = client.annotation.get_table_metadata(table_name)
+        nucleus_segmentation_path = table_info['flat_segmentation_source']
+    nucleus_cv = cloudvolume.CloudVolume( # mip4
+        nucleus_segmentation_path,
+        progress=False,
+        cache=False, # to avoid conflicts with LocalTaskQueue
+        use_https=True,
+        autocrop=True, # crop exceeded volumes of request
+        bounded=False
+    )
+    return segids_from_pts_cv(pt, nucleus_cv, return_roots=False, progress=False)
+
+
 # TODO implement the raise kwargs
 def somas_from_segids(segid,
                       table='default_soma_table',

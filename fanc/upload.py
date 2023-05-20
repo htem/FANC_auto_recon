@@ -211,21 +211,6 @@ class SomaTableOrganizer(object):
             MaxExistingID =initial_digit*10**(digit-1)
         return [MaxExistingID + i for i in range(1, 1+length)]
     
-    def _get_nuc_ids(self, pts, nucleus_segmentation_layer=None):
-        info = self._client.info.get_datastack_info()
-        if nucleus_segmentation_layer==None:
-            nucleus_segmentation_layer = self._client.annotation.get_table_metadata(info['soma_table'])['flat_segmentation_source']
-        nuclei_cv = CloudVolume( # mip4
-            nucleus_segmentation_layer,
-            progress=False,
-            cache=False, # to avoid conflicts with LocalTaskQueue
-            use_https=True,
-            autocrop=True, # crop exceeded volumes of request
-            bounded=False
-        )
-        nid = lookup.segids_from_pts_cv(pts, nuclei_cv, return_roots=False, progress=False)
-        return nid
-
     def _check_change(self, table_name, timestamp=datetime.utcnow()):
         try:
             return self._client.materialize.live_live_query(table_name, timestamp, allow_missing_lookups=False).reset_index(level=0)
@@ -305,7 +290,7 @@ class SomaTableOrganizer(object):
         id_missing_idx = np.where(df_i['id'].isna())[0]
 
         new_man_ids = self._get_man_id_column(len(id_missing_idx))
-        new_nuc_ids = self._get_nuc_ids(df_i['pt_position'].loc[id_missing_idx])
+        new_nuc_ids = lookup.nucleusid_from_pt(df_i['pt_position'].loc[id_missing_idx])
         j=0
         for i, idx in enumerate(id_missing_idx):
             if new_nuc_ids[i] != 0:
