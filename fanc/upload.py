@@ -279,15 +279,15 @@ class SomaTableOrganizer(object):
 
         ---Arguments---
         df: pandas.DataFrame
-            A dataframe with coordinates of new somata that you want to upload
+            A dataframe with coordinates of new somas that you want to upload
         batch_size: int (default 10000)
             How many annotations you upload in each batch. The CAVE server does not
             allow users to upload more than 10000 annotations at a time.
         """
         print("Checking the format of your table...")
         self.update_tables()
-        df_i = df.reset_index(drop=True)
-        id_missing_idx = np.where(df_i['id'].isna())[0]
+        df_i = df.reset_index(drop=True).astype({'id': np.int64})
+        id_missing_idx = np.where(df_i['id'] == 0)[0]
 
         new_man_ids = self._get_man_id_column(len(id_missing_idx))
         new_nuc_ids = lookup.nucleusid_from_pt(df_i['pt_position'].loc[id_missing_idx])
@@ -298,7 +298,6 @@ class SomaTableOrganizer(object):
             else:
                 df_i.at[idx, 'id'] = new_man_ids[j]
                 j += 1
-        df_i["id"] = pd.to_numeric(df_i["id"])
         self._validate(df_i)
         print("Ready to upload...")
 
@@ -338,9 +337,92 @@ class SomaTableOrganizer(object):
         print(green("Successfully uploaded!"))
 
 
-def transfer_segmentation(from_layer, to_layer):
-    # copy and paste segmentations 
-    pass
+def update_verified_nuclei_layer(point, cube_size_microns=16):
+    """
+    Update the verified nuclei segmentation layer.
+
+    This is typically called just after the user has added a new annotation to
+    the soma table, for example through `add_soma()`, to make the nucleus of
+    this new soma appear in the "nuclei (verified)" layer.
+    The user provides a point in the nucleus, then this function updates the
+    nucleus segmentation layer in a reasonably large cube surrounding the given
+    point to make sure the full nucleus is transferred.
+
+    Arguments
+    ---------
+    point: 3-length iterable
+        A coordinate inside the nucleus. In xyz order, in units of the FANC
+        image data's voxels (that is, voxels at 4.3x4.3x45nm resolution –
+        note that the nucleus segmentation layer's voxel size is
+        68.8x68.8x45nm, so the voxel coordinate that the user gives from the
+        FANC image data will be divided by 16 to get the corresponding voxel
+        coordinate in the nucleus segmentation layer).
+
+    Returns
+    -------
+    Nothing
+    """
+    all_nuclei = CloudVolume('gs://lee-lab_female-adult-nerve-cord/alignmentV4/nuclei/nuclei_seg_Mar2022')
+    verified_nuclei = CloudVolume('gs://lee-lab_female-adult-nerve-cord/alignmentV4/nuclei/nuclei_seg_Mar2022_verified')
+    assert all(all_nuclei.chunk_size == verified_nuclei.chunk_size)
+    assert all(all_nuclei.resolution == verified_nuclei.resolution)
+    assert all_nuclei.bounds == verified_nuclei.bounds
+    chunk_size = all_nuclei.chunk_size
+    bounds = all_nuclei.bounds
+    cube_size_nm = cube_size_microns * 1000
+    cube_size_voxels = cube_size_nm / np.array(all_nuclei.resolution)
+
+    soma_table = auth.get_caveclient().materialize.live_live_query('somas_dec2022', datetime.utcnow())
+    verified_ids = set(soma_table.loc[soma_table['id'] > 20000000000000000, 'id'])
+    verified_ids.add(0)
+
+    def update_chunk(x_slice, y_slice, z_slice,
+                     valid_ids=verified_ids,
+                     verbose=False):
+        """
+        Process a given range of the nuclei predictions, removing invalid ids
+        from all_nuclei and saving the result to the same location within
+        verified_nuclei.
+        """
+        if not isinstance(valid_ids, set):
+            raise TypeError('valid_ids must be a set but was {}'.format(type(valid_ids)))
+
+        data = np.array(all_nuclei[x_slice, y_slice, z_slice])
+
+        if verbose: print('Running ravel & unique')
+        unique_values = pd.unique(data.ravel())
+        if verbose: print('Checking ids for validity')
+        invalid_values = [i for i in unique_values if i not in valid_ids]
+        if verbose: print('Removing invalid ids from data')
+        data[np.isin(data, invalid_values)] = 0
+
+        # Upload result
+        verified_nuclei[x_slice, y_slice, z_slice] = data
+
+    point_mip4 = np.array(point) / (16, 16, 1)
+    # Find the start of the cube, rounding down to the nearest chunk boundary
+    x_start = (point_mip4[0] - cube_size_voxels[0] // 2 - bounds.minpt[0]) // chunk_size[0] * chunk_size[0] + bounds.minpt[0]
+    y_start = (point_mip4[1] - cube_size_voxels[1] // 2 - bounds.minpt[1]) // chunk_size[1] * chunk_size[1] + bounds.minpt[1]
+    z_start = (point_mip4[2] - cube_size_voxels[2] // 2 - bounds.minpt[2]) // chunk_size[2] * chunk_size[2] + bounds.minpt[2]
+    # Find the end of the cube, rounding up to the nearest chunk boundary
+    x_end = ((point_mip4[0] + cube_size_voxels[0] // 2 - bounds.minpt[0]) // chunk_size[0] + 1) * chunk_size[0] + bounds.minpt[0]
+    y_end = ((point_mip4[1] + cube_size_voxels[1] // 2 - bounds.minpt[1]) // chunk_size[1] + 1) * chunk_size[1] + bounds.minpt[1]
+    z_end = ((point_mip4[2] + cube_size_voxels[2] // 2 - bounds.minpt[2]) // chunk_size[2] + 1) * chunk_size[2] + bounds.minpt[2]
+    # Make sure we don't go outside the bounds of the volume
+    x_start = max(bounds.minpt[0], int(x_start))
+    y_start = max(bounds.minpt[1], int(y_start))
+    z_start = max(bounds.minpt[2], int(z_start))
+    x_end = min(bounds.maxpt[0] - chunk_size[0], int(x_end))
+    y_end = min(bounds.maxpt[1] - chunk_size[1], int(y_end))
+    z_end = min(bounds.maxpt[2] - chunk_size[2], int(z_end))
+    print('Updating nucleus segmentation from {} to {}...'.format((x_start, y_start, z_start), (x_end, y_end, z_end)))
+    for x in range(x_start, x_end, chunk_size[0]):
+        for y in range(y_start, y_end, chunk_size[1]):
+            for z in range(z_start, z_end, chunk_size[2]):
+                update_chunk(slice(x, x + chunk_size[0]),
+                             slice(y, y + chunk_size[1]),
+                             slice(z, z + chunk_size[2]))
+    print('Done updating nucleus segmentation.')
 
 
 def add_soma(point=None, is_neuron=True, nucleus_id=None):
@@ -376,14 +458,15 @@ def add_soma(point=None, is_neuron=True, nucleus_id=None):
         sto.initialize(subset_table_name='neuron')
     else:
         sto.initialize(subset_table_name='glia')
-    upload_df = pd.DataFrame(columns=['pt_position', 'id'])
+    upload_df = pd.DataFrame(columns=['pt_position', 'id']).astype({'id': np.int64})
     point = np.array(point)
     if nucleus_id is not None:
         upload_df.loc[0] = [point, nucleus_id]
     else:
-        upload_df.loc[0] = [point, np.nan]
+        upload_df.loc[0] = [point, 0]
     sto.add_dataframe(upload_df)
-    # transfer_segmentation()
+
+    update_verified_nuclei_layer(point)
 
 
 def add_soma_df(points: pd.DataFrame, is_neuron=True, pt_position_column='pt_position', id_column='id'):
