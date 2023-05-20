@@ -77,6 +77,20 @@ def proofreading_status(segid: int or list[int],
     return results.loc[segid].to_list()
 
 
+def num_proofread_neurons(table_names: str or list[str] = default_proofreading_tables,
+                          timestamp='now') -> int:
+    """
+    Count the number of unique neurons that have been marked as proofread.
+    """
+    if timestamp in ['now', 'live']:
+        timestamp = datetime.utcnow()
+
+    client = auth.get_caveclient()
+    tables = [client.materialize.live_live_query(table_name, timestamp)
+              for table_name in default_proofreading_tables]
+    return pd.concat(tables).pt_root_id.nunique()
+
+
 def annotations(segid: int or list[int],
                 table_name: str = 'neuron_information',
                 return_as='list',
