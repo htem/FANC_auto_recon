@@ -42,7 +42,10 @@ annotation_hierarchy = {
         'unilateral': {},
         'bilateral': {},
         'midplane': {}},
-    'neuron identity': {}
+    'neuron identity': {},
+    'publication': {
+        'Azevedo Lesser Mark Phelps et al. 2022': {},
+        'Lesser Azevedo et al. 2023': {}},
 }
 
 
@@ -187,7 +190,8 @@ def is_allowed_to_post(segid, annotation_class, annotation,
                                         return_as='dataframe')
     # Rule 1
     multiple_subclasses_allowed = [
-        'neuron identity'
+        'neuron identity',
+        'publication'
     ]
     if annotation_class in multiple_subclasses_allowed:
         # Check if any tag,tag2 pair is the same as annotation,annotation_class
