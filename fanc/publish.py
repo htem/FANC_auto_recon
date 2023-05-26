@@ -1,15 +1,44 @@
 #!/usr/bin/env python3
 
 import os
+from xml.etree import ElementTree
 
+import requests
 import cloudvolume
 
 from . import auth, transforms
 
 PUBLISHED_MESHES_CLOUDPATH = ('gs://lee-lab_female-adult-nerve-cord/'
-                              'VNC_templates/{}/FANC_neurons')
-VALID_TEMPLATE_SPACES = ('JRC2018_VNC_FEMALE', 'JRC2018_VNC_UNISEX',
-                         'JRC2018_VNC_MALE')
+                              'meshes/{}/FANC_neurons')
+VALID_TEMPLATE_SPACES = ('FANC', 'JRC2018_VNC_FEMALE',
+                         'JRC2018_VNC_UNISEX', 'JRC2018_VNC_MALE')
+
+def list_public_segment_ids(template_space='JRC2018_VNC_FEMALE',
+                            gcloud_path=PUBLISHED_MESHES_CLOUDPATH):
+    """
+    """
+    if template_space not in VALID_TEMPLATE_SPACES:
+        raise ValueError('{} not in {}'.format(template_space,
+                                               VALID_TEMPLATE_SPACES))
+    gcloud_path = gcloud_path.format(template_space)
+    # Implementation aided by GPT-4
+    url = f'https://storage.googleapis.com/{gcloud_path.split("/")[2]}'
+    params = {'prefix': '/'.join(gcloud_path.split('/')[3:])}
+
+    response = requests.get(url, params=params)
+    tree = ElementTree.fromstring(response.text)
+
+    # namespaces cause trouble, so find them and remove them
+    namespaces = {'ns': 'http://doc.s3.amazonaws.com/2006-03-01'}
+
+    segids = []
+    for elem in tree.findall('ns:Contents/ns:Key', namespaces):
+        filename = elem.text.split('/')[-1]
+        if filename.endswith(':0'):
+            segids.append(int(filename[:-2]))
+
+    return segids
+
 
 
 def publish_mesh_to_gcloud(segids,
@@ -17,7 +46,7 @@ def publish_mesh_to_gcloud(segids,
                            gcloud_path=PUBLISHED_MESHES_CLOUDPATH):
     """
     Download the mesh for a neuron, warp it into alignment with the specified
-    VNC template, and upload it to a public google cloud storage bucket.
+    VNC template (optional), and upload it to a public google cloud storage bucket.
     Neurons uploaded to the public project will have the same ID as the source
     neuron they came from in FANC.
 
@@ -25,11 +54,19 @@ def publish_mesh_to_gcloud(segids,
     for the upload to succeed. Please ask one of them to run this function for
     you when you have a list of neurons you're ready to make public.
 
-    The complete list of public neurons can be seen at:
-    https://console.cloud.google.com/storage/browser/lee-lab_female-adult-nerve-cord/VNC_templates/JRC2018_VNC_FEMALE/FANC_neurons/meshes
+    See a complete list of IDs of public neurons via one of the following
+    links, depending on which template space you want to see neurons in:
+    https://console.cloud.google.com/storage/browser/lee-lab_female-adult-nerve-cord/meshes/FANC/FANC_neurons/meshes
+    https://console.cloud.google.com/storage/browser/lee-lab_female-adult-nerve-cord/meshes/JRC2018_VNC_FEMALE/FANC_neurons/meshes
+    Not implemented yet: https://console.cloud.google.com/storage/browser/lee-lab_female-adult-nerve-cord/meshes/JRC2018_VNC_UNISEX/FANC_neurons/meshes
+    Not implemented yet: https://console.cloud.google.com/storage/browser/lee-lab_female-adult-nerve-cord/meshes/JRC2018_VNC_MALE/FANC_neurons/meshes
 
-    Public neurons can be viewed by entering their ID into this neuroglancer state:
-    https://neuromancer-seung-import.appspot.com/?json_url=https://global.daf-apis.com/nglstate/api/v1/5850904959909888
+    These neurons can be viewed by entering their ID(s) into one of the following neuroglancer links:
+    FANC: todo
+    JRC2018_VNC_FEMALE: https://neuromancer-seung-import.appspot.com/?json_url=https://global.daf-apis.com/nglstate/api/v1/5794618731921408
+    JRC2018_VNC_UNISEX: Not implemented yet
+    JRC2018_VNC_MALE: Not implemented yet
+
     """
     try:
         iter(segids)
@@ -45,8 +82,9 @@ def publish_mesh_to_gcloud(segids,
     mm = auth.get_meshmanager()
     for segid in segids:
         mesh = mm.mesh(seg_id=segid)
-        transforms.template_alignment.align_mesh(mesh, target_space=template_space)
-        mesh.vertices *= 1000  # TODO delete this after adding nm/um to align_mesh
+        if template_space != 'FANC':
+            transforms.template_alignment.align_mesh(mesh, target_space=template_space)
+            mesh.vertices *= 1000  # TODO delete this after adding nm/um to align_mesh
         mesh = cloudvolume.mesh.Mesh(mesh.vertices, mesh.faces, segid=segid)
         fancneurons_cloudvolume.mesh.put(mesh)
 
