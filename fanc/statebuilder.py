@@ -259,9 +259,9 @@ def render_scene(neurons=None,
     additional_data = []
     if annotations is not None:
         if annotation_units in ['nm', 'nanometer', 'nanometers']:
-            resolution = (1, 1, 1)
+            annotation_layer_resolution = (1, 1, 1)
         else:
-            resolution = ngl_info.voxel_size
+            annotation_layer_resolution = None
 
         if isinstance(annotations, np.ndarray):
             annotations = {
@@ -291,9 +291,9 @@ def render_scene(neurons=None,
             else:
                 raise NotImplementedError(f"Unrecognized annotation type: '{i['type']}'")
 
-            anno_layer = AnnotationLayerConfig(name=i['name'], mapping_rules=anno_mapper)
+            anno_layer = AnnotationLayerConfig(name=i['name'], mapping_rules=anno_mapper, data_resolution=annotation_layer_resolution)
             additional_states.append(
-                StateBuilder(layers=[anno_layer], resolution=resolution)
+                StateBuilder(layers=[anno_layer], resolution=ngl_info.voxel_size)
             )
             additional_data.append(i['data'])
     if nuclei_layer:
