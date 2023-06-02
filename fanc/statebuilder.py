@@ -133,7 +133,7 @@ def render_scene(neurons=None,
         - 'points': data must be an Nx3 numpy array or a DataFrame with a
                     column named 'pt_position'
         - 'spheres': data must be a DataFrame with columns 'pt_position'
-                     and 'radius'
+                     and 'radius_nm'. Specify radius in nm.
         If list of dicts, each dict must have the format above, and each one
         will be displayed as its own annotation layer.
 
@@ -286,7 +286,7 @@ def render_scene(neurons=None,
                                           linked_segmentation_column=segid_column)
             elif i['type'] == 'spheres':
                 anno_mapper = SphereMapper(center_column='pt_position',
-                                           radius_column='radius',
+                                           radius_column='radius_nm',
                                            linked_segmentation_column=segid_column)
             else:
                 raise NotImplementedError(f"Unrecognized annotation type: '{i['type']}'")
