@@ -89,11 +89,20 @@ def publish_mesh_to_gcloud(segids,
     if template_space not in VALID_TEMPLATE_SPACES:
         raise ValueError('{} not in {}'.format(template_space,
                                                VALID_TEMPLATE_SPACES))
+
+    already_published_ids = list_public_segment_ids(template_space=template_space,
+                                                    gcloud_path=gcloud_path)
+    already_published_ids = set(already_published_ids)
+
     
     fancneurons_cloudvolume = cloudvolume.CloudVolume(gcloud_path.format(template_space))
 
     mm = auth.get_meshmanager()
     for segid in segids:
+        if segid in already_published_ids:
+            print(f'Segment {segid} already published in {template_space}-space, skipping.')
+            continue
+        print(f'Publishing segment {segid} to {template_space}-space.')
         mesh = mm.mesh(seg_id=segid)
         if template_space != 'FANC':
             transforms.template_alignment.align_mesh(mesh, target_space=template_space)
