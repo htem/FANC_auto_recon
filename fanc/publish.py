@@ -3,6 +3,7 @@
 import os
 from xml.etree import ElementTree
 
+import numpy as np
 import requests
 import cloudvolume
 
@@ -13,9 +14,12 @@ PUBLISHED_MESHES_CLOUDPATH = ('gs://lee-lab_female-adult-nerve-cord/'
 VALID_TEMPLATE_SPACES = ('FANC', 'JRC2018_VNC_FEMALE',
                          'JRC2018_VNC_UNISEX', 'JRC2018_VNC_MALE')
 
+
 def list_public_segment_ids(template_space='JRC2018_VNC_FEMALE',
                             gcloud_path=PUBLISHED_MESHES_CLOUDPATH):
     """
+    List the segment IDs of all neurons that have been published to the
+    specified template space.
     """
     if template_space not in VALID_TEMPLATE_SPACES:
         raise ValueError('{} not in {}'.format(template_space,
@@ -25,20 +29,29 @@ def list_public_segment_ids(template_space='JRC2018_VNC_FEMALE',
     url = f'https://storage.googleapis.com/{gcloud_path.split("/")[2]}'
     params = {'prefix': '/'.join(gcloud_path.split('/')[3:])}
 
-    response = requests.get(url, params=params)
-    tree = ElementTree.fromstring(response.text)
-
-    # namespaces cause trouble, so find them and remove them
-    namespaces = {'ns': 'http://doc.s3.amazonaws.com/2006-03-01'}
-
     segids = []
-    for elem in tree.findall('ns:Contents/ns:Key', namespaces):
-        filename = elem.text.split('/')[-1]
-        if filename.endswith(':0'):
-            segids.append(int(filename[:-2]))
+    while True:
+        response = requests.get(url, params=params)
+        tree = ElementTree.fromstring(response.text)
+
+        # namespaces cause trouble, so find them and remove them
+        namespaces = {'ns': 'http://doc.s3.amazonaws.com/2006-03-01'}
+
+        for elem in tree.findall('ns:Contents/ns:Key', namespaces):
+            filename = elem.text.split('/')[-1]
+            if filename.endswith(':0'):
+                segids.append(np.int64(filename[:-2]))
+
+        # Each query can only get 500 neurons, so we need to check whether
+        # there are more results to fetch
+        marker_elem = tree.find('ns:NextMarker', namespaces)
+        if marker_elem is None:
+            break
+        # If there are, add the marker to the params and allow the while loop
+        # to continue, making a request for the next batch
+        params['marker'] = marker_elem.text
 
     return segids
-
 
 
 def publish_mesh_to_gcloud(segids,
