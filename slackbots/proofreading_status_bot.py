@@ -23,7 +23,7 @@ import os
 import sys
 import json
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import requests
 import slack_sdk
@@ -246,7 +246,10 @@ def process_message(message: str, user: str, fake=False) -> str:
     
 
 def fetch_messages_and_post_replies(channel, verbosity=1, fake=False):
-    channel_data = slackclient.conversations_history(channel=channel['id'])
+    channel_data = slackclient.conversations_history(
+        channel=channel['id'],
+        oldest=str((datetime.utcnow() - timedelta(days=4)).timestamp())
+    )
     for message in channel_data['messages']:
         if message.get('subtype', None):
             # Skip if this is a system message (not something posted by a user)
@@ -321,10 +324,14 @@ if __name__ == '__main__':
             try:
                 fetch_messages_and_post_replies(channel=channel, verbosity=2, fake=fake)
             except Exception as e:
+                if isinstance(e, slack_sdk.errors.SlackApiError) and 'ratelimited' in e.args[0]:
+                    print('Rate limited - pausing for 10 seconds: {}'.format(e))
+                    time.sleep(10)
+                    continue
                 print('Encountered exception: {} {}'.format(type(e), e))
                 logfn = os.path.join('exceptions_proofreading_status_bot',
                                      datetime.now().strftime('%Y-%h-%d_%H-%M-%S.txt'))
                 with open(logfn, 'w') as f:
                     f.write('{}\n{}'.format(type(e), e))
                 time.sleep(50)
-        time.sleep(10)
+            time.sleep(1)
