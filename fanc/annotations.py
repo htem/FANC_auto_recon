@@ -33,6 +33,10 @@ annotation_hierarchy = {
                 'wing UM neuron': {},
                 'haltere UM neuron': {},
                 'abdominal UM neuron': {}}}},
+    'soma side': {
+        'left soma': {},
+        'right soma': {},
+        'middle soma': {}},
     'anterior-posterior projection pattern': {
         'descending': {},
         'ascending': {},
