@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+"""
+This module specifies the structure of the neuron annotation hierarchy, which
+governs what annotations are allowed to be posted to the `neuron_information`
+CAVE table. We are frequently adding new collections of annotations to the
+annotation hierarchy as users decide what sorts of information they want to
+store about their neurons.
+"""
 
 import anytree
 
