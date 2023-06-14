@@ -51,19 +51,29 @@ with open('slack_user_permissions.json', 'r') as f:
 def show_help():
     return (
 """
-Send me a message that looks like one of the `example messages below` to get or upload information about neurons in FANC.
+Hello! Before using me for the first time, you may want to read through:
+- the list of available annotations at https://github.com/htem/FANC_auto_recon/wiki/Neuron-annotations
+- the description of the "neuron_information" table at https://cave.fanc-fly.com/annotation/views/aligned_volume/fanc_v4/table/neuron_information AND
 
-Get information:
-- `648518346481082458?` -> get information about a segment
-- `648518346481082458? all` -> get extended information about a segment
+You can send me a message that looks like one of the `example messages below` to find certain types of neurons, or get or upload information about specific neurons.
 
-Upload annotations:
-(Before contributing your own annotations, you are REQUIRED to read the description of the "neuron_information" table at https://cave.fanc-fly.com/annotation/views/aligned_volume/fanc_v4/table/neuron_information AND read the list of valid annotations at https://github.com/htem/FANC_auto_recon/wiki/Neuron-annotations )
+Find neurons with some annotations:
+- `get DNx01` -> Get a neuroglancer state showing all neurons currently annotated with "DNx01" (which should be exactly two neurons)
+- `get chordotonal neuron and ascending` -> Get a neuroglancer state showing all neurons currently annotated with "chordotonal neuron" and "ascending"
+- `get left T1 ventral nerve and motor neuron` -> Get a neuroglancer link that shows all neurons currently annotated with "left T1 ventral nerve" and "motor neuron"
+- You can use as many search terms if you want, e.g. `get W and X and Y and Z`
+
+Get information about a specific neuron:
+- `648518346481082458?` -> get annotations for segment 648518346481082458
+- `648518346481082458? all` -> get extended annotation details for segment 648518346481082458
+
+Upload annotations to a CAVE table that the whole community can benefit from:
 - `648518346481082458! primary class > central neuron` -> annotate that the indicated segment's "primary class" is "central neuron" (as opposed to "sensory neuron" or "motor neuron").
 - `648518346489818455! left-right projection pattern > bilateral` -> annotate that segment 648518346489818455 projects bilaterally, i.e. has synaptic connections on both sides of the VNC's midplane.
+(To upload annotations, Jasper needs to first give you permissions, so send him a message to ask if you're interested.)
 
-This bot is a work in progress - notably, you can't yet annotate most sensory neurons because the `peripheral_nerves` table is not complete yet. This will be addressed soon.
-Feel free to contact Jasper with any questions or bug reports.
+This bot is a work in progress - notably, you can't yet annotate most sensory neurons because the `peripheral_nerves` table is not complete yet. This will be addressed at some point.
+Feel free to send Jasper any questions or bug reports.
 """)
 
 
@@ -90,6 +100,18 @@ def process_message(message: str, user: str, fake=False) -> str:
         triggered, or to describe an error that was encountered when
         processing their message.
     """
+    if message.startswith(('get ', 'find ')):
+        try:
+            search_terms = [x.strip('"\'') for x in message[message.find(' ')+1:].split(' and ')]
+        except Exception as e:
+            return f"`{type(e)}`\n```{e}```"
+
+        try:
+            return ("Search successful. View your results: " +
+                    fanc.lookup.cells_annotated_with(search_terms, return_as='url'))
+        except Exception as e:
+            return f"`{type(e)}`\n```{e}```"
+
     # For some reason the '>' character typed into slack
     # is reaching this code as '&gt;', so revert it for readability.
     message = message.replace('&gt;', '>')
@@ -106,18 +128,16 @@ def process_message(message: str, user: str, fake=False) -> str:
     caveclient.materialize.version = caveclient.materialize.most_recent_version()
 
     if tokens[0].endswith('?'):  # Query
-        return_as = 'list'
-        if len(tokens) > 1 and tokens[1].lower() in ['all', 'everything', 'verbose']:
-            return_as = 'dataframe'
+        return_details = False
+        if len(tokens) > 1 and tokens[1].lower() in ['all', 'everything', 'verbose', 'details']:
+            return_details = True
         try:
-            info = fanc.lookup.annotations(segid,
-                                           table_name=table_name,
-                                           return_as=return_as)
+            info = fanc.lookup.annotations(segid, return_details=return_details)
         except Exception as e:
             return f"`{type(e)}`\n```{e}```"
         if len(info) == 0:
             return "No annotations found."
-        if return_as == 'dataframe':
+        if return_details:
             info.drop(columns=['id', 'valid', 'pt_supervoxel_id',
                                'pt_root_id', 'pt_position', 'deleted',
                                'superceded_id'],
