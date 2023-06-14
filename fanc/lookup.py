@@ -10,14 +10,19 @@ import requests
 import tqdm
 import cloudvolume
 
-from . import auth
+from . import auth, statebuilder
 
 default_proofreading_tables = ['proofread_first_pass', 'proofread_second_pass']
+default_annotation_sources = [('neuron_information', 'tag'),
+                              ('neck_connective', 'tag'),
+                              ('peripheral_nerves', 'tag')]
+default_anchor_point_sources = ['somas_dec2022', 'peripheral_nerves', 'neck_connective']
 default_svid_lookup_url = 'https://services.itanna.io/app/transform-service/query/dataset/fanc_v4/s/2/values_array_string_response/'
 
 
+# --- START CAVE TABLES / ANNOTATIONS SECTION --- #
 def proofreading_status(segid: int or list[int],
-                        table_names: str or list[str] = default_proofreading_tables,
+                        source_tables: str or list[str] = default_proofreading_tables,
                         timestamp='now') -> None or str or tuple(str, list):
     """
     Determine whether a segment has been marked as proofread.
@@ -27,14 +32,14 @@ def proofreading_status(segid: int or list[int],
     segid: int
       The ID of the segment to query
 
-    table_names: str, or list of str
+    source_tables: str, or list of str
       The name(s) of the CAVE proofreading table(s) to query
 
-    timestamp : datetime, str, or None (default 'now')
+    timestamp : 'now' (default) OR datetime OR None
       The timestamp at which to query the segment's proofreading status.
-      If None, use the timestamp of the latest materialization.
       If 'now', use the current time.
       If datetime, use the time specified by the user.
+      If None, use the timestamp of the latest materialization.
 
     Returns
     -------
@@ -47,7 +52,7 @@ def proofreading_status(segid: int or list[int],
       containing the previous segment ID(s) that were marked as proofread.
     """
     if isinstance(segid, (int, np.integer)):
-        return proofreading_status([segid], table_names=table_names, timestamp=timestamp)[0]
+        return proofreading_status([segid], source_tables=source_tables, timestamp=timestamp)[0]
 
     client = auth.get_caveclient()
     if timestamp in ['now', 'live']:
@@ -60,11 +65,11 @@ def proofreading_status(segid: int or list[int],
                        ' Use updated IDs or provide the timestamp where'
                        ' the ID(s) is valid.')
 
-    if isinstance(table_names, str):
-        table_names = [table_names]
+    if isinstance(source_tables, str):
+        source_tables = [source_tables]
 
     results = pd.Series(index=segid, data=None, dtype=object)
-    for table_name in table_names[::-1]:
+    for table_name in source_tables[::-1]:
         table = client.materialize.live_live_query(table_name, timestamp)
         results.loc[results.isna() & results.index.isin(table.valid_id)] = table_name
         if results.notna().all():
@@ -77,7 +82,7 @@ def proofreading_status(segid: int or list[int],
     return results.loc[segid].to_list()
 
 
-def num_proofread_neurons(table_names: str or list[str] = default_proofreading_tables,
+def num_proofread_neurons(source_tables: str or list[str] = default_proofreading_tables,
                           timestamp='now') -> int:
     """
     Count the number of unique neurons that have been marked as proofread.
@@ -87,71 +92,231 @@ def num_proofread_neurons(table_names: str or list[str] = default_proofreading_t
 
     client = auth.get_caveclient()
     tables = [client.materialize.live_live_query(table_name, timestamp)
-              for table_name in default_proofreading_tables]
+              for table_name in source_tables]
     return pd.concat(tables).pt_root_id.nunique()
 
 
+def cells_annotated_with(tags: str or list[str],
+                         source_tables=default_annotation_sources,
+                         return_as: 'list' or 'url' = 'list'):
+    """
+    Get all the cells annotated with a given text tag / all of the given text
+    tags.
+
+    Arguments
+    ---------
+    tags: str or list of str
+      The tag(s) to query. If multiple are provided, only cells with all the
+      given tags will be returned
+
+    source_tables: str OR list of str OR list of 2-tuple of str
+      str OR list of str:
+        The name(s) of the CAVE table(s) to query for annotations. Annotations
+        will be pulled from the column named 'tag', so they must contain a
+        column with that name.
+      list of 2-tuple of str:
+        Each tuple specifies the name of a CAVE table to query for annotations,
+        then the name of the column to use from that table.
+
+    return_as: 'list' (default) OR 'url'
+      Controls output format, see Returns section below
+
+    Returns
+    -------
+    If return_as == 'list':
+      list of ints: The segment IDs of cells annotated with the given tag(s)
+    If return_as == 'url':
+      str: A neuroglancer state (to be opened in a browser) showing the cells
+        annotated with the given tag(s)
+    """
+    if isinstance(tags, str):
+        tags = [tags]
+    if not return_as in ['list', 'url']:
+        raise ValueError('return_as must be either "list" or "url"')
+    annos = all_annotations(source_tables=source_tables, group_by_segid=False)
+    is_invalid = [tag not in annos.tag.unique() for tag in tags]
+    if any(is_invalid):
+        raise KeyError('Check your spelling – the following tags are not'
+                       ' present at all in the annotation tables:'
+                       f' {np.array(tags)[is_invalid].tolist()}')
+    annos_grouped = annos.groupby('pt_root_id')['tag'].apply(list)
+    matching_segids = annos_grouped.index[annos_grouped.apply(lambda x: all([tag in x for tag in tags]))].to_list()
+    if return_as == 'list':
+        return matching_segids
+    # else, return_as == 'url'
+    pts = annos.loc[annos.pt_root_id.isin(matching_segids) &
+                    annos.tag.isin(tags)].groupby('pt_root_id')['pt_position'].apply(lambda x: list(x)[0])
+    return statebuilder.render_scene(neurons=matching_segids,
+                                     annotations={'name': 'annotation points',
+                                                  'type': 'points',
+                                                  'data': pts})
+
+
+def all_annotations(source_tables=default_annotation_sources,
+                    timestamp='now',
+                    group_by_segid=True) -> pd.Series or pd.DataFrame:
+    """
+    Get a list of all annotations in the given CAVE table(s).
+
+    Arguments
+    ---------
+    source_tables: str OR list of str OR list of 2-tuple of str
+      str OR list of str:
+        The name(s) of the CAVE table(s) to query for annotations. Annotations
+        will be pulled from the column named 'tag', so they must contain a
+        column with that name.
+      list of 2-tuples containing (table_name, column_with_annotations):
+        Each tuple specifies the name of a CAVE table to query for annotations,
+        then the name of the column to pull annotations from for that table.
+
+    timestamp : 'now' (default) OR datetime OR None
+      The timestamp at which to query the segment's proofreading status.
+      If 'now', use the current time.
+      If datetime, use the time specified by the user.
+      If None, use the timestamp of the latest materialization.
+
+    group_by_segid : bool (default: True)
+      Controls output format, see Returns section below
+
+    Returns
+    -------
+    If group_by_segid == False:
+      pd.DataFrame: A dataframe where every row is one annotation on one segment.
+    If group_by_segid == True:
+      pd.Series: A series with the segment IDs as the index and a list of
+      annotations (strings) as the values.
+    """
+    client = auth.get_caveclient()
+    if timestamp in ['now', 'live']:
+        timestamp = datetime.utcnow()
+    elif timestamp is None:
+        timestamp = client.materialize.get_timestamp()
+
+    source_tables = _format_annotation_sources(source_tables)
+
+    annos = []
+    for table_name, column_name in source_tables:
+        table = client.materialize.live_live_query(table_name, timestamp)
+        table['source_table'] = table_name
+        if 'user_id' not in table.columns:
+            table['user_id'] = None
+        annos.append(table.rename(columns={column_name: 'tag'})[
+            ['pt_root_id', 'tag', 'pt_position', 'user_id', 'source_table', 'created']
+        ])
+
+    annos = pd.concat(annos).sort_values(by='created').reset_index(drop=True)
+    if group_by_segid:
+        annos = annos.groupby('pt_root_id')['tag'].apply(list)
+    return annos
+
+
 def annotations(segid: int or list[int],
-                table_name: str = 'neuron_information',
-                return_as='list',
+                source_tables=default_annotation_sources,
+                timestamp='now',
+                return_details=False,
                 slow_mode=False) -> list or pd.DataFrame:
     """
-    Get a cell's annotations from a CAVE table.
+    Get cell(s) annotations from CAVE table(s).
 
     Arguments
     ---------
     segid: int
       The segment ID to query
 
-    table_name: str (default 'neuron_information')
-      The name of the CAVE table to query. If `return_as` is set to
-      'list', the table must have a column named 'tag'.
+    source_tables: str OR list of str OR list of 2-tuple of str
+      str OR list of str:
+        The name(s) of the CAVE table(s) to query for annotations. Annotations
+        will be pulled from the column named 'tag', so they must contain a
+        column with that name.
+      list of 2-tuples containing (table_name, column_with_annotations):
+        Each tuple specifies the name of a CAVE table to query for annotations,
+        then the name of the column to pull annotations from for that table.
 
-    return_as: str
-      'list' (default)
-        Return the `tag` column of the CAVE table, as a list of strings
-      'dataframe'
-        Return the entire dataframe from CAVE
+    timestamp : 'now' (default) OR datetime OR None
+      The timestamp at which to query the segment's proofreading status.
+      If 'now', use the current time.
+      If datetime, use the time specified by the user.
+      If None, use the timestamp of the latest materialization.
+
+    return_details: bool (default: False)
+      Controls output format, see Returns section below
+
+    slow_mode: bool (default: False)
+      Whether to rely on faster queries with server-side filtering (False) or
+      fall back to slower queries with client-side filtering (True). The reason
+      this option exists is that server-side filtering has been buggy at times,
+      but generally users should be fine leaving this as False.
 
     Returns
     -------
-    list of strings OR pd.DataFrame, depending on `return_as`
+    list of strings OR pd.DataFrame, depending on `return_details`
     """
-    if isinstance(segid, (int, np.integer)) and return_as == 'list':
-        return annotations([segid], table_name=table_name, return_as='list',
-                           slow_mode=slow_mode)[0]
+    if isinstance(segid, (int, np.integer)) and not return_details:
+        return annotations([segid], source_tables=source_tables, timestamp=timestamp,
+                           return_details=False, slow_mode=slow_mode)[0]
     elif isinstance(segid, (int, np.integer)):
         segid = [segid]
 
+    source_tables = _format_annotation_sources(source_tables)
+
     client = auth.get_caveclient()
-    now = datetime.utcnow()
-    try:
-        if slow_mode:
-            table = client.materialize.live_live_query(table_name, now)
-            table = table.loc[table.pt_root_id.isin(segid)]
+    if timestamp in ['now', 'live']:
+        timestamp = datetime.utcnow()
+    elif timestamp is None:
+        timestamp = client.materialize.get_timestamp()
+
+    # Slow mode: get all annotations (big dataframe!) then filter down to the ones we want
+    if slow_mode:
+        if return_details:
+            table = all_annotations(source_tables, timestamp=timestamp,
+                                    group_by_segid=False)
+            return table.loc[table.pt_root_id.isin(segid)].reset_index(drop=True)
         else:
-            table = client.materialize.live_live_query(
-                table_name,
-                now,
-                filter_in_dict={table_name: {'pt_root_id': segid}},
-            )
-    except requests.exceptions.HTTPError as e:
-        if 'returned no results' not in e.args[0]:
-            raise e
+            table = all_annotations(source_tables, timestamp=timestamp,
+                                    group_by_segid=True)
+            return [table.loc[s] for s in segid]
 
-    if return_as == 'dataframe':
+    # Fast mode: use filter_in_dict to request only the annotations we want from the server
+    tables = []
+    for table_name, column_name in source_tables:
+        table = client.materialize.live_live_query(
+            table_name, timestamp, filter_in_dict={table_name: {'pt_root_id': segid}})
+        table['source_table'] = table_name
+        if 'user_id' not in table.columns:
+            table['user_id'] = None
+        tables.append(table.rename(columns={column_name: 'tag'})[
+            ['pt_root_id', 'tag', 'pt_position', 'user_id', 'source_table', 'created']
+        ])
+    table = pd.concat(tables).sort_values(by='created').reset_index(drop=True)
+
+    if return_details:
         return table
-    elif return_as != 'list':
-        raise ValueError(f"'return_as' must be 'list' or 'dataframe'"
-                         f" but was '{return_as}'")
-    try:
-        # Return tags as list
-        return [[anno for anno in table.loc[table.pt_root_id == s, 'tag']]
-                 for s in segid]
-    except KeyError:
-        raise KeyError(f"Table '{table_name}' has no column named 'tag'")
+    return [[anno for anno in table.loc[table.pt_root_id == s, 'tag']] for s in segid]
 
 
+def _format_annotation_sources(source_tables):
+    """
+    Insist that source_tables is a list of 2-tuples of str, where the first
+    element of each tuple is the name of a CAVE table to query for annotations,
+    and the second element is the name of the column to use from that table.
+
+    This function is used by a few functions in this module – not intended for
+    users to call directly.
+    """
+    if isinstance(source_tables, str):
+        return [(source_tables, 'tag')]
+    if isinstance(source_tables, list):
+        for i, row in enumerate(source_tables):
+            if isinstance(row, str):
+                source_tables[i] = (row, 'tag')
+            elif not isinstance(row, (tuple, list)) or len(row) != 2:
+                raise ValueError('source_tables must be a str, a list of str, or a list of 2-tuple of str')
+        return source_tables
+    raise ValueError('source_tables must be a str, a list of str, or a list of 2-tuple of str')
+# --- END CAVE TABLES / ANNOTATIONS SECTION --- #
+
+
+# --- START SEGMENTATION/CHUNKEDGRAPH SECTION --- #
 def svids_from_pts(pts, service_url=default_svid_lookup_url):
     """
     Return the supervoxel IDs for a set of points.
@@ -232,10 +397,11 @@ def segids_from_pts(pts,
         return cv.get_roots(svids, timestamp=timestamp).astype(np.int64)
     except:
         return cv.get_roots(svids, timestamp=timestamp).astype(np.int64)[0]
+# --- END SEGMENTATION/CHUNKEDGRAPH SECTION --- #
 
 
-anchor_point_sources = ['somas_dec2022', 'peripheral_nerves', 'neck_connective']
-def anchor_point(segid, source_tables=anchor_point_sources,
+# --- START KEY ATTRIBUTES SECTION --- #
+def anchor_point(segid, source_tables=default_anchor_point_sources,
                  timestamp='now', resolve_duplicates=False,
                  select_nth_duplicate: int = 0, slow_mode=False) -> np.ndarray:
     """
@@ -263,6 +429,7 @@ def anchor_point(segid, source_tables=anchor_point_sources,
       If datetime, use that time.
 
     resolve_duplicates: bool (default False)
+    &
     select_nth_duplicate: int (default 0)
       If multiple anchor points are found within a single table for a
       single segment ID, raise an error (if resolve_duplicates==False) or
@@ -272,6 +439,12 @@ def anchor_point(segid, source_tables=anchor_point_sources,
       select_nth_duplicate=0 results in selection of the point with the
       smallest x coordinate). select_nth_duplicate is ignored if
       resolve_duplicates==False.
+
+    slow_mode: bool (default: False)
+      Whether to rely on faster queries with server-side filtering (False) or
+      fall back to slower queries with client-side filtering (True). The reason
+      this option exists is that server-side filtering has been buggy at times,
+      but generally users should be fine leaving this as False.
 
     Returns
     -------
@@ -457,7 +630,7 @@ def somas_from_segids(segid,
                                            select_columns=select_columns,
                                            timestamp=timestamp)
     return somas.loc[somas.pt_root_id.isin(segid)]
-
+# --- END KEY ATTRIBUTES SECTION --- #
 
 
 # The code below implements a slower version of segIDs_from_pts_service that
