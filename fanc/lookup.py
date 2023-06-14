@@ -200,9 +200,14 @@ def all_annotations(source_tables=default_annotation_sources,
         table['source_table'] = table_name
         if 'user_id' not in table.columns:
             table['user_id'] = None
-        annos.append(table.rename(columns={column_name: 'tag'})[
-            ['pt_root_id', 'tag', 'pt_position', 'user_id', 'source_table', 'created']
-        ])
+        if column_name != 'tag2':
+            if 'tag2' not in table.columns:
+                table['tag2'] = None
+            table.rename(columns={column_name: 'tag'}, inplace=True)
+        else:
+            table['tag'] = table['tag2']
+        annos.append(table[['pt_root_id', 'tag', 'tag2', 'pt_position',
+                            'user_id', 'source_table', 'created']])
 
     annos = pd.concat(annos).sort_values(by='created').reset_index(drop=True)
     if group_by_segid:
@@ -284,9 +289,14 @@ def annotations(segid: int or list[int],
         table['source_table'] = table_name
         if 'user_id' not in table.columns:
             table['user_id'] = None
-        tables.append(table.rename(columns={column_name: 'tag'})[
-            ['pt_root_id', 'tag', 'pt_position', 'user_id', 'source_table', 'created']
-        ])
+        if column_name != 'tag2':
+            if 'tag2' not in table.columns:
+                table['tag2'] = None
+            table.rename(columns={column_name: 'tag'}, inplace=True)
+        else:
+            table['tag'] = table['tag2']
+        tables.append(table[['pt_root_id', 'tag', 'tag2', 'pt_position',
+                            'user_id', 'source_table', 'created']])
     table = pd.concat(tables).sort_values(by='created').reset_index(drop=True)
 
     if return_details:
