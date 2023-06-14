@@ -98,7 +98,8 @@ def num_proofread_neurons(source_tables: str or list[str] = default_proofreading
 
 def cells_annotated_with(tags: str or list[str],
                          source_tables=default_annotation_sources,
-                         return_as: 'list' or 'url' = 'list'):
+                         return_as: 'list' or 'url' = 'list',
+                         raise_not_found=True):
     """
     Get all the cells annotated with a given text tag / all of the given text
     tags.
@@ -141,6 +142,8 @@ def cells_annotated_with(tags: str or list[str],
                        f' {np.array(tags)[is_invalid].tolist()}')
     annos_grouped = annos.groupby('pt_root_id')['tag'].apply(list)
     matching_segids = annos_grouped.index[annos_grouped.apply(lambda x: all([tag in x for tag in tags]))].to_list()
+    if len(matching_segids) == 0 and raise_not_found:
+        raise LookupError(f'Found no objects annotated with all of: {tags}')
     if return_as == 'list':
         return matching_segids
     # else, return_as == 'url'
