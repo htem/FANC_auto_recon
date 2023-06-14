@@ -198,8 +198,8 @@ def is_allowed_to_post(segid, annotation_class, annotation,
     if not is_valid_pair(annotation_class, annotation, raise_errors=raise_errors):
         return False
 
-    existing_annos = lookup.annotations(segid, table_name=table_name,
-                                        return_as='dataframe')
+    existing_annos = lookup.annotations(segid, source_tables=table_name,
+                                        return_details=True)
     # Rule 1
     multiple_subclasses_allowed = [
         'neuron identity',
