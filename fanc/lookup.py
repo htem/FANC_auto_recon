@@ -98,6 +98,7 @@ def num_proofread_neurons(source_tables: str or list[str] = default_proofreading
 
 def cells_annotated_with(tags: str or list[str],
                          source_tables=default_annotation_sources,
+                         timestamp='now',
                          return_as: 'list' or 'url' = 'list',
                          raise_not_found=True):
     """
@@ -119,6 +120,12 @@ def cells_annotated_with(tags: str or list[str],
         Each tuple specifies the name of a CAVE table to query for annotations,
         then the name of the column to use from that table.
 
+    timestamp : 'now' (default) OR datetime OR None
+      The timestamp at which to query the segment's proofreading status.
+      If 'now', use the current time.
+      If datetime, use the time specified by the user.
+      If None, use the timestamp of the latest materialization.
+
     return_as: 'list' (default) OR 'url'
       Controls output format, see Returns section below
 
@@ -134,16 +141,20 @@ def cells_annotated_with(tags: str or list[str],
         tags = [tags]
     if not return_as in ['list', 'url']:
         raise ValueError('return_as must be either "list" or "url"')
-    annos = all_annotations(source_tables=source_tables, group_by_segid=False)
+    annos = all_annotations(source_tables=source_tables,
+                            timestamp=timestamp,
+                            group_by_segid=False)
     is_invalid = [tag not in annos.tag.unique() for tag in tags]
     if any(is_invalid):
         raise KeyError('Check your spelling – the following tags are not'
                        ' present at all in the annotation tables:'
                        f' {np.array(tags)[is_invalid].tolist()}')
+
     annos_grouped = annos.groupby('pt_root_id')['tag'].apply(list)
     matching_segids = annos_grouped.index[annos_grouped.apply(lambda x: all([tag in x for tag in tags]))].to_list()
     if len(matching_segids) == 0 and raise_not_found:
         raise LookupError(f'Found no objects annotated with all of: {tags}')
+
     if return_as == 'list':
         return matching_segids
     # else, return_as == 'url'
