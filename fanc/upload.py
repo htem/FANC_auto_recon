@@ -19,7 +19,7 @@ from cloudvolume.lib import green, red
 from . import annotations, auth, lookup, statebuilder
 
 
-def annotate_neuron(neuron: 'segID or point',
+def annotate_neuron(neuron: 'segID (int) or point (xyz)',
                     annotation_class: str,
                     annotation: str,
                     user_id: int,
@@ -70,7 +70,7 @@ def annotate_neuron(neuron: 'segID or point',
     else:
         try:
             iter(neuron)
-            segid = lookup.segids_from_pts(neuron)[0]
+            segid = lookup.segids_from_pts(neuron)
             if segid == 0:
                 raise ValueError(f'Point {neuron} is a location with no segmentation')
             point = lookup.anchor_point(segid, resolve_duplicates=resolve_duplicate_anchor_points)
