@@ -75,8 +75,8 @@ def publish_mesh_to_gcloud(segids,
     Not implemented yet: https://console.cloud.google.com/storage/browser/lee-lab_female-adult-nerve-cord/meshes/JRC2018_VNC_MALE/FANC_neurons/meshes
 
     These neurons can be viewed by entering their ID(s) into one of the following neuroglancer links:
-    FANC: https://neuromancer-seung-import.appspot.com/?json_url=https://global.daf-apis.com/nglstate/api/v1/6121902286307328
-    JRC2018_VNC_FEMALE: https://neuromancer-seung-import.appspot.com/?json_url=https://global.daf-apis.com/nglstate/api/v1/5794618731921408
+    FANC: https://neuromancer-seung-import.appspot.com/?json_url=https://global.daf-apis.com/nglstate/api/v1/5104409098846208
+    JRC2018_VNC_FEMALE: https://neuromancer-seung-import.appspot.com/?json_url=https://global.daf-apis.com/nglstate/api/v1/6230309005688832
     JRC2018_VNC_UNISEX: Not implemented yet
     JRC2018_VNC_MALE: Not implemented yet
 
