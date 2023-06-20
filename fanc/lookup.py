@@ -12,6 +12,7 @@ import cloudvolume
 
 from . import auth, statebuilder
 
+default_cellid_table = 'cell_ids'
 default_proofreading_tables = ['proofread_first_pass', 'proofread_second_pass']
 default_annotation_sources = [('neuron_information', 'tag'),
                               ('neck_connective', 'tag'),
@@ -421,6 +422,51 @@ def segids_from_pts(pts,
         return cv.get_roots(svids, timestamp=timestamp).astype(np.int64)
     except:
         return cv.get_roots(svids, timestamp=timestamp).astype(np.int64)[0]
+
+
+def segid_from_cellid(cellid,
+                      timestamp='now',
+                      table_name=default_cellid_table):
+    """
+    Return the segment ID (also called root ID) for a given cell ID
+
+    Arguments
+    ---------
+    cellid: int or list of int
+      The cell ID(s) to query
+
+    timestamp : 'now' (default) OR datetime OR None
+      The timestamp at which to query the segment's proofreading status.
+      If 'now', use the current time.
+      If datetime, use the time specified by the user.
+      If None, use the timestamp of the latest materialization.
+
+    table_name : str
+      The name of the CAVE table to query for cell IDs.
+
+    Returns
+    -------
+    The requested segID as an int64 value
+    """
+    try: iter(cellid)
+    except: cellid = [cellid]
+
+    client = auth.get_caveclient()
+    if timestamp in ['now', 'live']:
+        timestamp = datetime.utcnow()
+    elif timestamp is None:
+        timestamp = client.materialize.get_timestamp()
+
+    cell_ids = client.materialize.query_table(table_name)
+    if any([i not in cell_ids['id'] for i in cellid]):
+        raise ValueError(f'Cell ID {cellid} not found in {table_name}')
+    cell_ids = cell_ids.loc[cell_ids['id'].isin(cellid)]
+
+    if not client.chunkedgraph.is_latest_roots(
+            cell_ids['pt_root_id'].values,
+            timestamp=timestamp):
+        cell_ids['pt_root_id'] = segids_from_pts(cell_ids['pt_position'])
+    return cell_ids['pt_root_id'].values
 # --- END SEGMENTATION/CHUNKEDGRAPH SECTION --- #
 
 
