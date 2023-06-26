@@ -44,6 +44,11 @@ annotation_hierarchy = {
         'left soma': {},
         'right soma': {},
         'middle soma': {}},
+    'soma segment': {
+        'T1 soma': {},
+        'T2 soma': {},
+        'T3 soma': {},
+        'abdominal soma': {}},
     'anterior-posterior projection pattern': {
         'descending': {},
         'ascending': {},
