@@ -98,9 +98,10 @@ def num_proofread_neurons(source_tables: str or list[str] = default_proofreading
 
 
 def cells_annotated_with(tags: str or list[str],
+                         exclude_tags: str or list[str] = None,
                          source_tables=default_annotation_sources,
                          timestamp='now',
-                         return_as: 'list' or 'url' = 'list',
+                         return_as: ['list', 'url'] = 'list',
                          raise_not_found=True):
     """
     Get all the cells annotated with a given text tag / all of the given text
@@ -110,7 +111,11 @@ def cells_annotated_with(tags: str or list[str],
     ---------
     tags: str or list of str
       The tag(s) to query. If multiple are provided, only cells with all the
-      given tags will be returned
+      given tags will be returned.
+
+    exclude_tags: str or list of str
+      The tag(s) to exclude from the query. If multiple are provided, only
+      cells with none of the given tags will be returned.
 
     source_tables: str OR list of str OR list of 2-tuple of str
       str OR list of str:
@@ -140,6 +145,8 @@ def cells_annotated_with(tags: str or list[str],
     """
     if isinstance(tags, str):
         tags = [tags]
+    if isinstance(exclude_tags, str):
+        exclude_tags = [exclude_tags]
     if not return_as in ['list', 'url']:
         raise ValueError('return_as must be either "list" or "url"')
     annos = all_annotations(source_tables=source_tables,
@@ -150,11 +157,21 @@ def cells_annotated_with(tags: str or list[str],
         raise KeyError('Check your spelling – the following tags are not'
                        ' present at all in the annotation tables:'
                        f' {np.array(tags)[is_invalid].tolist()}')
+    is_invalid = [tag not in annos.tag.unique() for tag in exclude_tags]
+    if any(is_invalid):
+        raise KeyError('Check your spelling – the following tags are not'
+                       ' present at all in the annotation tables:'
+                       f' {np.array(exclude_tags)[is_invalid].tolist()}')
 
     annos_grouped = annos.groupby('pt_root_id')['tag'].apply(list)
-    matching_segids = annos_grouped.index[annos_grouped.apply(lambda x: all([tag in x for tag in tags]))].to_list()
+    do_tags_match = lambda x: (all([tag in x for tag in tags]) and
+                               all([tag not in x for tag in exclude_tags]))
+    matching_segids = annos_grouped.index[annos_grouped.apply(do_tags_match)]
     if len(matching_segids) == 0 and raise_not_found:
-        raise LookupError(f'Found no objects annotated with all of: {tags}')
+        if exclude_tags is None:
+            raise LookupError(f'Found no objects annotated with all of: {tags}')
+        raise LookupError(f'Found no objects annotated with all of: {tags}'
+                          f' and none of: {exclude_tags}')
 
     if return_as == 'list':
         return matching_segids
