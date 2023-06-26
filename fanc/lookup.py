@@ -458,14 +458,15 @@ def segid_from_cellid(cellid,
         timestamp = client.materialize.get_timestamp()
 
     cell_ids = client.materialize.query_table(table_name)
-    if any([i not in cell_ids['id'] for i in cellid]):
+    if any([i not in cell_ids['id'].values for i in cellid]):
         raise ValueError(f'Cell ID {cellid} not found in {table_name}')
     cell_ids = cell_ids.loc[cell_ids['id'].isin(cellid)]
 
-    if not client.chunkedgraph.is_latest_roots(
+    if not all(client.chunkedgraph.is_latest_roots(
             cell_ids['pt_root_id'].values,
-            timestamp=timestamp):
-        cell_ids['pt_root_id'] = segids_from_pts(cell_ids['pt_position'])
+            timestamp=timestamp)):
+        cell_ids['pt_root_id'] = segids_from_pts(cell_ids['pt_position'],
+                                                 timestamp=timestamp)
     return cell_ids['pt_root_id'].values
 # --- END SEGMENTATION/CHUNKEDGRAPH SECTION --- #
 
