@@ -110,12 +110,16 @@ def cells_annotated_with(tags: str or list[str],
     Arguments
     ---------
     tags: str or list of str
-      The tag(s) to query. If multiple are provided, only cells with all the
-      given tags will be returned.
+      The tag(s) to query. If multiple are provided, only cells
+      with all the given tags will be returned.
+      Any tag that starts with 'not ' or 'NOT ' will be moved
+      to exclude_tags (see below).
 
-    exclude_tags: str or list of str
+    exclude_tags: str or list of str, default None
       The tag(s) to exclude from the query. If multiple are provided, only
       cells with none of the given tags will be returned.
+      You may also specify exclude_tags via the tags argument (above) by
+      prepending 'not ' or 'NOT ' to the tag name.
 
     source_tables: str OR list of str OR list of 2-tuple of str
       str OR list of str:
@@ -145,10 +149,14 @@ def cells_annotated_with(tags: str or list[str],
     """
     if isinstance(tags, str):
         tags = [tags]
+    if exclude_tags is None:
+        exclude_tags = []
     if isinstance(exclude_tags, str):
         exclude_tags = [exclude_tags]
     if not return_as in ['list', 'url']:
         raise ValueError('return_as must be either "list" or "url"')
+    exclude_tags = exclude_tags + [tag[4:] for tag in tags if tag.lower().startswith('not ')]
+    tags = [tag for tag in tags if not tag.lower().startswith('not ')]
     annos = all_annotations(source_tables=source_tables,
                             timestamp=timestamp,
                             group_by_segid=False)
