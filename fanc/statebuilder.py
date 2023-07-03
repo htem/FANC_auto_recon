@@ -275,7 +275,8 @@ def render_scene(neurons=None,
         neurons = pd.DataFrame({'pt_root_id': neurons})
 
     if not isinstance(neurons, pd.DataFrame):
-        raise TypeError('Could not determine how to handle neurons argument')
+        raise TypeError('Could not determine how to handle neurons argument,'
+                        ' which is now a {}'.format(type(neurons)))
 
     # Add a color column
     if kwargs.get('color', False):
