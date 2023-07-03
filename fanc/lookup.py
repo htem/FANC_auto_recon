@@ -175,6 +175,7 @@ def cells_annotated_with(tags: str or list[str],
     do_tags_match = lambda x: (all([tag in x for tag in tags]) and
                                all([tag not in x for tag in exclude_tags]))
     matching_segids = annos_grouped.index[annos_grouped.apply(do_tags_match)]
+    matching_segids = matching_segids.to_list()
     if len(matching_segids) == 0 and raise_not_found:
         if exclude_tags is None:
             raise LookupError(f'Found no objects annotated with all of: {tags}')
