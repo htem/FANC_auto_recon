@@ -67,24 +67,24 @@ This table lists cells that have received a "second pass" of focused proofreadin
 
 You can send me a message that looks like one of the `example messages below` to get or upload proofreading status information.
 
-`648518346481082458?`
+`648518346486614449?`
 A segment ID followed by a "?" indicates that you want to know whether this segment ID has already been marked as proofread.
 
-`648518346481082458!`
+`648518346486614449!`
 A segment ID followed by a "!" indicates that you want to mark this segment ID as "first pass" proofread.
 
-`648518346481082458!!`
+`648518346486614449!!`
 A segment ID followed by a "!!" indicates that you want to mark this segment ID as "second pass" proofread.
 
 The "!" and "!!" commands above only work if the segment ID has exactly one soma attached to it, in which case the soma's location will be used to anchor the annotation. If the segment ID is a descending neuron or sensory neuron and so it has no soma, use the following type of command:
 
-`648518346481082458! 48848 114737 2690` or
-`648518346481082458! 48848, 114737, 2690`
+`648518346486614449! 48848 114737 2690` or
+`648518346486614449! 48848, 114737, 2690`
 To mark a *neuron with no soma* as proofread, provide an xyz point coordinate (typically copied from the top bar of neuroglancer) to use as a representative point. This should be a point inside the neuron's large-diameter backbone that is unlikely to be affected by any future edits to this neuron. (Like before, you can use either "!" to mark the neuron as "first pass" proofread, or use "!!" to mark it as "second pass" proofread.)
 
 
-• These examples use the segment ID 648518346481082458 but you should substitute this with the segment ID that you're interested in.
-• If you want to confirm I'm working properly, try sending me the first example message, `648518346481082458?`, and make sure you get a response.
+• These examples use the segment ID 648518346486614449 but you should substitute this with the segment ID that you're interested in.
+• If you want to confirm I'm working properly, try sending me the first example message, `648518346486614449?`, and make sure you get a response.
 • If you want to mark a large number of segments as proofread, you can send a message to Jasper on Slack instead of using this bot.
 """)
 
