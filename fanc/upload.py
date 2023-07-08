@@ -126,6 +126,10 @@ class SomaTableOrganizer(object):
 
         self._subset_table_dict = {"neuron": "neuron_" + self._soma_table_name, "glia": "glia_" + self._soma_table_name}
 
+        self._voxel_size = [self._client.info.get_datastack_info()['viewer_resolution_x'],
+                            self._client.info.get_datastack_info()['viewer_resolution_y'],
+                            self._client.info.get_datastack_info()['viewer_resolution_z']]
+
         if subset_table_name in list(self._subset_table_dict.keys()):
             self._subset_table_name = self._subset_table_dict[subset_table_name]
         elif subset_table_name in list(self._subset_table_dict.values()):
@@ -175,18 +179,17 @@ class SomaTableOrganizer(object):
     def _required_props(self):
         return self._client.schema.schema_definition('nucleus_detection')['definitions']['NucleusDetection']['required']
 
-    @staticmethod
-    def add_radius_column(soma_table):
+    def add_radius_column(self, soma_table):
         if ('bb_start_position' not in soma_table.columns) or ('bb_end_position' not in soma_table.columns):
             raise ValueError("Need 'bb_start_position' and 'bb_end_position' columns.")
         
-        soma_table['radius'] = 0
+        soma_table['radius_nm'] = 0
         for i, r in soma_table.iterrows():
             if soma_table['bb_start_position'][i] is not np.nan and soma_table['bb_end_position'][i] is not np.nan:
                 dist = np.array(soma_table['bb_end_position'][i]) - np.array(soma_table['bb_start_position'][i])
-                soma_table.at[i,'radius'] = np.linalg.norm(dist)/2 # distance in voxel
+                soma_table.at[i,'radius_nm'] = np.linalg.norm(dist[:2])/2 # distance in nm in xy plane
             else:
-                soma_table.at[i,'radius'] = 10 # np.nan
+                soma_table.at[i,'radius_nm'] = 10 # np.nan
         return soma_table
 
     @staticmethod
@@ -251,7 +254,7 @@ class SomaTableOrganizer(object):
             If True, produce an annotation layer that has all the subset somas as points
         asSphere: bool (default True)
             If True, produce an annotation layer that has all the subset somas as sheperes.
-            Their radius are estimated based on their bounding boxes.
+            Their radius are estimated based on their bounding boxes in nanometers.
 
         ---Returns---
         Neuroglancer url (as a string)
@@ -271,7 +274,10 @@ class SomaTableOrganizer(object):
         else:
             raise ValueError("Either asPoint or asSphere should be True")
 
-        print(statebuilder.render_scene(annotations=annotations, nuclei=st.id.values, client=self._client))
+        print(statebuilder.render_scene(annotations=annotations,
+                                        nuclei=st.id.values,
+                                        client=self._client,
+                                        annotation_units='voxels'))
 
     def add_dataframe(self, df: pd.DataFrame, batch_size=10000):
         """

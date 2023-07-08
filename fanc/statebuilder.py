@@ -183,7 +183,7 @@ def render_scene(neurons=None,
         - 'points': data must be an Nx3 numpy array or a DataFrame with a
                     column named 'pt_position'
         - 'spheres': data must be a DataFrame with columns 'pt_position'
-                     and 'radius'
+                     and 'radius_nm'. Specify radius in nm.
         If list of dicts, each dict must have the format above, and each one
         will be displayed as its own annotation layer.
 
@@ -321,6 +321,11 @@ def render_scene(neurons=None,
     additional_states = []
     additional_data = []
     if annotations is not None:
+        if annotation_units in ['nm', 'nanometer', 'nanometers']:
+            annotation_layer_resolution = (1, 1, 1)
+        else:
+            annotation_layer_resolution = None
+
         if isinstance(annotations, np.ndarray):
             annotations = pd.DataFrame({'pt_position': [pt for pt in annotations]})
         if isinstance(annotations, pd.Series):
@@ -357,21 +362,17 @@ def render_scene(neurons=None,
             else:
                 segid_column = None
 
-            if annotation_units in ['nm', 'nanometer', 'nanometers']:
-                data.pt_position = [row for row in
-                                    np.vstack(data.pt_position) / ngl_info.voxel_size]
-
             if i['type'] == 'points':
                 anno_mapper = PointMapper(point_column='pt_position',
                                           linked_segmentation_column=segid_column)
             elif i['type'] == 'spheres':
                 anno_mapper = SphereMapper(center_column='pt_position',
-                                           radius_column='radius',
+                                           radius_column='radius_nm',
                                            linked_segmentation_column=segid_column)
             else:
                 raise NotImplementedError(f"Unrecognized annotation type: '{i['type']}'")
 
-            anno_layer = AnnotationLayerConfig(name=i['name'], mapping_rules=anno_mapper)
+            anno_layer = AnnotationLayerConfig(name=i['name'], mapping_rules=anno_mapper, data_resolution=annotation_layer_resolution)
             additional_states.append(
                 StateBuilderDefaultSettings([anno_layer])
             )
