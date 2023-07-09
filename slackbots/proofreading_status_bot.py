@@ -57,7 +57,7 @@ import fanc
 
 
 # Setup
-verbosity = 1
+verbosity = 2
 
 caveclient = CAVEclient('fanc_production_mar2021')
 all_tables = caveclient.materialize.get_tables()
