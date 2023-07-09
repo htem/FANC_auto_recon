@@ -64,11 +64,11 @@ Find neurons with some annotations:
 - You can use as many search terms if you want, e.g. `get W and X and Y and Z`
 
 Get information about a specific neuron:
-- `648518346481082458?` -> get annotations for segment 648518346481082458
-- `648518346481082458? all` -> get extended annotation details for segment 648518346481082458
+- `648518346486614449?` -> get annotations for segment 648518346486614449
+- `648518346486614449? all` -> get extended annotation details for segment 648518346486614449
 
 Upload annotations to a CAVE table that the whole community can benefit from:
-- `648518346481082458! primary class > central neuron` -> annotate that the indicated segment's "primary class" is "central neuron" (as opposed to "sensory neuron" or "motor neuron").
+- `648518346486614449! primary class > central neuron` -> annotate that the indicated segment's "primary class" is "central neuron" (as opposed to "sensory neuron" or "motor neuron").
 - `648518346489818455! left-right projection pattern > bilateral` -> annotate that segment 648518346489818455 projects bilaterally, i.e. has synaptic connections on both sides of the VNC's midplane.
 (To upload annotations, Jasper needs to first give you permissions, so send him a message to ask if you're interested.)
 
