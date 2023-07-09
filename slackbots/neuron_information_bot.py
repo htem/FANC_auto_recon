@@ -1,22 +1,44 @@
 #!/usr/bin/env python3
 """
-Install the slack python package with `pip install slack_sdk`
-Some useful Slack API info pages:
-  - https://api.slack.com/messaging/retrieving
-  - https://api.slack.com/messaging/sending
+This Slack app uses the "socket mode" feature of Slack's Bolt framework.
+This allows the app to receive messages from Slack without needing to
+have your own public server. Some useful links that describe this:
+- https://api.slack.com/apis/connections/socket
+- https://api.slack.com/apis/connections/events-api
 
-View and configure your slack apps: https://api.slack.com/apps
-Through Features > App Home > Show Tabs, select "Allow users to send
-  Slash commands and messages from the messages tab" to enable DMs.
-Through Features > OAuth & Permissions > Scopes > Bot Token Scopes,
-give your bot these permissions:
-  chat:write
-  im:read
-  im:history
-From Features > OAuth & Permissions > OAuth Tokens for Your Workspace,
-  copy your app's auth token to your shell environment by adding a line
-  like this to your shell startup file (e.g. ~/.bashrc, ~/.zshrc):
-    export SLACK_BOT_TOKEN=xoxb-123456789012-...
+--- Getting started ---
+Install the slack bolt python package: `pip install slack-bolt`
+
+View and configure your Slack app: https://api.slack.com/apps
+- In Features > App Home > Show Tabs, select "Allow users to send
+    Slash commands and messages from the messages tab" to enable DMs.
+- In Settings > Socket Mode, enable Socket Mode. Create a token with
+    connections:write permissions if prompted to. You can name the token
+    anything, but 'websockets' is a reasonable choice.
+- In Features > Event Subscriptions, toggle Enable Events on. Then
+    open "Subscribe to bot events" and add the following events:
+      message.im
+    Press "Save Changes" when done.
+
+Get your app's tokens:
+- From Settings > Basic Information > App Credentials, copy the Signing Secret.
+    Add it to your shell environment by adding a line like this to your shell
+    startup file (e.g. ~/.bashrc, ~/.zshrc):
+      export SLACK_BOT_SIGNING_SECRET=abcdef1234567890...
+- From Settings > Basic Information > App-Level Tokens, click on the token you
+    made earlier (e.g. 'websockets'). Copy the token. Add it to your shell
+    startup file (e.g. ~/.bashrc, ~/.zshrc):
+      export SLACK_BOT_WEBSOCKETS_TOKEN=xapp-abcdef1234567890...
+- From Features > OAuth & Permissions > OAuth Tokens for Your Workspace,
+    copy your Bot User OAuth Token and add it to your shell startup file:
+      export SLACK_BOT_TOKEN=xoxb-abcdef1234567890...
+
+Then run this script with `python proofreading_status_bot.py` to start
+listening for events triggered by users interacting with your Slack app.
+
+If you want to keep this running constantly so that the app is always
+listening and responding, you can run this script in the background
+using a utility like `screen`.
 """
 
 import os
@@ -26,27 +48,26 @@ import time
 from datetime import datetime
 from typing import Union
 
-import requests
-import slack_sdk
 import numpy as np
 import pandas as pd
-from caveclient import CAVEclient
+from slack_bolt import App
+from slack_bolt.adapter.socket_mode import SocketModeHandler
 
+from caveclient import CAVEclient
 import fanc
 
+# Setup
+verbosity = 2
 
 caveclient = CAVEclient('fanc_production_mar2021')
 table_name = 'neuron_information'
 
-if len(sys.argv) > 1 and sys.argv[1] in os.environ:
-    token = os.environ[sys.argv[1]]
-else:
-    token = os.environ['SLACK_TOKEN_FANC_NEURONINFORMATIONBOT']
-slackclient = slack_sdk.WebClient(token=token)
-
 with open('slack_user_permissions.json', 'r') as f:
     permissions = json.load(f)
 
+app = App(token=os.environ['SLACK_TOKEN_FANC_NEURONINFORMATIONBOT'],
+          signing_secret=os.environ['SLACK_SIGNING_SECRET_FANC_NEURONINFORMATIONBOT'])
+handler = SocketModeHandler(app, os.environ['SLACK_TOKEN_FANC_NEURONINFORMATIONBOT_WEBSOCKETS'])
 
 def show_help():
     return (
@@ -64,17 +85,56 @@ Find neurons with some annotations:
 - You can use as many search terms if you want, e.g. `get W and X and Y and Z`
 
 Get information about a specific neuron:
-- `648518346481082458?` -> get annotations for segment 648518346481082458
-- `648518346481082458? all` -> get extended annotation details for segment 648518346481082458
+- `648518346486614449?` -> get annotations for segment 648518346486614449
+- `648518346486614449? all` -> get extended annotation details for segment 648518346486614449
 
 Upload annotations to a CAVE table that the whole community can benefit from:
-- `648518346481082458! primary class > central neuron` -> annotate that the indicated segment's "primary class" is "central neuron" (as opposed to "sensory neuron" or "motor neuron").
+- `648518346486614449! primary class > central neuron` -> annotate that the indicated segment's "primary class" is "central neuron" (as opposed to "sensory neuron" or "motor neuron").
 - `648518346489818455! left-right projection pattern > bilateral` -> annotate that segment 648518346489818455 projects bilaterally, i.e. has synaptic connections on both sides of the VNC's midplane.
 (To upload annotations, Jasper needs to first give you permissions, so send him a message to ask if you're interested.)
 
 This bot is a work in progress - notably, you can't yet annotate most sensory neurons because the `peripheral_nerves` table is not complete yet. This will be addressed at some point.
 Feel free to send Jasper any questions or bug reports.
 """)
+
+@app.event("message")
+def direct_message(message, say):
+    """
+    Slack servers trigger this function when a user sends a direct message to the bot.
+
+    'message' is a dictionary containing information about the message.
+    'say' is a function that can be used to send a message back to the user.
+    """
+    print(datetime.now().strftime('%A %Y-%h-%d %H:%M:%S'))
+    if message.get('channel_type', None) != 'im':
+        # Skip if this is not a direct message
+        return
+    if message.get('subtype', None):
+        # Skip if this is a system message (not something posted by a user)
+        return
+    if message.get('thread_ts', None):
+        # Skip if this message has a reply already
+        return
+    if 'bot_id' in message:
+        # Skip if this message was posted by another bot
+        return
+
+    response = None
+    if 'help' in message['text'].lower():
+        response = show_help()
+
+    if verbosity >= 2:
+        print('Processing message:', message)
+    elif verbosity >= 1:
+        print('Processing message with timestamp', message['ts'])
+
+    if response is None:
+        response = process_message(message['text'],
+                                   message['user'],
+                                   fake=fake)
+    if verbosity >= 1:
+        print('Posting response:', response)
+    say(response, thread_ts=message['ts'])
 
 
 def process_message(message: str, user: str, fake=False) -> str:
@@ -210,43 +270,6 @@ def process_message(message: str, user: str, fake=False) -> str:
                 " the word 'help' if you need instructions.")
     
 
-def fetch_messages_and_post_replies(channel, verbosity=1, fake=False):
-    channel_data = slackclient.conversations_history(channel=channel['id'])
-    for message in channel_data['messages']:
-        if message.get('subtype', None):
-            # Skip if this is a system message (not something posted by a user)
-            continue
-        if message.get('thread_ts', None):
-            # Skip if this message has a reply already
-            continue
-        if not message['user'] == channel['user']:
-            # Skip if this message wasn't sent by the user,
-            # e.g. it was sent by the bot
-            continue
-        response = None
-        if 'help' in message['text'].lower():
-            response = show_help()
-
-        if verbosity >= 2:
-            print('Processing message:', message)
-        elif verbosity >= 1:
-            print('Processing message with timestamp', message['ts'])
-
-        if response is None:
-            response = process_message(message['text'],
-                                       message['user'],
-                                       fake=fake)
-
-        if verbosity >= 1:
-            print('Posting response:', response)
-
-        slackclient.chat_postMessage(
-            channel=channel['id'],
-            thread_ts=message['ts'],
-            text=response
-        )
-
-
 def record_upload(segid, tag, tag2, user_id, table_name) -> None:
     uploads_fn = f'neuron_information_bot_uploads_to_{table_name}.txt'
     with open(uploads_fn, 'a') as f:
@@ -259,29 +282,4 @@ if __name__ == '__main__':
         print('Running in FAKE mode')
     else:
         fake = False
-
-    while True:
-        print(datetime.now().strftime('%A %Y-%h-%d %H:%M:%S'))
-        try:
-            direct_message_channels = slackclient.conversations_list(types='im')
-        except Exception as e:
-            print('Encountered exception: {} {}'.format(type(e), e))
-            logfn = os.path.join('exceptions_neuron_information_bot',
-                                 datetime.now().strftime('%Y-%h-%d_%H-%M-%S.txt'))
-            with open(logfn, 'w') as f:
-                f.write('{}\n{}'.format(type(e), e))
-            time.sleep(50)
-            continue
-        for channel in direct_message_channels['channels']:
-            if channel['user'] == 'USLACKBOT':
-                continue
-            try:
-                fetch_messages_and_post_replies(channel=channel, verbosity=2, fake=fake)
-            except Exception as e:
-                print('Encountered exception: {} {}'.format(type(e), e))
-                logfn = os.path.join('exceptions_neuron_information_bot',
-                                     datetime.now().strftime('%Y-%h-%d_%H-%M-%S.txt'))
-                with open(logfn, 'w') as f:
-                    f.write('{}\n{}'.format(type(e), e))
-                time.sleep(50)
-        time.sleep(10)
+    handler.start()
