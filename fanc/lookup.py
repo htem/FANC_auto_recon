@@ -239,6 +239,7 @@ def all_annotations(source_tables=default_annotation_sources,
     for table_name, column_name in source_tables:
         table = client.materialize.live_live_query(table_name, timestamp)
         table['source_table'] = table_name
+        table['created'] = table['created'].apply(datetime.date)
         if 'user_id' not in table.columns:
             table['user_id'] = None
         if column_name != 'tag2':
