@@ -455,7 +455,7 @@ def segid_from_cellid(cellid,
                       timestamp='now',
                       table_name=default_cellid_table):
     """
-    Return the segment ID (also called root ID) for a given cell ID
+    Return the segment ID for a given cell ID at the given timestamp.
 
     Arguments
     ---------
@@ -473,10 +473,11 @@ def segid_from_cellid(cellid,
 
     Returns
     -------
-    The requested segID as an int64 value
+    If cellid is an int, the requested segID as an int.
+    If cellid is a list, the requested segIDs as a list of ints.
     """
     try: iter(cellid)
-    except: cellid = [cellid]
+    except: return segid_from_cellid([cellid], timestamp=timestamp, table_name=table_name)[0]
 
     client = auth.get_caveclient()
     if timestamp in ['now', 'live']:
@@ -484,17 +485,60 @@ def segid_from_cellid(cellid,
     elif timestamp is None:
         timestamp = client.materialize.get_timestamp()
 
-    cell_ids = client.materialize.query_table(table_name)
-    if any([i not in cell_ids['id'].values for i in cellid]):
-        raise ValueError(f'Cell ID {cellid} not found in {table_name}')
-    cell_ids = cell_ids.loc[cell_ids['id'].isin(cellid)]
+    cell_ids = client.materialize.live_live_query(
+        table_name,
+        timestamp=timestamp,
+        filter_in_dict={table_name: {'id': cellid}})
+    cell_ids.set_index('id', inplace=True)
+    if any([i not in cell_ids.index for i in cellid]):
+        raise ValueError('There is no cell with these cell IDs: {}'.format(
+            [i for i in cellid if i not in cell_ids.index]))
+    return cell_ids.loc[cellid, 'pt_root_id'].to_list()
 
-    if not all(client.chunkedgraph.is_latest_roots(
-            cell_ids['pt_root_id'].values,
-            timestamp=timestamp)):
-        cell_ids['pt_root_id'] = segids_from_pts(cell_ids['pt_position'],
-                                                 timestamp=timestamp)
-    return cell_ids['pt_root_id'].values
+
+def cellid_from_segid(segid,
+                      timestamp='now',
+                      table_name=default_cellid_table):
+    """
+    Return the cell ID for a given segment ID.
+
+    Arguments
+    ---------
+    segid : int or list of int
+      The segment ID(s) to query
+
+    timestamp : 'now' (default) OR datetime OR None
+      The timestamp at which to query the segment's proofreading status.
+      If 'now', use the current time.
+      If datetime, use the time specified by the user.
+      If None, use the timestamp of the latest materialization.
+
+    table_name : str (default 'cell_ids')
+      The name of the CAVE table containing cell IDs.
+
+    Returns
+    -------
+    If segid is an int, the requested cell ID as an int.
+    If segid is a list, the requested cell IDs as a list of ints.
+    """
+    try: iter(segid)
+    except: return cellid_from_segid([segid], timestamp=timestamp, table_name=table_name)[0]
+
+    client = auth.get_caveclient()
+    if timestamp in ['now', 'live']:
+        timestamp = datetime.utcnow()
+    elif timestamp is None:
+        timestamp = client.materialize.get_timestamp()
+
+    cell_ids = client.materialize.live_live_query(
+        table_name,
+        timestamp=timestamp,
+        filter_in_dict={table_name: {'pt_root_id': segid}})
+    cell_ids.set_index('pt_root_id', inplace=True)
+    if any([i not in cell_ids.index for i in segid]):
+        raise ValueError("These segment IDs don't have a cell ID: {}".format(
+            [i for i in segid if i not in cell_ids.index]))
+    return cell_ids.loc[segid, 'id'].to_list()
 # --- END SEGMENTATION/CHUNKEDGRAPH SECTION --- #
 
 
