@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+"""
+Generate skeletons from FANC segmentation objects (meshes).
+
+See examples of how to run skeletonization functions at https://github.com/htem/FANC_auto_recon/blob/main/example_notebooks/skeletonization.ipynb
+"""
 
 import numpy as np
 import pandas as pd
