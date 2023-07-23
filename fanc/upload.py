@@ -23,9 +23,15 @@ def new_cell(pt_position,
              pt_type: "'soma', 'peripheral nerve', 'neck connective', 'cut-off soma', 'orphan'",
              cell_type: "'motor', 'sensory', 'descending', 'ascending', 'central', 'glia'",
              user_id: int,
+             cell_ids_table='cell_ids',
+             add_to_soma_table=False,  # TODO implement
              fake=True):
+    """
+    Add a new cell to the cell_ids table, annotate its type, and optionally add
+    it to the soma table.
+    """
     client = auth.get_caveclient()
-    cell_ids = client.materialize.live_live_query('cell_ids', timestamp=datetime.utcnow())
+    cell_ids = client.materialize.live_live_query(cell_ids_table, timestamp=datetime.utcnow())
     segid = lookup.segids_from_pts(pt_position)
     if segid == 0:
         raise ValueError(f'Point {pt_position} is a location with no segmentation')
@@ -46,14 +52,22 @@ def new_cell(pt_position,
     start_id = start_ids[cell_type]
     # Annotations that were deleted aren't materialized so they won't be in the
     # cell_ids dataframe, but new annotations can't re-use their IDs.
-    deleted_cell_ids = [10552, 10766]
+    deleted_cell_ids = [10552, 10766, 13325]
     while start_id in cell_ids['id'].values or start_id in deleted_cell_ids:
         start_id += 1
-    stage = client.annotation.stage_annotations('cell_ids', id_field=True)
+    stage = client.annotation.stage_annotations(cell_ids_table, id_field=True)
     stage.add(id=start_id,
               pt_position=np.array(pt_position),
               tag=pt_type,
               valid=True)
+
+    def try_annotate_neuron(*args, **kwargs):
+        try:
+            annotate_neuron(*args, **kwargs)
+        except ValueError as e:
+            print(type(e))
+            print(e)
+
     if fake:
         print(f'FAKE – would upload new {cell_type} neuron:')
         print(stage.annotation_dataframe)
@@ -63,17 +77,17 @@ def new_cell(pt_position,
         if cell_type == 'glia':
             return
         if cell_type == 'motor':
-            annotate_neuron(segid, 'primary class', 'motor neuron', user_id)
+            try_annotate_neuron(segid, 'primary class', 'motor neuron', user_id)
         elif cell_type == 'sensory':
-            annotate_neuron(segid, 'primary class', 'sensory neuron', user_id)
+            try_annotate_neuron(segid, 'primary class', 'sensory neuron', user_id)
         elif cell_type == 'descending':
-            annotate_neuron(segid, 'primary class', 'central neuron', user_id)
-            annotate_neuron(segid, 'anterior-posterior projection pattern', 'descending', user_id)
+            try_annotate_neuron(segid, 'primary class', 'central neuron', user_id)
+            try_annotate_neuron(segid, 'anterior-posterior projection pattern', 'descending', user_id)
         elif cell_type == 'ascending':
-            annotate_neuron(segid, 'primary class', 'central neuron', user_id)
-            annotate_neuron(segid, 'anterior-posterior projection pattern', 'ascending', user_id)
+            try_annotate_neuron(segid, 'primary class', 'central neuron', user_id)
+            try_annotate_neuron(segid, 'anterior-posterior projection pattern', 'ascending', user_id)
         elif cell_type == 'central':
-            annotate_neuron(segid, 'primary class', 'central neuron', user_id)
+            try_annotate_neuron(segid, 'primary class', 'central neuron', user_id)
 
 
 def annotate_neuron(neuron: 'segID (int) or point (xyz)',
