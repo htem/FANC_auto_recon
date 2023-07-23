@@ -247,7 +247,7 @@ def render_scene(neurons=None,
         # None -> np.array
         # Default to showing the 'homepage' FANC neuron
         neurons = np.array([[48848, 114737, 2690]])
-    elif isinstance(neurons, int):
+    elif isinstance(neurons, (int, np.integer)):
         # int -> list
         neurons = [neurons]
     elif isinstance(neurons, str):

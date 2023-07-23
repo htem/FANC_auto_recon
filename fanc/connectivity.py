@@ -28,7 +28,7 @@ def get_synapses(seg_ids,
     returns:
     a pd.DataFrame of synapse information from CAVE, 
     '''
-    if isinstance(seg_ids, int):
+    if isinstance(seg_ids, (int, np.integer)):
         seg_ids = [seg_ids]
 
     if direction == 'inputs':

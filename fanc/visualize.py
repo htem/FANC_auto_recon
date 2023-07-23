@@ -88,7 +88,7 @@ def plot_neurons(segment_ids,
         (generate two images with/without scale bar if you specify to plot it)
     """
 
-    if isinstance(segment_ids, int):
+    if isinstance(segment_ids, (int, np.integer)):
         segment_ids = [segment_ids]
 
     colormap = cm.get_cmap(cmap, len(segment_ids))
@@ -98,7 +98,7 @@ def plot_neurons(segment_ids,
     else:
         client = auth.get_caveclient()
 
-    if isinstance(camera, int):
+    if isinstance(camera, (int, np.integer)):
         state = client.state.get_state_json(camera)
         camera = trimesh_vtk.camera_from_ngl_state(state, zoom_factor=zoom_factor)
 
