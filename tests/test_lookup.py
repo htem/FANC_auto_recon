@@ -11,8 +11,8 @@ def test_lookup():
     print('fanc.lookup: Start tests')
     pts = np.array([[48848, 114737, 2690],
                     [49198, 114622, 2690]])
-    assert fanc.lookup.svid_from_pt(list(pts[0, :])) == [73679924787396631]
-    assert fanc.lookup.svid_from_pt(tuple(pts[0, :])) == [73679924787396631]
+    assert fanc.lookup.svid_from_pt(list(pts[0, :])) == 73679924787396631
+    assert fanc.lookup.svid_from_pt(tuple(pts[0, :])) == 73679924787396631
     assert fanc.lookup.svid_from_pt(pts) == [73679924787396631, 73750224812092331]
 
     jan2022 = datetime(2022, 1, 1, tzinfo=timezone.utc)
