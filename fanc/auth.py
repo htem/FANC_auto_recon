@@ -53,7 +53,7 @@ def get_cloudvolume(dataset='fanc_production_mar2021'):
         client = get_caveclient(dataset=dataset)
 
         _cloudvolumes[dataset] = CloudVolume(
-            client.info.get_datastack_info()['segmentation_source'],
+            client.info.get_datastack_info()['segmentation_source'].replace('middleauth+', ''),
             use_https=True,
             secrets=client.auth.token
         )
