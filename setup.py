@@ -9,7 +9,7 @@ with open('requirements.txt', 'r') as f:
 
 setuptools.setup(
     name='fanc-fly',
-    version='3.0.1',
+    version='3.1.0',
     author='Jasper Phelps',
     author_email='jasper.s.phelps@gmail.com',
     description='Tools for the Female Adult Nerve Cord Drosophila EM dataset',
