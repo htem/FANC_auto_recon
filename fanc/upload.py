@@ -307,7 +307,7 @@ class SomaTableOrganizer(object):
         stage.add_dataframe(df) # check whether the df has necessary columns
         stage.clear_annotations()
 
-        svIDs = lookup.svids_from_pts(df.pt_position)
+        svIDs = lookup.svid_from_pt(df.pt_position)
         rIDs = root_id_int_list_check(self._client.chunkedgraph.get_roots(svIDs))
 
         overlap = np.isin(rIDs, root_id_int_list_check(self._soma_table.pt_root_id.values))
