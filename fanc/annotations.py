@@ -62,7 +62,8 @@ annotation_hierarchy = {
     'publication': {
         'Azevedo Lesser Mark Phelps et al. 2022': {},
         'Lesser Azevedo et al. 2023': {},
-        'Cheong Boone Bennett et al. 2023': {}},
+        'Cheong Boone Bennett et al. 2023': {},
+        'Sapkal et al. 2023': {}},
 }
 
 
