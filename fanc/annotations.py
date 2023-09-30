@@ -97,6 +97,7 @@ annotation_hierarchy = {
         'right soma': {},
         'middle soma': {}},
     'soma segment': {
+        'brain soma': {},
         'T1 soma': {},
         'T2 soma': {},
         'T3 soma': {},
