@@ -17,7 +17,10 @@ help_msg = 'See the annotation scheme described at ' + help_url
 annotation_hierarchy = {
     'primary class': {
         'sensory neuron': {
-            'chordotonal neuron': {},
+            'chordotonal neuron': {
+                'club chordotonal neuron': {},
+                'claw chordotonal neuron': {},
+                'hook chordotonal neuron': {}},
             'bristle neuron': {},
             'hair plate neuron': {},
             'campaniform sensillum neuron': {}},
