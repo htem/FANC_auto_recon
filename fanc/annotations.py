@@ -94,7 +94,9 @@ annotation_hierarchy = {
                 'neck UM neuron': {},
                 'wing UM neuron': {},
                 'haltere UM neuron': {},
-                'abdominal UM neuron': {}}}},
+                'abdominal UM neuron': {}}},
+        'glia': {
+            'trachea': {}}},
     'soma side': {
         'left soma': {},
         'right soma': {},
