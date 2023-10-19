@@ -122,6 +122,7 @@ annotation_hierarchy = {
         'Lesser Azevedo et al. 2023': {},
         'Cheong Boone Bennett et al. 2023': {},
         'Sapkal et al. 2023': {},
+        'Yang et al. 2023': {},
         'Dallmann et al. 2023': {}},
 }
 
