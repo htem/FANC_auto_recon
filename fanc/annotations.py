@@ -14,7 +14,8 @@ from . import lookup
 help_url = 'https://github.com/htem/FANC_auto_recon/wiki/Neuron-annotations#neuron_information'
 help_msg = 'See the annotation scheme described at ' + help_url
 
-annotation_hierarchy = {
+
+cell_info = {
     'primary class': {
         'sensory neuron': {
             'chordotonal neuron': {
@@ -126,8 +127,17 @@ annotation_hierarchy = {
         'Dallmann et al. 2023': {}},
 }
 
+# A mapping that tells which CAVE tables are governed by which
+# annotation lists/hierarchies
+rules_governing_tables = {
+    'neuron_information': cell_info,
+}
 
-def _dict_to_anytree(dict):
+
+# ------------------------- #
+
+
+def _dict_to_anytree(dictionary):
     """
     Given a dictionary containing a hierarchy of strings, return a dictionary
     with each string as a key and the corresponding anytree.Node as the value.
@@ -139,29 +149,60 @@ def _dict_to_anytree(dict):
             _build_tree(annotations[annotation], parent=node, nodes=nodes)
         return nodes
 
-    return _build_tree(dict)
+    return _build_tree(dictionary)
 
-annotation_tree = _dict_to_anytree(annotation_hierarchy)
+rules_governing_tables = {table_name: _dict_to_anytree(annotations)
+                          if isinstance(annotations, dict) else annotations
+                          for table_name, annotations in rules_governing_tables.items()}
 
 
-def print_annotation_tree():
+def print_recognized_annotations(table_name: str or dict[str: anytree.Node] = 'neuron_information'):
     """
-    Print the annotation hierarchy
+    Print the annotation hierarchy for a table.
+
+    Parameters
+    ----------
+    table_name : str OR dict of str -> anytree.Node
+        The name of the table to print the annotation hierarchy for.
+        OR
+        A dictionary mapping annotation names (str) to anytree.Node objects,
+        as output by running _dict_to_anytree() on a hierarchy of annotations.
     """
-    def print_one_tree(root: str):
-        for prefix, _, node in anytree.RenderTree(annotation_tree[root][0]):
-            print(f'{prefix}{node.name}')
-    print_one_tree('primary class')
-    print_one_tree('anterior-posterior projection pattern')
-    print_one_tree('left-right projection pattern')
+    if isinstance(table_name, str):
+        annotations = rules_governing_tables[table_name]
+
+    if isinstance(annotations, dict):
+        def print_one_tree(annotations, root: str):
+            for prefix, _, node in anytree.RenderTree(annotations[root][0]):
+                print(f'{prefix}{node.name}')
+
+        for root_node in {anno for anno, nodes in annotations.items()
+                          if len(nodes) == 1 and nodes[0].is_root}:
+            print_one_tree(annotations, root_node)
 
 
-def guess_class(annotation: 'str') -> 'str':
+def guess_class(annotation: 'str',
+                table_name: str or dict[str, anytree.Node] = 'neuron_information') -> 'str':
     """
-    Given an annotation, return the annotation class to which it belongs.
+    Look up the parent (or "class") of an annotation based on the rules governing
+    the given table. If the annotation is not found, raise a ValueError.
+
+    Parameters
+    ----------
+    annotation : str
+        The annotation to look up the class of.
+    table_name : str OR dict of str -> anytree.Node
+        The name of the table whose rules should be used to look up the class of
+        the annotation.
+        OR
+        A dictionary mapping annotation names (str) to anytree.Node objects,
+        as output by running _dict_to_anytree() on a hierarchy of annotations.
     """
+    if isinstance(table_name, str):
+        annotations = rules_governing_tables[table_name]
+
     try:
-        annotation_nodes = annotation_tree[annotation]
+        annotation_nodes = annotations[annotation]
     except:
         raise ValueError(f'Class of "{annotation}" could not be guessed. {help_msg}')
 
@@ -173,25 +214,37 @@ def guess_class(annotation: 'str') -> 'str':
     return annotation_nodes[0].parent.name
 
 
-def is_valid_annotation(annotation: str) -> bool:
+def is_valid_annotation(annotation: str, table_name: str = 'neuron_information') -> bool:
     """
-    Determine whether `annotation` is a recognized annotation.
+    Determine whether an annotation is a recognized annotation in the given
+    annotation hierarchy.
     """
     try:
-        annotation_nodes = annotation_tree[annotation]
+        annotations = rules_governing_tables[table_name]
+    except:
+        raise ValueError(f'"{table_name}" is not a recognized table.')
+    try:
+        annotation_nodes = annotations[annotation]
     except:
         return False
     return True
 
 
-def is_valid_pair(annotation_class: str, annotation: str, raise_errors=True) -> bool:
+def is_valid_pair(annotation_class: str,
+                  annotation: str,
+                  table_name: str = 'neuron_information',
+                  raise_errors=True) -> bool:
     """
-    Determine whether `annotation` is a valid annotation for the given
-    `annotation_class`, according to the rules described at
-    https://github.com/htem/FANC_auto_recon/wiki/Neuron-annotations#neuron_information
+    Determine whether `annotation` is a valid annotation for the given `annotation_class`,
+    according to the rules described in the annotation tree `annotations`.
+    (See https://github.com/htem/FANC_auto_recon/wiki/Neuron-annotations#neuron_information)
     """
+    try:
+        annotations = rules_governing_tables[table_name]
+    except:
+        raise ValueError(f'"{table_name}" is not a recognized table.')
     if annotation_class == 'neuron identity':
-        if annotation in annotation_tree:
+        if annotation in annotations:
             if raise_errors:
                 raise ValueError(f'The term "{annotation}" is a class,'
                                  f' not an identity. {help_msg}')
@@ -199,7 +252,7 @@ def is_valid_pair(annotation_class: str, annotation: str, raise_errors=True) -> 
         return True
 
     try:
-        class_nodes = annotation_tree[annotation_class]
+        class_nodes = annotations[annotation_class]
     except:
         if raise_errors:
             raise ValueError(f'Annotation class "{annotation_class}" not'
@@ -207,7 +260,7 @@ def is_valid_pair(annotation_class: str, annotation: str, raise_errors=True) -> 
         else:
             return False
     try:
-        annotation_nodes = annotation_tree[annotation]
+        annotation_nodes = annotations[annotation]
     except:
         if raise_errors:
             raise ValueError(f'Annotation "{annotation}" not recognized.'
@@ -272,6 +325,10 @@ def is_allowed_to_post(segid, annotation_class, annotation,
       is True, an exception with an informative error message will be
       raised instead of returning False.
     """
+    try:
+        annotations = rules_governing_tables[table_name]
+    except:
+        raise ValueError(f'"{table_name}" is not a recognized table.')
     if not is_valid_pair(annotation_class, annotation, raise_errors=raise_errors):
         return False
 
@@ -319,7 +376,7 @@ def is_allowed_to_post(segid, annotation_class, annotation,
         return False
 
     # Rule 2
-    root_classes = list(annotation_hierarchy.keys())
+    root_classes = list(annotations.keys())
     if (annotation_class not in root_classes and
             existing_annos.loc[existing_annos.tag == annotation_class].empty):
         if raise_errors:
