@@ -100,7 +100,7 @@ annotation_hierarchy = {
     'soma side': {
         'left soma': {},
         'right soma': {},
-        'middle soma': {}},
+        'midline soma': {}},
     'soma segment': {
         'soma in brain': {},
         'soma in T1': {},
