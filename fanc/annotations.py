@@ -118,19 +118,29 @@ cell_info = {
         'bilateral': {},
         'midplane': {}},
     'neuron identity': {},
-    'publication': {
-        'Azevedo Lesser Mark Phelps et al. 2022': {},
-        'Lesser Azevedo et al. 2023': {},
-        'Cheong Boone Bennett et al. 2023': {},
-        'Sapkal et al. 2023': {},
-        'Yang et al. 2023': {},
-        'Dallmann et al. 2023': {}},
 }
+FANC_cell_info = cell_info.copy()
+FANC_cell_info['publication'] = {
+    'Azevedo Lesser Mark Phelps et al. 2022': {},
+    'Lesser Azevedo et al. 2023': {},
+    'Cheong Boone Bennett et al. 2023': {},
+    'Sapkal et al. 2023': {},
+    'Yang et al. 2023': {},
+    'Dallmann et al. 2023': {}
+}
+
+proofreading_notes = [
+    'spans neck',
+    'no major merge errors',
+    'publication quality',
+]
 
 # A mapping that tells which CAVE tables are governed by which
 # annotation lists/hierarchies
 rules_governing_tables = {
-    'neuron_information': cell_info,
+    'neuron_information': FANC_cell_info,
+    'cell_info': cell_info,
+    'proofreading_notes': proofreading_notes,
 }
 
 
