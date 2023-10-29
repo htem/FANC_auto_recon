@@ -14,6 +14,8 @@ from . import lookup
 help_url = 'https://fanc.community/Neuron-annotations#neuron_information'
 help_msg = 'See the annotation scheme described at ' + help_url
 
+default_table = 'neuron_information'
+
 
 cell_info = {
     'primary class': {
@@ -167,7 +169,7 @@ rules_governing_tables = {table_name: _dict_to_anytree(annotations)
                           for table_name, annotations in rules_governing_tables.items()}
 
 
-def print_recognized_annotations(table_name: str = 'neuron_information'):
+def print_recognized_annotations(table_name: str = default_table):
     """
     Print the annotation hierarchy for a table.
 
@@ -204,8 +206,7 @@ def print_recognized_annotations(table_name: str = 'neuron_information'):
             print(annotation)
 
 
-def guess_class(annotation: str,
-                table_name: str = 'neuron_information') -> str:
+def guess_class(annotation: str, table_name: str = default_table) -> str:
     """
     Look up the parent (or "class") of an annotation based on the rules governing
     the given table. If the annotation is not found, raise a ValueError.
@@ -249,7 +250,7 @@ def guess_class(annotation: str,
     return annotation_nodes[0].parent.name
 
 
-def is_valid_annotation(annotation: str, table_name: str = 'neuron_information') -> bool:
+def is_valid_annotation(annotation: str, table_name: str = default_table) -> bool:
     """
     Determine whether an annotation is a recognized/valid annotation
     for the given table.
@@ -282,7 +283,7 @@ def is_valid_annotation(annotation: str, table_name: str = 'neuron_information')
 
 def is_valid_pair(annotation_class: str,
                   annotation: str,
-                  table_name: str = 'neuron_information',
+                  table_name: str = default_table,
                   raise_errors=True) -> bool:
     """
     Determine whether `annotation` is a valid annotation for the given
@@ -350,9 +351,11 @@ def is_valid_pair(annotation_class: str,
     return True
 
 
-def is_allowed_to_post(segid, annotation_class, annotation,
-                       table_name='neuron_information',
-                       raise_errors=True) -> bool:
+def is_allowed_to_post(segid: int,
+                       annotation_class: str,
+                       annotation: str,
+                       table_name: str = default_table,
+                       raise_errors: bool = True) -> bool:
     """
     Determine whether a particular segment is allowed to be annotated
     with the given annotation+annotation_class pair.
