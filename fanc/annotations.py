@@ -239,7 +239,7 @@ def guess_class(annotation: str, table_name: str = default_table) -> str:
     try:
         annotation_nodes = annotations[annotation]
     except:
-        raise ValueError(f'Class of "{annotation}" could not be guessed. {help_msg}')
+        raise ValueError(f'Annotation "{annotation}" not recognized. {help_msg}')
 
     if len(annotation_nodes) > 1:
         raise ValueError(f'Class of "{annotation}" could not be guessed'
@@ -397,12 +397,17 @@ def is_allowed_to_post(segid: int,
     except:
         raise ValueError(f'Table name "{table_name}" not recognized.')
 
+    if isinstance(annotation, str) and isinstance(annotations, dict):
+        # If the table uses paired annotations but the user only specified
+        # a single annotation, see if we can guess the annotation_class.
+        annotation = (guess_class(annotation, table_name=table_name),
+                      annotation)
+
     existing_annos = lookup.annotations(segid, source_tables=table_name,
                                         return_details=True)
 
     if isinstance(annotation, str):
-        if not is_valid_annotation(annotation, table_name=table_name,
-                                   raise_errors=raise_errors):
+        if not is_valid_annotation(annotation, table_name=table_name):
             return False
         if annotation in existing_annos.tag.values:
             if raise_errors:

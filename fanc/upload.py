@@ -172,6 +172,10 @@ def annotate_neuron(neuron: 'segID (int) or point (xyz)',
     assert annotations.is_allowed_to_post(segid, annotation,
                                           table_name=table_name,
                                           raise_errors=True)
+    if 'tag2' in stage.fields and isinstance(annotation, str):
+        # If the table uses paired annotations but the user only specified
+        # a single annotation, see if we can guess the annotation_class.
+        annotation = (annotations.guess_class(annotation), annotation)
 
     if isinstance(annotation, tuple):
         assert len(annotation) == 2
@@ -183,6 +187,8 @@ def annotate_neuron(neuron: 'segID (int) or point (xyz)',
         stage.add(pt_position=point,
                   tag=annotation,
                   user_id=user_id)
+    else:
+        raise TypeError('annotation must be a string or a tuple of 2 strings')
 
     response = client.annotation.upload_staged_annotations(stage)
     return response
