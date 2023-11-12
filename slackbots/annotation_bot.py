@@ -192,8 +192,11 @@ def process_message(message: str, user: str, fake=False) -> str:
         neuron = message[:message.find('?')]
         try:
             segid = int(neuron)
-        except:
-            point = [int(coordinate.strip(',')) for coordinate in neuron.split(' ')]
+        except ValueError:
+            try:
+                point = [int(coordinate.strip(',')) for coordinate in neuron.split(' ')]
+            except ValueError:
+                return f"ERROR: Could not parse `{neuron}` as a segment ID or a point."
             segid = fanc.lookup.segid_from_pt(point)
         if not caveclient.chunkedgraph.is_latest_roots(segid):
             return (f"ERROR: {segid} is not a current segment ID."
