@@ -956,7 +956,12 @@ def segid_from_pt_cv(points: 'Nx3 iterable',
 
     if len(points) == 3:
         try: iter(points[0])
-        except: return svid_from_pt([points], service_url=service_url)[0]
+        except:
+            return segid_from_pt_cv(
+                [points], cv=cv, n=n, max_tries=max_tries,
+                return_roots=return_roots, max_workers=max_workers,
+                progress=progress, timestamp=timestamp
+            )[0]
 
     points = np.array(points, dtype=np.uint32)
     if points.ndim == 1:
