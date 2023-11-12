@@ -239,51 +239,63 @@ def process_message(message: str, user: str, fake=False) -> str:
                     " It may have been edited recently, or perhaps"
                     " you copy-pasted the wrong thing.")
         annotation = message[message.find('!')+1:].strip(' ')
+        invalidity_errors = []
         for table in tables:
-            if fanc.annotations.is_valid_annotation(annotation, table_name=table):
-                # Permissions
-                table_permissions = permissions.get(table, None)
-                if table_permissions is None:
-                    return f"ERROR: `{table}` not listed in permissions file."
-                cave_user_id = table_permissions.get(user, None)
-                if cave_user_id is None:
-                    return ("You have not yet been given permissions to post to"
-                            f" `{table}`. Please send Jasper a DM on slack"
-                            " to request permissions.")
+            try:
+                fanc.annotations.is_valid_annotation(annotation, table_name=table,
+                                                     raise_errors=True)
+            except Exception as e:
+                invalidity_errors.append(e)
+                continue
 
-                if fake:
-                    try:
-                        fanc.annotations.is_allowed_to_post(segid, annotation,
-                                                            table_name=table)
-                    except Exception as e:
-                        return f"`{type(e)}`\n```{e}```"
-                    return (f"FAKE: Would upload segment {segid}, point"
-                            f" `{list(point)}`, annotation `{annotation}`.")
+            # Permissions
+            table_permissions = permissions.get(table, None)
+            if table_permissions is None:
+                return f"ERROR: `{table}` not listed in permissions file."
+            cave_user_id = table_permissions.get(user, None)
+            if cave_user_id is None:
+                return ("You have not yet been given permissions to post to"
+                        f" `{table}`. Please send Jasper a DM on slack"
+                        " to request permissions.")
+
+            if fake:
                 try:
-                    annotation_id = fanc.upload.annotate_neuron(
-                        segid, annotation, cave_user_id, table_name=table
-                    )
-                    uploaded_data = caveclient.annotation.get_annotation(table,
-                                                                         annotation_id)[0]
-                    msg = (f"Upload to `{table}` succeeded:\n"
-                           f"- Segment {segid}\n"
-                           f"- Point coordinate `{uploaded_data['pt_position']}`\n"
-                           f"- Annotation ID: {annotation_id}\n"
-                           f"- Annotation: `{uploaded_data['tag']}`")
-                    if 'tag2' in uploaded_data:
-                        msg += f"\n- Annotation class: `{uploaded_data['tag2']}`"
-                        record_upload(annotation_id, segid,
-                                      uploaded_data['tag2'] + ': ' + uploaded_data['tag'],
-                                      cave_user_id, table)
-                    else:
-                        record_upload(annotation_id, segid,
-                                      uploaded_data['tag'],
-                                      cave_user_id, table)
-                    return msg
+                    fanc.annotations.is_allowed_to_post(segid, annotation,
+                                                        table_name=table)
                 except Exception as e:
-                    return f"ERROR: Annotation failed due to\n`{type(e)}`\n```{e}```"
-            return (f"ERROR: Annotation {annotation} is not valid for any of the"
-                    f" available CAVE tables: {tables}.")
+                    return f"`{type(e)}`\n```{e}```"
+                return (f"FAKE: Would upload segment {segid}, point"
+                        f" `{list(point)}`, annotation `{annotation}`.")
+            try:
+                annotation_id = fanc.upload.annotate_neuron(
+                    segid, annotation, cave_user_id, table_name=table
+                )
+                uploaded_data = caveclient.annotation.get_annotation(table,
+                                                                     annotation_id)[0]
+                msg = (f"Upload to `{table}` succeeded:\n"
+                       f"- Segment {segid}\n"
+                       f"- Point coordinate `{uploaded_data['pt_position']}`\n"
+                       f"- Annotation ID: {annotation_id}\n"
+                       f"- Annotation: `{uploaded_data['tag']}`")
+                if 'tag2' in uploaded_data:
+                    msg += f"\n- Annotation class: `{uploaded_data['tag2']}`"
+                    record_upload(annotation_id, segid,
+                                  uploaded_data['tag2'] + ': ' + uploaded_data['tag'],
+                                  cave_user_id, table)
+                else:
+                    record_upload(annotation_id, segid,
+                                  uploaded_data['tag'],
+                                  cave_user_id, table)
+                return msg
+            except Exception as e:
+                return f"ERROR: Annotation failed due to\n`{type(e)}`\n```{e}```"
+
+        msg = (f"ERROR: Annotation `{annotation}` is not valid for any of the"
+               " CAVE tables I know how to post to:")
+        for table, e in zip(tables, invalidity_errors):
+            msg += f"\n\nTable `{table}` gave `{type(e)}`:\n```{e}```"
+        return msg
+
     return ("ERROR: Your message does not contain a '?' or '!'"
             " character, so I don't know what you want me to do."
             " Make a post containing the word 'help' for instructions.")
