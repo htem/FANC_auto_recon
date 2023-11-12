@@ -60,7 +60,7 @@ import fanc
 verbosity = 2
 
 caveclient = CAVEclient('fanc_production_mar2021')
-table_name = 'neuron_information'
+tables = ['neuron_information']
 
 with open('slack_user_permissions.json', 'r') as f:
     permissions = json.load(f)
@@ -228,7 +228,7 @@ def process_message(message: str, user: str, fake=False) -> str:
             segid = int(neuron)
         except:
             point = [int(coordinate.strip(',')) for coordinate in neuron.split(' ')]
-            segid = fanc.lookup.segid_from_pt(pt)
+            segid = fanc.lookup.segid_from_pt(point)
         try:
             point = fanc.lookup.anchor_point(segid)
         except:
