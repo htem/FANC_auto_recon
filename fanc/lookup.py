@@ -948,14 +948,19 @@ def segid_from_pt_cv(points: 'Nx3 iterable',
     """
     if cv is None:
         cv = auth.get_cloudvolume()
-
     if hasattr(cv, 'agglomerate'):
         cv.agglomerate = False
 
-    # Reshape from list entries if dataframe column is passed
     if isinstance(points, pd.Series):
-        points = points.reset_index(drop=True)
-        points = np.concatenate(points).reshape(-1, 3)
+        points = np.vstack(points)
+
+    if len(points) == 3:
+        try: iter(points[0])
+        except: return svid_from_pt([points], service_url=service_url)[0]
+
+    points = np.array(points, dtype=np.uint32)
+    if points.ndim == 1:
+        points = points.reshape(-1, 3)
 
     sv_ids = []
     failed = []
