@@ -73,8 +73,8 @@ def show_help():
     return (
 """
 Hello! Before using me for the first time, you may want to read through:
-- the list of available annotations at https://github.com/htem/FANC_auto_recon/wiki/Neuron-annotations AND
-- the description of the "neuron_information" table at https://cave.fanc-fly.com/annotation/views/aligned_volume/fanc_v4/table/neuron_information
+- <https://github.com/htem/FANC_auto_recon/wiki/Neuron-annotations|the list of available annotations>
+- <https://cave.fanc-fly.com/annotation/views/aligned_volume/fanc_v4/table/neuron_information|the description of the "neuron_information" CAVE table>
 
 You can send me a message that looks like one of the `example messages below` to find certain types of neurons, or get or upload information about specific neurons.
 
@@ -94,7 +94,7 @@ Upload annotations to a CAVE table that the whole community can benefit from:
 (To upload annotations, Jasper needs to first give you permissions, so send him a message to ask if you're interested.)
 
 This bot is a work in progress - notably, you can't yet annotate most sensory neurons because the `peripheral_nerves` table is not complete yet. This will be addressed at some point.
-Feel free to send Jasper any questions or bug reports.
+Feel free to send <@ULH2UM0H4> any questions or bug reports.
 """)
 
 @app.event("message")
