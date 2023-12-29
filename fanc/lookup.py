@@ -23,7 +23,7 @@ default_annotation_sources = [('neuron_information', 'tag'),
                               ('neck_connective', 'tag'),
                               ('peripheral_nerves', 'tag')]
 default_anchor_point_sources = ['cell_ids_v2', 'somas_dec2022', 'peripheral_nerves', 'neck_connective']
-default_svid_lookup_url = 'https://services.itanna.io/app/transform-service/query/dataset/fanc_v4/s/2/values_array_string_response/'
+default_svid_lookup_url = 'https://catmaid3.hms.harvard.edu/services/transform-service/query/dataset/fanc_v4/s/2/values_array_string_response'
 
 
 # --- START CAVE TABLES / ANNOTATIONS SECTION --- #
