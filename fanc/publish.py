@@ -148,7 +148,7 @@ def publish_to_bcio(cave_token):
     https://api.braincircuits.io/data/fruitfly_fanc_public/
     """
     import requests
-    requests.get(f'https://api.braincircuits.io/publish/dataset?project=fruitfly_fanc_public&cave_token={cave_token}')
+    return requests.get(f'https://api.braincircuits.io/publish/dataset?project=fruitfly_fanc_public&cave_token={cave_token}')
     
 
 def _configure_template_cloudvolumes(template_space='JRC2018_VNC_FEMALE'):
