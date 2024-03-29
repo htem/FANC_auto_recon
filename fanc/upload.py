@@ -190,16 +190,30 @@ def annotate_neuron(neuron: 'segID (int) or point (xyz)',
         raise TypeError(f'user_id must be an integer but got "{user_id}".')
 
     stage = client.annotation.stage_annotations(table_name)
-    if not annotations.is_allowed_to_post(segid, annotation,
-                                          table_name=table_name,
-                                          raise_errors=True):
+    try:
+        allowed_to_post = annotations.is_allowed_to_post(segid, annotation,
+                                                         table_name=table_name,
+                                                         raise_errors=True)
+    except ValueError as e:
+        if not e.args or not e.args[0].startswith('No annotation rules found for table'):
+            raise e
+        allowed_to_post = True
+    if not allowed_to_post:
         raise ValueError(f'"{annotation}" is not allowed to be posted to'
                          f' segment {segid} in table "{table_name}".')
 
     if 'tag2' in stage.fields:
         annotation = annotations.parse_annotation_pair(annotation)
 
-    if isinstance(annotation, tuple):
+    if 'tag' not in stage.fields:
+        if 'valid_id' in stage.fields and 'proofread' in stage.fields:
+            stage.add(pt_position=point,
+                      valid_id=segid,
+                      proofread=annotation,
+                      user_id=user_id)
+        else:
+            raise ValueError(f'Table "{table_name}" is not a supported schema.')
+    elif isinstance(annotation, tuple):
         assert len(annotation) == 2
         stage.add(pt_position=point,
                   tag=annotation[1],

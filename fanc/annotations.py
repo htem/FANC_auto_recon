@@ -469,8 +469,8 @@ def is_allowed_to_post(segid: int,
     """
     try:
         annotations = rules_governing_tables[table_name]
-    except:
-        raise ValueError(f'Table name "{table_name}" not recognized.')
+    except KeyError:
+        raise ValueError(f'No annotation rules found for table "{table_name}"')
 
     if not is_valid_annotation(annotation, table_name=table_name,
                                raise_errors=raise_errors):
