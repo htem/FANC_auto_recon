@@ -123,7 +123,7 @@ cell_info = {
 }
 FANC_cell_info = cell_info.copy()
 FANC_cell_info['publication'] = {
-    'Azevedo Lesser Mark Phelps et al. 2022': {},
+    'Azevedo Lesser Phelps Mark et al. 2024': {},
     'Lesser Azevedo et al. 2023': {},
     'Cheong Boone Bennett et al. 2023': {},
     'Sapkal et al. 2023': {},
