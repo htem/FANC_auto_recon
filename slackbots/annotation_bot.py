@@ -345,7 +345,7 @@ def process_message(message: str, user: str, fake=False) -> str:
 
 
 def record_upload(annotation_id, segid, annotation, user_id, table_name) -> None:
-    uploads_fn = f'annotation_bot_uploads_to_{table_name}.txt'
+    uploads_fn = f'annotation_bot_uploads_to_{table_name}.csv'
     with open(uploads_fn, 'a') as f:
         f.write(f'{annotation_id},{segid},{annotation},{user_id}\n')
 

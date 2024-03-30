@@ -324,13 +324,13 @@ def process_message(message: str, user: str, fake=False) -> str:
     
 
 def record_upload(segid, user, table_name) -> None:
-    uploads_fn = f'proofreading_status_bot_uploads_{table_name}.txt'
+    uploads_fn = f'proofreading_status_bot_uploads_{table_name}.csv'
     with open(uploads_fn, 'a') as f:
         f.write(f'{segid},{user}\n')
 
 
 def have_recently_uploaded(segid, table_name) -> bool:
-    uploads_fn = f'proofreading_status_bot_uploads_{table_name}.txt'
+    uploads_fn = f'proofreading_status_bot_uploads_{table_name}.csv'
     with open(uploads_fn, 'r') as f:
         recent_uploads = [int(line.strip().split(',')[0]) for line in f.readlines()]
     return segid in recent_uploads
