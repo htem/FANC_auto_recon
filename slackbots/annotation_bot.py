@@ -75,6 +75,8 @@ def show_help():
 Hello! Before using me for the first time, you may want to read through:
 - <https://github.com/htem/FANC_auto_recon/wiki/Neuron-annotations|the list of available annotations>
 - <https://cave.fanc-fly.com/annotation/views/aligned_volume/fanc_v4/table/neuron_information|the description of the "neuron_information" CAVE table>
+- <https://cave.fanc-fly.com/annotation/views/aligned_volume/fanc_v4/table/proofread_first_pass|the description of the "proofread_first_pass" CAVE table>
+- <https://cave.fanc-fly.com/annotation/views/aligned_volume/fanc_v4/table/proofread_second_pass|the description of the "proofread_second_pass" CAVE table>
 
 You can send me a message that looks like one of the `example messages below` to find certain types of neurons, or get or upload information about specific neurons.
 
@@ -92,9 +94,10 @@ Upload annotations to a CAVE table that the whole community can benefit from:
 - `648518346486614449! primary class > central neuron` -> annotate that the indicated segment's "primary class" is "central neuron" (as opposed to "sensory neuron" or "motor neuron").
 - `648518346489818455! left-right projection pattern > bilateral` -> annotate that segment 648518346489818455 projects bilaterally, i.e. has synaptic connections on both sides of the VNC's midplane.
 (To upload annotations, Jasper needs to first give you permissions, so send him a message to ask if you're interested.)
+- `648518346486614449! proofread first pass` -> annotate that segment 648518346486614449 has received a "first pass" of proofreading, meaning it has no major merge errors and most major branches have been extended.
+- `648518346486614449! proofread second pass` -> annotate that segment 648518346486614449 has received a "second pass" of proofreading, meaning it has been inspected carefully by an experienced proofreader and the only remaining errors are tiny missing bits that wouldn't make a noticeable difference if added to the neuron.
 
-This bot is a work in progress - notably, you can't yet annotate most sensory neurons because the `peripheral_nerves` table is not complete yet. This will be addressed at some point.
-Feel free to send <@ULH2UM0H4> any questions or bug reports.
+Feel free to send <@ULH2UM0H4> any questions, suggestions, or bug reports!
 """)
 
 @app.event("message")
