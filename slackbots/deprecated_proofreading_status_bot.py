@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 """
+This bot's functionality has been entirely taken over by annotation_bot.py
+as of April 2024
+
+
 This Slack app uses the "socket mode" feature of Slack's Bolt framework.
 This allows the app to receive messages from Slack without needing to
 have your own public server. Some useful links that describe this:
@@ -133,6 +137,11 @@ def direct_message(message, say):
     if 'bot_id' in message:
         # Skip if this message was posted by another bot
         return
+
+    say('My duties have been taken over by <@U0529SNRAKY>. Use that bot instead!\n\n'
+        'For example, send it the message "648518346486614449! proofread first pass"'
+        ' or "648518346486614449! proofread second pass" to mark that neuron as proofread')
+    return
 
     response = None
     if 'help' in message['text'].lower():
