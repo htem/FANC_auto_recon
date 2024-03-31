@@ -527,6 +527,7 @@ def is_allowed_to_post(segid: int,
 
     # Rule 1
     multiple_subclasses_allowed = [
+        'other neurotransmitter',
         'neuron identity',
         'publication'
     ]
