@@ -116,7 +116,8 @@ def annotate_neuron(neuron: 'segID (int) or point (xyz)',
                     user_id: int,
                     table_name='neuron_information',
                     convert_given_point_to_anchor_point=True,
-                    resolve_duplicate_anchor_points=False) -> dict:
+                    resolve_duplicate_anchor_points=False,
+                    select_nth_anchor_point=0) -> dict:
     """
     Upload information about a neuron to a CAVE table.
 
@@ -164,6 +165,10 @@ def annotate_neuron(neuron: 'segID (int) or point (xyz)',
         This argument is passed to `lookup.anchor_point`, see its
         docstring for details.
 
+    select_nth_anchor_point: int
+        This argument is passed to `lookup.anchor_point`, see its
+        docstring for details.
+
     Returns
     -------
     list: Response from server containing information about the
@@ -175,7 +180,9 @@ def annotate_neuron(neuron: 'segID (int) or point (xyz)',
         if not client.chunkedgraph.is_latest_roots(int(neuron)):
             raise ValueError(f'{neuron} is not a current segment ID.')
         segid = neuron
-        point = lookup.anchor_point(neuron, resolve_duplicates=resolve_duplicate_anchor_points)
+        point = lookup.anchor_point(neuron,
+                                    resolve_duplicates=resolve_duplicate_anchor_points,
+                                    select_nth_duplicate=select_nth_anchor_point)
     else:
         try:
             iter(neuron)
@@ -183,7 +190,9 @@ def annotate_neuron(neuron: 'segID (int) or point (xyz)',
             if segid == 0:
                 raise ValueError(f'Point {neuron} is a location with no segmentation.')
             if convert_given_point_to_anchor_point:
-                point = lookup.anchor_point(segid, resolve_duplicates=resolve_duplicate_anchor_points)
+                point = lookup.anchor_point(segid,
+                                            resolve_duplicates=resolve_duplicate_anchor_points,
+                                            select_nth_duplicate=select_nth_anchor_point)
                 print(f'Found segID {segid} with anchor point {point}.')
             else:
                 point = np.array(neuron)
