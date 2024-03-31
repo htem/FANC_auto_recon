@@ -51,6 +51,16 @@ cell_info = {
                 'abdominal UM neuron': {}}},
         'glia': {
             'trachea': {}}},
+    'fast neurotransmitter': {
+        'cholinergic': {},
+        'GABAergic': {},
+        'glutamatergic': {}},
+    'other neurotransmitter': {
+        'dopaminergic': {},
+        'histaminergic': {},
+        'octopaminergic': {},
+        'serotonergic': {},
+        'tyraminergic': {}},
     'soma side': {
         'left soma': {},
         'right soma': {},
