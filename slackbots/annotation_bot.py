@@ -44,12 +44,10 @@ using a utility like `screen`.
 import os
 import sys
 import json
-import time
+import re
 from datetime import datetime
 from typing import Union
 
-import numpy as np
-import pandas as pd
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 
@@ -201,7 +199,8 @@ def process_message(message: str, user: str, fake=False) -> str:
             segid = int(neuron)
         except ValueError:
             try:
-                point = [int(coordinate.strip(',')) for coordinate in neuron.split(' ')]
+                point = [int(coordinate.strip(','))
+                         for coordinate in re.split(r'[ ,]+', neuron)]
             except ValueError:
                 return f"ERROR: Could not parse `{neuron}` as a segment ID or a point."
             segid = fanc.lookup.segid_from_pt(point)
@@ -237,7 +236,8 @@ def process_message(message: str, user: str, fake=False) -> str:
         try:
             segid = int(neuron)
         except:
-            point = [int(coordinate.strip(',')) for coordinate in neuron.split(' ')]
+            point = [int(coordinate.strip(','))
+                     for coordinate in re.split(r'[ ,]+', neuron)]
             segid = fanc.lookup.segid_from_pt(point)
         try:
             point = fanc.lookup.anchor_point(segid)
@@ -328,7 +328,8 @@ def process_message(message: str, user: str, fake=False) -> str:
             segid = int(neuron)
         except ValueError:
             try:
-                point = [int(coordinate.strip(',')) for coordinate in neuron.split(' ')]
+                point = [int(coordinate.strip(','))
+                         for coordinate in re.split(r'[ ,]+', neuron)]
             except ValueError:
                 return f"ERROR: Could not parse `{neuron}` as a segment ID or a point."
             segid = fanc.lookup.segid_from_pt(point)
