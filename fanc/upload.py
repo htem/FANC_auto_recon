@@ -220,7 +220,7 @@ def annotate_neuron(neuron: 'segID (int) or point (xyz)',
     if 'tag' not in stage.fields:
         if 'valid_id' in stage.fields and 'proofread' in stage.fields:
             stage.add(pt_position=point,
-                      valid_id=segid,
+                      valid_id=int(segid),
                       proofread=annotation,
                       user_id=user_id)
         else:
