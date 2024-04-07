@@ -132,6 +132,7 @@ cell_info = {
         'T3 H2 bundle': {},
         'T3 H3 bundle': {}},
     'neuron identity': {},
+    'freeform': {},
 }
 FANC_cell_info = cell_info.copy()
 FANC_cell_info['publication'] = {
@@ -390,7 +391,7 @@ def is_valid_pair(annotation_class: str,
     else:
         raise TypeError(f'Unrecognized type for table_name: {type(table_name)}')
 
-    if annotation_class == 'neuron identity':
+    if annotation_class in ['neuron identity', 'freeform']:
         if annotation in annotations:
             if raise_errors:
                 raise ValueError(f'The term "{annotation}" is a class,'
@@ -453,6 +454,7 @@ def is_allowed_to_post(segid: int,
       This rule is NOT enforced for a few special annotation_classes
       that are allowed to have many subannotations:
         - 'neuron identity'
+        - 'freeform'
         - 'publication'
       2. The given annotation pair may only be posted if its
       annotation_class is at the root of the annotation tree (e.g.
@@ -529,6 +531,7 @@ def is_allowed_to_post(segid: int,
     multiple_subclasses_allowed = [
         'other neurotransmitter',
         'neuron identity',
+        'freeform',
         'publication'
     ]
     if annotation_class in multiple_subclasses_allowed:
