@@ -267,6 +267,7 @@ def guess_class(annotation: str, table_name: str = default_table) -> str:
 
 def is_valid_annotation(annotation: str or tuple[str, str] or bool,
                         table_name: str = default_table,
+                        response_on_unrecognized_table='raise',
                         raise_errors: bool = True) -> bool:
     """
     Determine whether an annotation is a recognized/valid annotation
@@ -291,7 +292,9 @@ def is_valid_annotation(annotation: str or tuple[str, str] or bool,
             client = auth.get_caveclient()
             if (client.annotation.get_table_metadata(table_name)['schema_type']
                     != 'proofreading_boolstatus_user'):
-                raise ValueError(f'Table name "{table_name}" not recognized.')
+                if response_on_unrecognized_table == 'raise':
+                    raise ValueError(f'No annotation rules found for table "{table_name}"')
+                return response_on_unrecognized_table
             annotations = [True, False]
     elif isinstance(table_name, (dict, list)):
         annotations = table_name
@@ -437,6 +440,7 @@ def is_valid_pair(annotation_class: str,
 def is_allowed_to_post(segid: int,
                        annotation: str or tuple[str, str] or bool,
                        table_name: str = default_table,
+                       response_on_unrecognized_table='raise',
                        raise_errors: bool = True) -> bool:
     """
     Determine whether a particular segment is allowed to be annotated
@@ -487,7 +491,9 @@ def is_allowed_to_post(segid: int,
         client = auth.get_caveclient()
         if (client.annotation.get_table_metadata(table_name)['schema_type']
                 != 'proofreading_boolstatus_user'):
-            raise ValueError(f'No annotation rules found for table "{table_name}"')
+            if response_on_unrecognized_table == 'raise':
+                raise ValueError(f'No annotation rules found for table "{table_name}"')
+            return response_on_unrecognized_table
         if not isinstance(annotation, bool):
             raise ValueError(f'Table "{table_name}" only uses True/False annotations.')
         existing_annos = client.materialize.live_live_query(
@@ -504,6 +510,7 @@ def is_allowed_to_post(segid: int,
         return existing_annos.empty
 
     if not is_valid_annotation(annotation, table_name=table_name,
+                               response_on_unrecognized_table=response_on_unrecognized_table,
                                raise_errors=raise_errors):
         return False
 
