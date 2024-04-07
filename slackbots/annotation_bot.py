@@ -237,10 +237,7 @@ def process_message(message: str,
             point = [int(coordinate.strip(','))
                      for coordinate in re.split(r'[ ,]+', neuron)]
             segid = fanc.lookup.segid_from_pt(point)
-        try:
-            point = fanc.lookup.anchor_point(segid)
-        except Exception as e:
-            return f"`{type(e)}`\n```{e}```"
+        point = fanc.lookup.anchor_point(segid)
 
         if not caveclient.chunkedgraph.is_latest_roots(segid):
             return (f"ERROR: {segid} is not a current segment ID."
