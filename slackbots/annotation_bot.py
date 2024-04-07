@@ -274,6 +274,7 @@ def process_message(message: str,
 
             if fake:
                 fanc.annotations.is_allowed_to_post(segid, annotation,
+                                                    response_on_unrecognized_table=True,
                                                     table_name=table)
                 return (f"FAKE: Would upload segment {segid}, point"
                         f" `{list(point)}`, annotation `{annotation}`"
