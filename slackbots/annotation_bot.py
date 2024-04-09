@@ -197,7 +197,8 @@ def process_message(message: str,
     try:
         caveclient.materialize.version = caveclient.materialize.most_recent_version()
     except Exception as e:
-        return f"The CAVE server did not respond: `{type(e)}`\n```{e}```"
+        return ("CAVE appears to be offline. Please wait a few minutes"
+                f" and try again: `{type(e)}`\n```{e}```")
 
     # Because HTML or something, the '>' character typed into slack
     # is reaching this code as '&gt;', so revert it for readability.
@@ -246,7 +247,7 @@ def process_message(message: str,
         neuron = message[:message.find('!')]
         try:
             segid = int(neuron)
-        except:
+        except ValueError:
             point = [int(coordinate.strip(','))
                      for coordinate in re.split(r'[ ,]+', neuron)]
             segid = fanc.lookup.segid_from_pt(point)
