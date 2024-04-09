@@ -175,8 +175,21 @@ def process_message(message: str,
     while '  ' in message:
         message = message.replace('  ', ' ')
 
-    if message.startswith(('get ', 'find ')):
+    if message.startswith(('get', 'find')):
         search_terms = message[message.find(' ')+1:].strip('"\'')
+
+        if message.startswith(('getids', 'findids')):
+            results = fanc.lookup.cells_annotated_with(search_terms,
+                                                       return_as='list')
+            if len(results) > 300:
+                return (f"{len(results)} cells matched that search! Try a more"
+                        " specific search (like `findids X and Y and Z`) to see"
+                        " a list of IDs.")
+            return f"Search successful:```{', '.join(map(str, results))}```"
+        if message.startswith(('getnum', 'findnum')):
+            results = fanc.lookup.cells_annotated_with(search_terms,
+                                                       return_as='list')
+            return f"Your search matched {len(results)} cells."
 
         return ("Search successful. View your results: " +
                 fanc.lookup.cells_annotated_with(search_terms, return_as='url'))
