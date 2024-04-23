@@ -54,7 +54,8 @@ def new_cell(pt_position,
     start_id = start_ids[cell_type]
     # Annotations that were deleted aren't materialized so they won't be in the
     # cell_ids dataframe, but new annotations can't re-use their IDs.
-    deleted_cell_ids = [1815, 10552, 10766, 13325, 25983, 100000, 101167]
+    deleted_cell_ids = [1815, 10552, 10766, 11151, 13325, 22167, 23422, 25983,
+                        100000, 100508, 100511, 100519, 100521, 101167]
     while start_id in cell_ids['id'].values or start_id in deleted_cell_ids:
         start_id += 1
     stage = client.annotation.stage_annotations(table_name, id_field=True)
