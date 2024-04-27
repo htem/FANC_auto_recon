@@ -405,11 +405,13 @@ def is_valid_pair(annotation_class: str,
                 or annotation.lower().startswith('and ')
                 or annotation.lower().endswith(' and')):
             if raise_errors:
-                raise ValueError('An annotation may not contain " and ".')
+                raise ValueError('An annotation may not contain " and ".'
+                                 ' Consider using "&" instead.')
             return False
         if annotation.lower().startswith('not '):
             if raise_errors:
-                raise ValueError('An annotation may not start with "not ".')
+                raise ValueError('An annotation may not start with "not ".'
+                                 ' Try to rephrase the annotation.')
             return False
         return True
 
