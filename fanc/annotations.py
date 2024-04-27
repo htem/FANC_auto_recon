@@ -401,6 +401,16 @@ def is_valid_pair(annotation_class: str,
                 raise ValueError(f'The term "{annotation}" is a class,'
                                  f' not an identity. {help_msg}')
             return False
+        if (' and ' in annotation.lower()
+                or annotation.lower().startswith('and ')
+                or annotation.lower().endswith(' and')):
+            if raise_errors:
+                raise ValueError('An annotation may not contain " and ".')
+            return False
+        if annotation.lower().startswith('not '):
+            if raise_errors:
+                raise ValueError('An annotation may not start with "not ".')
+            return False
         return True
 
     try:
