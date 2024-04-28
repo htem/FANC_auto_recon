@@ -55,6 +55,7 @@ import fanc
 
 # Setup
 verbosity = 2
+convert_given_point_to_anchor_point = False
 
 caveclient = fanc.get_caveclient()
 tables = ['neuron_information', 'proofread_first_pass', 'proofread_second_pass']
@@ -247,11 +248,18 @@ def process_message(message: str,
         neuron = message[:message.find('!')]
         try:
             segid = int(neuron)
+            neuron = segid
+            try:
+                point = fanc.lookup.anchor_point(segid)
+            except Exception as e:
+                return f"`{type(e)}`\n```{e}```"
         except ValueError:
             point = [int(coordinate.strip(','))
                      for coordinate in re.split(r'[ ,]+', neuron)]
             segid = fanc.lookup.segid_from_pt(point)
-        point = fanc.lookup.anchor_point(segid)
+            if convert_given_point_to_anchor_point:
+                point = fanc.lookup.anchor_point(segid)
+            neuron = point
 
         if not caveclient.chunkedgraph.is_latest_roots(segid):
             return (f"ERROR: {segid} is not a current segment ID."
@@ -292,7 +300,8 @@ def process_message(message: str,
                         f" to table `{table}`.")
             try:
                 annotation_id = fanc.upload.annotate_neuron(
-                    segid, annotation, cave_user_id, table_name=table
+                    neuron, annotation, cave_user_id, table_name=table,
+                    convert_given_point_to_anchor_point=convert_given_point_to_anchor_point
                 )
                 uploaded_data = caveclient.annotation.get_annotation(table,
                                                                      annotation_id)[0]
