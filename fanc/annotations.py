@@ -40,6 +40,7 @@ cell_info = {
             'wing motor neuron': {},
             'haltere motor neuron': {},
             'spiracle motor neuron': {},
+            'intestinal motor neuron': {},
             'abdominal motor neuron': {}},
         'efferent non-motor neuron': {
             'UM neuron': {
@@ -147,8 +148,8 @@ FANC_cell_info['publication'] = {
 
 proofreading_notes = [
     'spans neck',
-    'no major merge errors',
-    'publication quality',
+    'damaged',
+    'thoroughly proofread',
 ]
 
 # A mapping that tells which CAVE tables are governed by which
