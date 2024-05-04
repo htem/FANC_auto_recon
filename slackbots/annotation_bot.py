@@ -122,23 +122,19 @@ def direct_message(message, say, client):
         # Skip if this message was posted by another bot
         return
 
-    response = None
-    if 'help' in message['text'].lower():
-        response = show_help()
-
     if verbosity >= 2:
         print('Processing message:', message)
     elif verbosity >= 1:
         print('Processing message with timestamp', message['ts'])
 
-    if response is None:
-        try:
-            response = process_message(message['text'],
-                                       message['user'],
-                                       client=client,
-                                       fake=fake)
-        except Exception as e:
-            response = f"`{type(e)}`\n```{e}```"
+    try:
+        response = process_message(message['text'],
+                                   message['user'],
+                                   client=client,
+                                   fake=fake)
+    except Exception as e:
+        response = f"`{type(e)}`\n```{e}```"
+
     if verbosity >= 1:
         print('Posting response:', response)
     if len(response) > 1500:
@@ -211,9 +207,13 @@ def process_message(message: str,
                              for char in command_chars
                              if char in message])
     except ValueError:
+        if 'help' in message.lower():
+            return show_help()
         return ("ERROR: Your message does not contain a `?`, `!`, or `-`"
                 " character, so I don't know what you want me to do."
                 " Make a post containing the word 'help' for instructions.")
+    if 'help' in message[:command_index].lower():
+        return show_help()
     command_char = message[command_index]
 
     if command_char == '?':
