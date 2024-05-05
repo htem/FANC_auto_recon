@@ -155,7 +155,7 @@ proofreading_notes = [
     'spans neck',
     'damaged',
     'thoroughly proofread',
-    'merge moster',
+    'merge monster',
 ]
 
 # A mapping that tells which CAVE tables are governed by which
