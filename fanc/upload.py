@@ -99,7 +99,7 @@ def new_cell(pt_position,
         response = client.annotation.upload_staged_annotations(stage)
         print('New cell ID posted:', response)
         if cell_type == 'glia':
-            return
+            try_annotate_neuron(segid, ('primary class', 'glia'), user_id)
         if cell_type == 'motor':
             try_annotate_neuron(segid, ('primary class', 'motor neuron'), user_id)
         if cell_type == 'efferent':
