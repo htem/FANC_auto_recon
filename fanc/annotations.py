@@ -154,8 +154,10 @@ FANC_cell_info['publication'] = {
     'Sapkal et al. 2023': {},
     'Yang et al. 2023': {},
     'Dallmann et al. 2023': {},
+    'Yoshikawa et al. 2024': {},
     'Lee et al. 2024': {},
     'Stürner Brooks ... Eichler 2024': {},
+    'Syed et al. 2024': {},
 }
 
 proofreading_notes = [
