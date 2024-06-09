@@ -1,6 +1,6 @@
 ## Neuroglancer states
 
-Each file here specifies a neuroglancer state, through which you can view FANC neurons in different ways. To load one of these states, go to the url `https://ng.fanc.community/{filename}` where you replace `{filename}` with the name of one of the files in this folder. Here are some links to get you started:
+Each file here specifies a neuroglancer state, through which you can view FANC neurons in different ways. To load one of these states, go to the url `https://ng.fanc.community/{filename}` where you replace `{filename}` with the name of one of the files in this folder (without the `.json` at the end). Here are some links to get you started:
 
 - https://ng.fanc.community/published-neurons-viewer
 - https://ng.fanc.community/published-neurons-aligned-to-template-viewer
