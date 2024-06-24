@@ -7,6 +7,7 @@ See some examples at https://github.com/htem/FANC_auto_recon/blob/main/example_n
 
 from datetime import datetime, timezone
 from textwrap import dedent
+import time
 
 import numpy as np
 import pandas as pd
@@ -40,31 +41,27 @@ def new_cell(pt_position,
         raise ValueError(f"Segment {segid} already has a cell ID, {cell_ids.loc[cell_ids.pt_root_id == segid, column_name].values[0]}")
     if pt_type not in ['soma', 'peripheral nerve', 'neck connective', 'cut-off soma', 'orphan']:
         raise ValueError(f'pt_type {pt_type} is not valid')
-    start_ids = {
-        'motor': 100,
-        'efferent': 100,
-        'sensory': 1000,
-        'descending': 10_000,
-        'ascending': 12_000,
-        'central': 14_000,
-        'glia': 100_000
+    id_ranges = {
+        'motor': range(100, 999),
+        'efferent': range(100, 999),
+        'sensory': range(1000, 9999),
+        'descending': range(10_000, 11_999),
+        'ascending': range(12_000, 13_999),
+        'central': range(14_000, 99_999),
+        'glia': range(100_000, 299_999),
     }
-    if cell_type not in start_ids.keys():
+    if cell_type not in id_ranges.keys():
         raise ValueError(f'cell_type {cell_type} is not valid')
-    start_id = start_ids[cell_type]
-    # Annotations that were deleted aren't materialized so they won't be in the
-    # cell_ids dataframe, but new annotations can't re-use their IDs.
-    deleted_cell_ids = [
-        1815, 10229, 10552, 10766, 11151, 12543, 12572, 12817, 13271, 13325,
-        13453, 13462, 13482, 17997, 18083, 18598, 21745, 22162, 22167, 22391,
-        22507, 22583, 22674, 22774, 22845, 23066, 23212, 23422, 23732, 23932,
-        25144, 25595, 25735, 25757, 25859, 25983, 26049, 26191, 26208, 26264,
-        26493, 100000, 100508, 100511, 100519, 100521, 101167, 101887, 101893]
-    while start_id in cell_ids['id'].values or start_id in deleted_cell_ids:
-        start_id += 1
+    id_range = id_ranges[cell_type]
+    max_existing_id = cell_ids.loc[cell_ids[column_name].isin(id_range), column_name].max()
+    upload_id = int(max_existing_id) + 1
+    while client.annotation.get_annotation(table_name, upload_id) != []:
+        print(f'WARNING: ID {upload_id} already exists in {table_name},'
+              ' incrementing by 1 to try to find an unused ID.')
+        upload_id += 1
     stage = client.annotation.stage_annotations(table_name, id_field=True)
-    stage.add(id=start_id,
-              **{column_name: start_id},
+    stage.add(id=upload_id,
+              **{column_name: upload_id},
               pt_position=np.array(pt_position),
               tag=pt_type,
               valid=True)
@@ -97,6 +94,7 @@ def new_cell(pt_position,
         print(stage.annotation_dataframe)
     else:
         response = client.annotation.upload_staged_annotations(stage)
+        time.sleep(1)
         print('New cell ID posted:', response)
         if cell_type == 'glia':
             try_annotate_neuron(segid, ('primary class', 'glia'), user_id)
@@ -108,9 +106,11 @@ def new_cell(pt_position,
             try_annotate_neuron(segid, ('primary class', 'sensory neuron'), user_id)
         elif cell_type == 'descending':
             try_annotate_neuron(segid, ('primary class', 'central neuron'), user_id)
+            time.sleep(1)
             try_annotate_neuron(segid, ('anterior-posterior projection pattern', 'descending'), user_id)
         elif cell_type == 'ascending':
             try_annotate_neuron(segid, ('primary class', 'central neuron'), user_id)
+            time.sleep(1)
             try_annotate_neuron(segid, ('anterior-posterior projection pattern', 'ascending'), user_id)
         elif cell_type == 'central':
             try_annotate_neuron(segid, ('primary class', 'central neuron'), user_id)
