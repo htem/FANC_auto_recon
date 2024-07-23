@@ -504,6 +504,13 @@ def is_valid_pair(annotation_class: str,
     return False
 
 
+class MissingParentAnnotationError(Exception):
+    def __init__(self, missing_annotation, message):
+        self.missing_annotation = missing_annotation
+        self.message = message
+        super().__init__(message)
+
+
 def is_allowed_to_post(segid: int,
                        annotation: str or tuple[str, str] or bool,
                        table_name: str = default_table,
@@ -649,9 +656,11 @@ def is_allowed_to_post(segid: int,
     if (annotation_class not in root_classes and
             not (existing_annos.tag == annotation_class).any()):
         if raise_errors:
-            raise ValueError(f'Segment {segid} must be annotated with'
-                             f' "{annotation_class}" before this term can be'
-                             f' used as an annotation class. {help_msg}')
+            raise MissingParentAnnotationError(
+                annotation_class,
+                f'Segment {segid} must be annotated with "{annotation_class}" '
+                f'before this term can be used as an annotation class. {help_msg}'
+            )
         return False
 
     return True
