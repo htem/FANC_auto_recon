@@ -58,7 +58,8 @@ def list_public_segment_ids(template_space='JRC2018_VNC_FEMALE',
 def publish_mesh_to_gcloud(segids,
                            template_space='JRC2018_VNC_FEMALE',
                            cloudvolume_path=PUBLISHED_MESHES_CLOUDVOLUME,
-                           link_to_cellid=True):
+                           link_to_cellid=True,
+                           timestamp='now'):
     """
     Download the mesh for a neuron, warp it into alignment with the specified
     VNC template (optional), and upload it to a public google cloud storage bucket.
@@ -83,6 +84,30 @@ def publish_mesh_to_gcloud(segids,
     JRC2018_VNC_UNISEX: Not implemented yet
     JRC2018_VNC_MALE: Not implemented yet
 
+    Parameters
+    ----------
+    segids: int or iterable of ints
+      The segment ID(s) of the neuron(s) to be published.
+
+    template_space: str
+      The name of the template space to which the neurons should be aligned
+      before being published. Must be 'JR2018_VNC_FEMALE' or 'FANC'.
+
+    cloudvolume_path: str, default set by publish.PUBLISHED_MESHES_CLOUDVOLUME
+      A path to a CloudVolume (typically on google cloud storage) where
+      the published neurons should be uploaded. The path should contain
+      a placeholder {} for the template_space.
+
+    link_to_cellid: bool, default True
+      Whether to add an alias to the mesh in the cloudvolume that allows
+      the mesh to be loaded by the cell ID of the neuron it represents.
+
+    timestamp: 'now' (default) OR datetime OR None
+      The timestamp at which to query the segment's publication
+      status and cell ID.
+      If 'now', use the current time.
+      If datetime, use the time specified by the user.
+      If None, use the timestamp of the latest materialization.
     """
     try:
         iter(segids)
@@ -116,16 +141,18 @@ def publish_mesh_to_gcloud(segids,
             add_cellid_alias(segid,
                              template_space=template_space,
                              cloudvolume_path=cloudvolume_path,
-                             force=True)
+                             force=True,
+                             timestamp=timestamp)
 
 
 def add_cellid_alias(segid,
                      template_space='JRC2018_VNC_FEMALE',
                      cloudvolume_path=PUBLISHED_MESHES_CLOUDVOLUME,
-                     force=False):
+                     force=False,
+                     timestamp='now'):
     return add_mesh_alias(
         segid,
-        lookup.cellid_from_segid(segid),
+        lookup.cellid_from_segid(segid, timestamp=timestamp),
         cloudvolume_path.format(template_space) + '/meshes',
         force=force
     )
@@ -134,12 +161,12 @@ def add_cellid_alias(segid,
 def add_mesh_alias(meshid,
                    alias,
                    gcloud_mesh_folder,
-                   force=False,
-                   gcloud_project=PUBLISHED_MESHES_GCLOUDPROJECT):
+                   gcloud_project=PUBLISHED_MESHES_GCLOUDPROJECT,
+                   force=False):
     """
     Add an alias to a mesh in the google cloud storage bucket.
 
-    Arguments
+    Parameters
     ---------
     meshid: int or iterable of ints
       The mesh ID(s) for which the alias should be added.
@@ -206,7 +233,7 @@ def publish_all_meshes(published_tag='publication',
     Copy to a public location the meshes of all neurons marked as
     published.
 
-    Arguments
+    Parameters
     ---------
     published_tag: str
       The tag used to mark neurons as published.
@@ -225,7 +252,8 @@ def publish_all_meshes(published_tag='publication',
       a placeholder {} for the template_space.
 
     timestamp: 'now' (default) OR datetime OR None
-      The timestamp at which to query the segment's proofreading status.
+      The timestamp at which to query the segment's publication
+      status and cell ID.
       If 'now', use the current time.
       If datetime, use the time specified by the user.
       If None, use the timestamp of the latest materialization.
