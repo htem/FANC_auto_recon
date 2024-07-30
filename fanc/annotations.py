@@ -196,6 +196,7 @@ FANC_cell_info['publication'] = {
     'Lee et al. 2024': {},
     'Stürner Brooks ... Eichler 2024': {},
     'Syed et al. 2024': {},
+    'Guo et al. 2024': {},
 }
 
 proofreading_notes = [
