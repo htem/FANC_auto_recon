@@ -4,33 +4,47 @@ Transform points and neurons between FANC and the 2018 Janelia VNC templates
 """
 
 import os
-import subprocess
 
 import numpy as np
 
-from .. import template_spaces
+from .. import auth, template_spaces
 
 
 template_plane_of_symmetry_x_voxel = 329
 template_plane_of_symmetry_x_microns = 329 * 0.400
 
 
-def align_mesh(mesh, target_space='JRC2018_VNC_FEMALE', inplace=True):
+def align_mesh(mesh,
+               target_space='JRC2018_VNC_FEMALE',
+               input_units='nanometers',
+               output_units='microns',
+               inplace=True):
     """
     Given a mesh of a neuron in FANC-space, warp its vertices' coordinates to
     be aligned to a 2018 Janelia VNC template space.
 
-    --- Arguments ---
-    mesh :
-      The mesh to warp. Can be any type of mesh object that has .faces and
+    Parameters
+    ----------
+    mesh : mesh or int
+      The mesh or segment ID to align to the template space.
+      If an int, must be a segment ID, in which case the mesh for that
+      segment will be downloaded.
+      If a mesh, can be any type of mesh object that has .faces and
       .vertices attributes.
-      The coordinate locations of .vertices must be specified in nanometers.
+
+    input_units : str (default 'nanometers')
+      The units of the input mesh's vertices. Set to 'nanometers' or 'microns'.
+      This argument is irrelevant and ignored if the input is a segment ID.
+
+    output_units : str (default 'microns')
+      The units you want the mesh to be returned in. Set to 'nanometers'
+      or 'microns'.
 
     target_space : str (default 'JRC2018_VNC_FEMALE')
       The template space to warp the mesh into alignment with. This string will
       be passed to `template_spaces.to_navis_name()`, so check that function's
       docstring for the complete list of valid values for this argument.
-      See template_spaces.py for more information about each template space.
+      See `fanc.template_spaces` for more information about each template space.
 
     inplace : bool (default True)
       If true, replace the vertices of the given mesh object. If false, return
@@ -38,9 +52,22 @@ def align_mesh(mesh, target_space='JRC2018_VNC_FEMALE', inplace=True):
     """
     import navis
     import flybrains
+    if isinstance(mesh, int):
+        inplace = False
+        mm = auth.get_meshmanager()
+        mesh = mm.mesh(seg_id=mesh)
     if not inplace:
         mesh = mesh.copy()
 
+    if not hasattr(mesh, 'vertices') or not hasattr(mesh, 'faces'):
+        raise ValueError("The input mesh must have .vertices and .faces attributes"
+                         f" but was type {type(mesh)}: {mesh}.")
+
+    if input_units in ['um', 'µm', 'micron', 'microns']:
+        mesh.vertices *= 1000
+    elif input_units not in ['nm', 'nanometer', 'nanometers']:
+        raise ValueError("Unrecognized value provided for input_units. Set it"
+                         " to 'nanometers' or 'microns'.")
     # First remove any mesh faces in the neck connective or brain,
     # since those can't be warped to the VNC template
     # This cutoff is 75000voxels * 4.3nm/voxel, plus a small epsilon
@@ -50,14 +77,18 @@ def align_mesh(mesh, target_space='JRC2018_VNC_FEMALE', inplace=True):
     in_bounds_faces = np.isin(mesh.faces,
                               out_of_bounds_vertices,
                               invert=True).all(axis=1)
-    mesh.faces = mesh.faces[in_bounds_faces]
+    mesh.update_faces(in_bounds_faces)
+    mesh.remove_unreferenced_vertices()
 
     target = template_spaces.to_navis_name(target_space)
     print(f'Warping into alignment with {target}')
     mesh.vertices = navis.xform_brain(mesh.vertices, source='FANC', target=target)
+    if output_units in ['nm', 'nanometer', 'nanometers']:
+        mesh.vertices *= 1000
 
     if not inplace:
         return mesh
+
 
 def warp_points_FANC_to_template(points,
                                  input_units='nanometers',
