@@ -1,35 +1,110 @@
 #!/usr/bin/env python3
 
-import sys
-import os
-from typing import Optional
+from typing import Optional, Literal
 
 import numpy as np
 import tqdm
-import navis
-import flybrains
 import npimage
 import npimage.graphics
 
-from . import auth, template_spaces, transforms
+from . import template_spaces, transforms
 
 
 def make_colormip(seg_id: int,
                   target_space: str = 'JRC2018_VNC_UNISEX_461',
+                  level_of_detail: Literal['faces', 'vertices', 'skeleton'] = 'vertices',
                   save: bool = False,
-                  save_path: Optional[str] = None) -> Optional[np.ndarray]:
+                  save_path: Optional[str] = None,
+                  verbose=False) -> Optional[np.ndarray]:
+    """
+    Create a color MIP (depth-colored maximum intensity projection) image of a neuron.
+
+    https://www.janelia.org/open-science/color-depth-mip
+    This implementation of the ColorMIP algorithm was written by Stephan
+    Gerhard (braincircuits.io) based on Otsuna et al. 2018 bioRxiv.
+    https://www.biorxiv.org/content/10.1101/318006
+    The output of this algorithm is nearly identical to the image produced
+    by the original and more widely used ColorMIP Fiji plugin. Small differences
+    of 1-2% in the RBG values are present, but are not really noticeable by eye,
+    and seem unlikely to cause issues in ColorMIP searches.
+
+    Parameters
+    ----------
+    seg_id : int or list of ints
+        The segment ID(s) from the FANC segmentation to make colormips of
+
+    target_space: str, default 'JRC2018_VNC_UNISEX_461'
+        The template space to render the neuron into.
+        See fanc.template_spaces.template_info for a list of template spaces
+        that can be provided for this argument. Most of the colormips provided
+        by Janelia FlyLight are in the JRC2018_VNC_UNISEX_461 space, so that's
+        the default here.
+
+    level_of_detail: 'vertices' (default), 'faces', or 'skeleton'
+        See docstring for render_neuron_into_template_space for details.
+
+    save: bool, default False
+        If True, save the colormip to a file.
+        If False, return the colormip as a numpy array.
+
+    save_path: str or list of str, default None
+        If save=True, this should be a string (for a single seg_id) or list
+        of strings (for a list of seg_ids) with the path(s) to save the
+        colormip(s) to. If None, the default save path will be
+        {seg_id}_in_{target_space}.png.
+
+    verbose: bool, default False
+        If True, print additional information about the rendering process.
+    """
+    if isinstance(seg_id, str):
+        seg_id = int(seg_id)
+    try:
+        iter(seg_id)
+        if isinstance(save_path, str):
+            raise ValueError('Cannot specify a single save_path when rendering'
+                             ' multiple neurons. Provide a list of save_paths instead.')
+        elif isinstance(save_path, (list, tuple)) and len(save_path) == len(seg_id):
+            colormips = [make_colormip(seg, target_space,
+                                       level_of_detail=level_of_detail,
+                                       save=save, save_path=path,
+                                       verbose=verbose)
+                         for seg, path in zip(seg_id, save_path)]
+        elif save_path is not None:
+            raise ValueError('If save_path is provided, it must be a list'
+                             ' with the same length as seg_id')
+        else:
+            colormips = [make_colormip(seg, target_space,
+                                       level_of_detail=level_of_detail,
+                                       save=save, save_path=None,
+                                       verbose=verbose)
+                         for seg in seg_id]
+        if not save:
+            return colormips
+        return
+    except TypeError:
+        pass
+
     from skimage.color import rgb2hsv, hsv2rgb
     rendered_image = render_neuron_into_template_space(
         seg_id=seg_id,
         target_space=target_space,
-        skeletonize=False,
-        output_filename=None
+        level_of_detail=level_of_detail,
+        save=False,
+        verbose=verbose
     )
     target_info = template_spaces.get_template_info(target_space)
+
+    # This implementation of the ColorMIP algorithm was written by Stephan
+    # Gerhard (braincircuits.io) based on Otsuna et al. 2018 bioRxiv.
+    # The output of this algorithm is nearly identical to the image produced
+    # by the original and more widely used ColorMIP Fiji plugin. Small differences
+    # of 1-2% in the RBG values are present, but are not really noticeable by eye,
+    # and seem unlikely to cause issues in ColorMIP searches.
     target_zmax = target_info['stack dimensions'][-1] - 1
     image_zmaxes = np.argmax(rendered_image, axis=2).astype(np.float64)
     image_zmaxes = (image_zmaxes / target_zmax * 255).astype(np.uint32)
-    colormip = np.zeros((rendered_image.shape[0], rendered_image.shape[1], 3), dtype=np.uint8)
+    colormip = np.zeros((rendered_image.shape[0], rendered_image.shape[1], 3),
+                        dtype=np.uint8)
     for i in range(image_zmaxes.shape[0]):
         for j in range(image_zmaxes.shape[1]):
             if image_zmaxes[i, j] != 0:
@@ -44,14 +119,17 @@ def make_colormip(seg_id: int,
     if save_path is None:
         save_path = f'{seg_id}_in_{target_space}.png'
     npimage.save(colormip, save_path)
+    if verbose:
+        print(f'Saved colormip for seg_id {seg_id} in {target_space} to {save_path}')
 
 
 def render_neuron_into_template_space(seg_id: int,
                                       target_space: str,
-                                      skeletonize: bool = False,
+                                      level_of_detail: Literal['faces', 'vertices', 'skeleton'] = 'vertices',
                                       save: bool = False,
                                       save_path: Optional[str] = None,
-                                      compress: bool = True) -> Optional[np.ndarray]:
+                                      compress: bool = True,
+                                      verbose: bool = False) -> Optional[np.ndarray]:
     """
     Create an image volume in .nrrd format with dimensions matching a
     specified VNC template space, containing a rendering of a neuron
@@ -60,55 +138,55 @@ def render_neuron_into_template_space(seg_id: int,
     Parameters
     ----------
     seg_id : int
-        The segment ID from the FANC segmentation to render
+        The segment ID from the FANC segmentation to render.
+
     target_space: str
        See fanc.template_spaces.template_info for a list of template spaces that can be
-       provided for this argument
-    skeletonize: bool (default False)
-        If True, the skeletonized version of the neuron will be rendered.
-        If False, the neuron's mesh will be rendered. This is slow because it
-        may involve rendering many millions of triangles, but gives the most
-        accurate rendering.
+       provided for this argument.
+
+    level_of_detail: 'vertices' (default), 'faces', or 'skeleton'
+        If 'faces', 'every triangle in the mesh will be rendered as a filled
+        triangle. This is the slowest but most accurate rendering.
+        If 'vertices', every vertex in the mesh will be rendered as a point. This
+        is nearly as accurate as 'faces' but much faster, so it's the default.
+        If 'skeleton', the skeletonized version of the neuron will be rendered.
+        Presumably faster, but lowest level of accuracy. Not yet implemented.
+
     compress: bool (default True)
         If True, save the .nrrd with gzip encoding. If False, save with raw
         encoding. (Because the image volume created here is all black except for
         a small percent of the pixels that are white to represent the neuron,
         compression gives file sizes <1MB where raw gives file sizes >100MB.)
     """
-    if skeletonize:
-        raise NotImplementedError
+    if level_of_detail == 'skeleton':
+        raise NotImplementedError('Skeleton rendering is not yet implemented')
 
     target_info = template_spaces.get_template_info(target_space)
 
-    meshmanager = auth.get_meshmanager()
-    print('Downloading mesh')
-    my_mesh = meshmanager.mesh(
-        seg_id=seg_id,
-        remove_duplicate_vertices=True,
-        merge_large_components=False  # False is faster but probably worse quality
-    )
-    transforms.template_alignment.align_mesh(my_mesh, target_space)
+    if verbose:
+        print(f'Downloading and aligning mesh for seg_id {seg_id}')
+    my_mesh = transforms.template_alignment.align_mesh(seg_id, target_space)
 
     # Convert from microns to pixels in the target space
     my_mesh.vertices = my_mesh.vertices / target_info['voxel size']
 
     # Render into a target-space-sized numpy array
-    print('Rendering mesh faces')
     rendered_image = np.zeros(target_info['stack dimensions'], dtype=np.uint8)
-    for face in tqdm.tqdm(my_mesh.faces):
-        npimage.graphics.drawtriangle(
-            rendered_image,
-            my_mesh.vertices[face[0]],
-            my_mesh.vertices[face[1]],
-            my_mesh.vertices[face[2]],
-            255,
-            fill_value=255
-        )
-
-    #if header_pixels:
-    #    dims = rendered_image.shape
-    #    header = np.zeros((dims[0], header_pixels, dims[2]), dtype=np.uint8)
-    #    rendered_image = np.concatenate((header, rendered_image), axis=1)
+    if verbose:
+        print(f'Rendering mesh {level_of_detail} into {target_space} space')
+    if level_of_detail == 'faces':
+        for face in tqdm.tqdm(my_mesh.faces):
+            npimage.graphics.drawtriangle(
+                rendered_image,
+                my_mesh.vertices[face[0]],
+                my_mesh.vertices[face[1]],
+                my_mesh.vertices[face[2]],
+                255,
+                fill_value=255,
+                watertight=False
+            )
+    elif level_of_detail == 'vertices':
+        npimage.graphics.drawpoint(rendered_image, my_mesh.vertices, 255)
 
     if not save:
         return rendered_image
