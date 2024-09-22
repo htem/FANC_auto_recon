@@ -33,14 +33,13 @@ nuclei = {'name': 'nuclei (verified)',
 
 view_options = dict(
     position=[48848, 114737, 2690],
-    zoom_3d=6700,
+    zoom_3d=130000,
     layout='xy-3d'
 )
-zoom_2d = 12
+zoom_2d = 2
 
 
 outlines_layer = {'type': 'segmentation', 'mesh': 'precomputed://gs://lee-lab_female-adult-nerve-cord/alignmentV4/volume_meshes/meshes', 'objectAlpha': 0.1, 'hideSegmentZero': False, 'ignoreSegmentInteractions': True, 'segmentColors': { '1': '#bfbfbf', '2': '#d343d6' }, 'segments': [ '1', '2' ], 'hiddenSegments': [ '104633', '104634', '104635', '104636', '104637', '104638', '104639', '104640', '104641', '104642', '104643', '104644', '104645', '104646', '104647', '104648', '104649', '104650', '104651', '104652', '104653' ], 'skeletonRendering': { 'mode2d': 'lines_and_points', 'mode3d': 'lines' }, 'name': 'region outlines'}
-
 
 
 def final_json_tweaks(state):
@@ -52,6 +51,13 @@ def final_json_tweaks(state):
     for layer in state['layers']:
         if layer['name'] == seg['name']:
             layer['selectedAlpha'] = 0.4
+            layer['colorSeed'] = 1086575195
+            layer['tab'] = 'segments'
+            layer['toolBindings'] = {
+                "M": "grapheneMergeSegments",
+                "C": "grapheneMulticutSegments",
+                "F": "grapheneFindPath"
+            }
         if layer['name'] == nuclei['name']:
             #layer['visible'] = False
             layer['ignoreSegmentInteractions'] = True
@@ -60,10 +66,8 @@ def final_json_tweaks(state):
             layer['visible'] = False
             layer['shader'] = 'void main() { emitRGBA(vec4(1, 0, 1, toNormalized(getDataValue()))); }'
 
-    state['navigation']['zoomFactor'] = zoom_2d
+    state['crossSectionScale'] = zoom_2d
     state.update({
-        'gpuMemoryLimit': 4_000_000_000,
-        'systemMemoryLimit': 4_000_000_000,
-        'concurrentDownloads': 64,
-        'jsonStateServer': 'https://global.daf-apis.com/nglstate/api/v1/post'
+        'gpuMemoryLimit': 6_000_000_000,
+        'systemMemoryLimit': 8_000_000_000,
     })
