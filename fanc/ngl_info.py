@@ -8,7 +8,8 @@ from . import auth
 client = auth.get_caveclient()
 info = client.info.get_datastack_info()
 
-ngl_app_url = info['viewer_site']
+#ngl_app_url = info['viewer_site']
+ngl_app_url = 'https://spelunker.cave-explorer.org/'
 voxel_size = (info['viewer_resolution_x'],
               info['viewer_resolution_y'],
               info['viewer_resolution_z'])
