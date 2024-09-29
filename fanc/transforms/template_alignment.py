@@ -56,7 +56,7 @@ def align_mesh(mesh,
         inplace = False
         mm = auth.get_meshmanager()
         mesh = mm.mesh(seg_id=mesh)
-    if not inplace:
+    elif not inplace:
         mesh = mesh.copy()
 
     if not hasattr(mesh, 'vertices') or not hasattr(mesh, 'faces'):
@@ -77,6 +77,8 @@ def align_mesh(mesh,
     in_bounds_faces = np.isin(mesh.faces,
                               out_of_bounds_vertices,
                               invert=True).all(axis=1)
+    if not in_bounds_faces.any():
+        raise ValueError("The mesh is entirely out of bounds of the target space.")
     mesh.update_faces(in_bounds_faces)
     mesh.remove_unreferenced_vertices()
 
