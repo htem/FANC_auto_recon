@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+from datetime import datetime, timezone
 from xml.etree import ElementTree
 
 import numpy as np
@@ -124,6 +125,8 @@ def publish_mesh_to_gcloud(segids,
 
     fancneurons_cloudvolume = cloudvolume.CloudVolume(cloudvolume_path.format(template_space))
 
+    if timestamp == 'now':
+        timestamp = datetime.now(timezone.utc)
     mm = auth.get_meshmanager()
     for segid in segids:
         if segid in already_published_ids:
