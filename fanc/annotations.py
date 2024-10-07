@@ -187,8 +187,9 @@ cell_info = {
         'innervates tarsus depressor': {},
         'innervates tarsus retro depressor': {},
         'innervates tarsus levator muscle': {},
-        'innervates long tendon muscle 2': {},
-        'innervates long tendon muscle 1': {},
+        'innervates long tendon muscle': {
+            'innervates long tendon muscle 2': {},
+            'innervates long tendon muscle 1': {}},
         'innervates indirect flight muscle': {
             'innervates dorsal longitudinal muscle': {},
             'innervates dorsoventral muscle': {}},
