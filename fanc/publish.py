@@ -268,7 +268,8 @@ def publish_all_meshes(published_tag='publication',
     )
     publish_mesh_to_gcloud(segids_with_published_annotation[:n],
                            template_space=template_space,
-                           cloudvolume_path=cloudvolume_path)
+                           cloudvolume_path=cloudvolume_path,
+                           timestamp=timestamp)
 
 
 def publish_skeleton_to_catmaid(segids,
