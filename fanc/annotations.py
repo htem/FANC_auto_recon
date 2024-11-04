@@ -186,7 +186,7 @@ cell_info = {
         'innervates accessory tibia flexor': {},
         'innervates tarsus depressor': {},
         'innervates tarsus retro depressor': {},
-        'innervates tarsus levator muscle': {},
+        'innervates tarsus levator': {},
         'innervates long tendon muscle': {
             'innervates long tendon muscle 2': {},
             'innervates long tendon muscle 1': {}},
