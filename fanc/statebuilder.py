@@ -175,7 +175,7 @@ def render_scene(neurons=None,
     annotations: Nx3 numpy array OR DataFrame OR dict OR list of dicts
         Data (often point coordinates) you want displayed in an annotation layer.
         If Nx3 numpy array, each row must specify a point coordinate (xyz order).
-        If DataFrame, must have column 'pt_position', and optionally 'radius'.
+        If DataFrame, must have column 'pt_position', and optionally 'radius_nm'.
         If dict, format must be
           {'name': str,
            'type': 'points' OR 'spheres',
@@ -336,7 +336,7 @@ def render_scene(neurons=None,
         if isinstance(annotations, pd.Series):
             annotations = annotations.to_frame(name='pt_position')
         if isinstance(annotations, pd.DataFrame):
-            if 'radius' in annotations.columns:
+            if 'radius_nm' in annotations.columns:
                 annotations = {
                     'name': 'spheres',
                     'type': 'spheres',
@@ -377,7 +377,11 @@ def render_scene(neurons=None,
             else:
                 raise NotImplementedError(f"Unrecognized annotation type: '{i['type']}'")
 
-            anno_layer = AnnotationLayerConfig(name=i['name'], mapping_rules=anno_mapper, data_resolution=annotation_layer_resolution)
+            anno_layer = AnnotationLayerConfig(
+                name=i['name'],
+                mapping_rules=anno_mapper,
+                data_resolution=annotation_layer_resolution
+            )
             additional_states.append(
                 StateBuilderDefaultSettings([anno_layer])
             )
