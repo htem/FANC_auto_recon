@@ -164,6 +164,9 @@ cell_info = {
                 'innervates femur-tibia joint': {},
                 'innervates tibia': {},
                 'innervates tarsus': {}}},
+        'innervates notum': {
+            'innervates scutum': {},
+            'innervates scutellum': {}},
         'innervates wing': {},
         'innervates haltere': {},
         'innervates spiracle': {},
