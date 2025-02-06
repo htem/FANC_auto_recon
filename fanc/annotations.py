@@ -19,6 +19,16 @@ help_msg = 'See the annotation scheme described at ' + help_url
 default_table = 'neuron_information'
 
 
+leg_parts = {'innervates thorax': {},
+             'innervates thorax-coxa joint': {},
+             'innervates coxa': {},
+             'innervates coxa-trochanter joint': {},
+             'innervates trochanter': {},
+             'innervates femur': {},
+             'innervates femur-tibia joint': {},
+             'innervates tibia': {},
+             'innervates tarsus': {}}
+
 cell_info = {
     'primary class': {
         'sensory neuron': {
@@ -123,9 +133,39 @@ cell_info = {
         'soma in abdominal ganglion': {}},
     'anterior-posterior projection pattern': {
         'descending': {},
-        'ascending': {},
-        'local': {},
-        'intersegmental': {}},
+        'ascending': {}},
+    'leg neuromere projection pattern': {
+        'leg local': {
+            'T1 leg local': {},
+            'T2 leg local': {},
+            'T3 leg local': {}},
+        'leg intersegmental': {
+            'T1+T2 leg intersegmental': {
+                'T1-to-T2 leg intersegmental': {},
+                'T2-to-T1 leg intersegmental': {}},
+            'T1+T3 leg intersegmental': {
+                'T1-to-T3 leg intersegmental': {},
+                'T3-to-T1 leg intersegmental': {}},
+            'T2+T3 leg intersegmental': {
+                'T2-to-T3 leg intersegmental': {},
+                'T3-to-T2 leg intersegmental': {}},
+            'T1+T2+T3 leg intersegmental': {}}},
+    'tectulum projection pattern': {
+        'tectulum local': {
+            'neck tectulum local': {},
+            'wing tectulum local': {},
+            'haltere tectulum local': {}},
+        'tectulum intersegmental': {
+            'neck+wing tectulum intersegmental': {
+                'neck-to-wing tectulum intersegmental': {},
+                'wing-to-neck tectulum intersegmental': {}},
+            'neck+haltere tectulum intersegmental': {
+                'neck-to-haltere tectulum intersegmental': {},
+                'haltere-to-neck tectulum intersegmental': {}},
+            'wing+haltere tectulum intersegmental': {
+                'wing-to-haltere tectulum intersegmental': {},
+                'haltere-to-wing tectulum intersegmental': {}},
+            'neck+wing+haltere tectulum intersegmental': {}}},
     'left-right projection pattern': {
         'unilateral': {},
         'bilateral': {},
@@ -134,36 +174,9 @@ cell_info = {
         'innervates antenna': {},
         'innervates neck': {},
         'innervates leg': {
-            'innervates T1 leg': {
-                'innervates thorax': {},
-                'innervates thorax-coxa joint': {},
-                'innervates coxa': {},
-                'innervates coxa-trochanter joint': {},
-                'innervates trochanter': {},
-                'innervates femur': {},
-                'innervates femur-tibia joint': {},
-                'innervates tibia': {},
-                'innervates tarsus': {}},
-            'innervates T2 leg': {
-                'innervates thorax': {},
-                'innervates thorax-coxa joint': {},
-                'innervates coxa': {},
-                'innervates coxa-trochanter joint': {},
-                'innervates trochanter': {},
-                'innervates femur': {},
-                'innervates femur-tibia joint': {},
-                'innervates tibia': {},
-                'innervates tarsus': {}},
-            'innervates T3 leg': {
-                'innervates thorax': {},
-                'innervates thorax-coxa joint': {},
-                'innervates coxa': {},
-                'innervates coxa-trochanter joint': {},
-                'innervates trochanter': {},
-                'innervates femur': {},
-                'innervates femur-tibia joint': {},
-                'innervates tibia': {},
-                'innervates tarsus': {}}},
+            'innervates T1 leg': leg_parts,
+            'innervates T2 leg': leg_parts,
+            'innervates T3 leg': leg_parts},
         'innervates notum': {
             'innervates scutum': {},
             'innervates scutellum': {}},
@@ -171,6 +184,9 @@ cell_info = {
         'innervates haltere': {},
         'innervates spiracle': {},
         'innervates abdomen': {}},
+    'body side innervated': {
+        'innervates left side of body': {},
+        'innervates right side of body': {}},
     'muscle innervated': {
         'innervates tergopleural promotor': {},
         'innervates pleural promotor': {},
