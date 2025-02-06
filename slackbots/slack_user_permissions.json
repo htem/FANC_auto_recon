@@ -1,6 +1,8 @@
 {
     "description": "This file lists which users have permissions to post to which CAVE tables through slackbots. The keys are names of CAVE tables, and the value for each table is a mapping from Slack user IDs to CAVE user IDs. Slackbots in this folder will open this file and make sure that any user trying to post data to a CAVE table is listed here as having access to that CAVE table.",
     "neuron_information": {
+        "U01URDHM2GM": 847,
+        "U02LLH08LKC": 432,
         "U02DUFYKG8M": 1345,
         "U014J7XSDGF": 181,
         "USZHWQRCL": 1163,
@@ -16,6 +18,8 @@
         "U01V0K46476": 867
     },
     "proofread_first_pass": {
+        "U01URDHM2GM": 847,
+        "U02LLH08LKC": 432,
         "UL7LMHAQH": 158,
         "ULEE4SQ0L": 428,
         "ULF5U1JJU": 1658,
