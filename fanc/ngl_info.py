@@ -40,7 +40,8 @@ view_options = dict(
 zoom_2d = 2
 
 
-outlines_layer = {'type': 'segmentation', 'mesh': 'precomputed://gs://lee-lab_female-adult-nerve-cord/alignmentV4/volume_meshes/meshes', 'objectAlpha': 0.1, 'hideSegmentZero': False, 'ignoreSegmentInteractions': True, 'segmentColors': { '1': '#bfbfbf', '2': '#d343d6' }, 'segments': [ '1', '2' ], 'hiddenSegments': [ '104633', '104634', '104635', '104636', '104637', '104638', '104639', '104640', '104641', '104642', '104643', '104644', '104645', '104646', '104647', '104648', '104649', '104650', '104651', '104652', '104653' ], 'skeletonRendering': { 'mode2d': 'lines_and_points', 'mode3d': 'lines' }, 'name': 'region outlines'}
+#outlines_layer = {'type': 'segmentation', 'mesh': 'precomputed://gs://lee-lab_female-adult-nerve-cord/alignmentV4/volume_meshes/meshes', 'objectAlpha': 0.1, 'hideSegmentZero': False, 'ignoreSegmentInteractions': True, 'segmentColors': { '1': '#bfbfbf', '2': '#d343d6' }, 'segments': [ '1', '2' ], 'hiddenSegments': [ '104633', '104634', '104635', '104636', '104637', '104638', '104639', '104640', '104641', '104642', '104643', '104644', '104645', '104646', '104647', '104648', '104649', '104650', '104651', '104652', '104653' ], 'skeletonRendering': { 'mode2d': 'lines_and_points', 'mode3d': 'lines' }, 'name': 'region outlines'}
+outlines_layer = {'type': 'segmentation', 'source': {'url': 'precomputed://gs://lee-lab_female-adult-nerve-cord/alignmentV4/volume_meshes', 'subsources': {'properties': True, 'mesh': True}, 'enableDefaultSubsources': False}, 'pick': False, 'tab': 'segments', 'objectAlpha': 0.1, 'segments': ['1', '2'], 'segmentQuery': '<id', 'segmentColors': {'1': '#bfbfbf', '2': '#d343d6'}, 'name': 'region outlines'}
 
 
 def final_json_tweaks(state):
@@ -55,9 +56,9 @@ def final_json_tweaks(state):
             layer['colorSeed'] = 1086575195
             layer['tab'] = 'segments'
             layer['toolBindings'] = {
-                "M": "grapheneMergeSegments",
-                "C": "grapheneMulticutSegments",
-                "F": "grapheneFindPath"
+                'M': 'grapheneMergeSegments',
+                'C': 'grapheneMulticutSegments',
+                'F': 'grapheneFindPath'
             }
         if layer['name'] == nuclei['name']:
             #layer['visible'] = False
