@@ -27,6 +27,7 @@ leg_parts = {'innervates thorax': {},
              'innervates femur': {},
              'innervates femur-tibia joint': {},
              'innervates tibia': {},
+             'innervates tibia-tarsus joint': {},
              'innervates tarsus': {}}
 
 cell_info = {
