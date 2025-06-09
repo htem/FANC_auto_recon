@@ -282,6 +282,7 @@ FANC_cell_info['publication'] = {
     'Stürner Brooks ... Eichler 2024': {},
     'Syed et al. 2024': {},
     'Guo et al. 2024': {},
+    'Dhawan et al. 2025': {},
 }
 
 proofreading_notes = [
