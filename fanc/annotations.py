@@ -181,7 +181,9 @@ cell_info = {
         'innervates notum': {
             'innervates scutum': {},
             'innervates scutellum': {}},
-        'innervates wing': {},
+        'innervates wing': {
+            'innervates tegula': {},
+            'innervates radius': {}},
         'innervates haltere': {},
         'innervates spiracle': {},
         'innervates abdomen': {}},
