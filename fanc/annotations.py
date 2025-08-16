@@ -132,7 +132,17 @@ cell_info = {
         'soma in T1': {},
         'soma in T2': {},
         'soma in T3': {},
-        'soma in abdominal ganglion': {}},
+        'soma in abdominal ganglion': {
+            'soma in A1': {},
+            'soma in A2': {},
+            'soma in A3': {},
+            'soma in A4': {},
+            'soma in A5': {},
+            'soma in A6': {},
+            'soma in A7': {},
+            'soma in A8': {},
+            'soma in A9': {},
+            'soma in A10': {}}},
     'anterior-posterior projection pattern': {
         'descending': {},
         'ascending': {}},
