@@ -297,6 +297,7 @@ FANC_cell_info['publication'] = {
     'Guo et al. 2024': {},
     'Dhawan et al. 2025': {},
     'Lesser et al. 2025': {},
+    'Cachero ... Jefferis Donà 2025': {},
 }
 
 proofreading_notes = [
