@@ -6,7 +6,7 @@ meshparty
 navis
 flybrains
 transformix
-nglui
+nglui>=4.0.0
 pyperclip
 numpyimage
 pandas
