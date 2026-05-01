@@ -1,20 +1,9 @@
 #!/usr/bin/env python3
 
-import os
-import json
-
 import numpy as np
 import pandas as pd
 from matplotlib import cm, colors
-import vtk
-from meshparty import trimesh_vtk, trimesh_io, meshwork
-try:
-    from trimesh import exchange
-except ImportError:
-    from trimesh import io as exchange
 import pymaid
-from cloudvolume import CloudVolume
-from cloudvolume.frontends.precomputed import CloudVolumePrecomputed
 from nglui.statebuilder import ViewerState
 
 from . import auth, catmaid, lookup
@@ -136,7 +125,6 @@ def fragment_dataframes(seg_ids, coords,
     neuron_df.pt_root_id = ids_to_use
 
     for i in range(len(ids_to_use)):
-        idx = seg_ids == ids_to_use[i]
         neuron_df.loc[neuron_df.pt_root_id == ids_to_use[i], 'color'] = sk_colors[i]
 
     neuron_df = neuron_df.append({'pt_root_id': primary_neuron[0], 'pt_position': None, 'color': "#ff0000"}, ignore_index=True)

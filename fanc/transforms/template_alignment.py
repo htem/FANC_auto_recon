@@ -56,7 +56,7 @@ def align_mesh(mesh: Union[int, object],
       If True, print additional information during processing.
     """
     import navis
-    import flybrains
+    import flybrains  # noqa: F401  registers the FANC/template brain spaces with navis
     if np.issubdtype(type(mesh), np.integer):
         seg_id = mesh
         inplace = False
@@ -169,8 +169,6 @@ def warp_points_FANC_to_template(points,
       https://github.com/htem/GridTape_VNC_paper/tree/main/template_registration_pipeline/register_EM_dataset_to_template
     This function is a slight improvement on the published version.
     """
-    import navis
-    import flybrains
     # Only required for deprecated functions so not imported up top
     import transformix  # https://github.com/jasper-tms/pytransformix
 

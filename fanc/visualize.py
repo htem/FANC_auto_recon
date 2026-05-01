@@ -3,10 +3,9 @@
 import os
 
 import numpy as np
-from matplotlib import cm, colors
+from matplotlib import cm
 import vtk
 from meshparty import trimesh_vtk, trimesh_io, meshwork
-from cloudvolume.frontends.precomputed import CloudVolumePrecomputed
 try:
     from trimesh import exchange
 except ImportError:
