@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fanc-fly"
+version = "3.2.2"
+description = "Tools for the Female Adult Nerve Cord Drosophila EM dataset"
+readme.file = "README.md"
+readme.content-type = "text/markdown"
+license = {file = "LICENSE"}
+keywords = ["neuroscience", "connectomics", "Drosophila", "fruit fly", "VNC"]
+authors = [{name = "Jasper Phelps", email = "jasper.s.phelps@gmail.com"}]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
+requires-python = ">=3.6"
+dependencies = [
+    "numpy",
+    "matplotlib",
+    "cloud-volume",
+    "python-catmaid",
+    "meshparty",
+    "navis",
+    "flybrains",
+    "transformix",
+    "nglui>=4.0.0",
+    "pyperclip",
+    "numpyimage",
+    "pandas",
+    "connected-components-3d",
+    "fill_voids",
+    "task-queue",
+    "caveclient>=8.0.0",
+    "cloud-files",
+    "urllib3",
+    "trimesh",
+    "pcg_skel",
+    "anytree",
+]
+
+[project.urls]
+Homepage = "https://github.com/htem/FANC_auto_recon"
+Repository = "https://github.com/htem/FANC_auto_recon"
+
+[tool.setuptools.packages.find]
+include = ["fanc*"]
+
+[tool.setuptools.package-data]
+"fanc.transforms" = ["transform_parameters/*.txt"]
