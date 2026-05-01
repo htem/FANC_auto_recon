@@ -12,7 +12,6 @@ import time
 import numpy as np
 import pandas as pd
 from requests.exceptions import HTTPError
-from caveclient import CAVEclient
 from caveclient.chunkedgraph import root_id_int_list_check
 from cloudvolume import CloudVolume
 from cloudvolume.lib import green, red

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fanc-fly"
-version = "3.2.2"
+version = "3.2.3"
 description = "Tools for the Female Adult Nerve Cord Drosophila EM dataset"
 readme.file = "README.md"
 readme.content-type = "text/markdown"
@@ -43,6 +43,9 @@ dependencies = [
     "pcg_skel",
     "anytree",
 ]
+
+[project.optional-dependencies]
+all = ["vtk"]
 
 [project.urls]
 Homepage = "https://github.com/htem/FANC_auto_recon"
