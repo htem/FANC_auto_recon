@@ -28,6 +28,7 @@ default_annotation_sources = [('neuron_information', 'tag'),
                               ('proofread_second_pass', 'proofread')]
 default_anchor_point_sources = ['cell_ids_v2', 'somas_dec2022', 'peripheral_nerves', 'neck_connective']
 default_svid_lookup_url = 'https://catmaid3.hms.harvard.edu/services/transform-service/query/dataset/fanc_v4/s/2/values_array_string_response'
+allow_missing_lookups = False
 
 
 # --- START CAVE TABLES / ANNOTATIONS SECTION --- #
@@ -80,7 +81,8 @@ def proofreading_status(segids: int or list[int],
 
     results = pd.Series(index=segids, data=None, dtype=object)
     for table_name in source_tables[::-1]:
-        table = client.materialize.live_live_query(table_name, timestamp)
+        table = client.materialize.live_live_query(table_name, timestamp,
+                                                   allow_missing_lookups=allow_missing_lookups)
         results.loc[results.isna() & results.index.isin(table.valid_id)] = table_name
         if results.notna().all():
             return results.loc[segids].to_list()
@@ -101,7 +103,8 @@ def all_proofread_neurons(source_tables: str or list[str] = default_proofreading
         timestamp = datetime.utcnow()
 
     client = auth.get_caveclient()
-    tables = [client.materialize.live_live_query(table_name, timestamp)
+    tables = [client.materialize.live_live_query(table_name, timestamp,
+                                                 allow_missing_lookups=allow_missing_lookups)
               for table_name in source_tables]
     return pd.concat(tables).pt_root_id.unique()
 
@@ -264,7 +267,8 @@ def all_annotations(source_tables=default_annotation_sources,
 
     annos = []
     for table_name, column_name in source_tables:
-        table = client.materialize.live_live_query(table_name, timestamp)
+        table = client.materialize.live_live_query(table_name, timestamp,
+                                                   allow_missing_lookups=allow_missing_lookups)
         table.sort_values(by='created', inplace=True)
         table['source_table'] = table_name
         table['created'] = table['created'].apply(datetime.date)
@@ -272,16 +276,16 @@ def all_annotations(source_tables=default_annotation_sources,
             table['user_id'] = None
         if column_name != 'tag2':
             if 'tag2' not in table.columns:
-                table['tag2'] = None
+                table['tag2'] = '-'
             table.rename(columns={column_name: 'tag'}, inplace=True)
         else:
             table['tag'] = table['tag2']
-        if (table['tag'] == 't').any():
-            if not (table['tag'] == 't').all():
-                raise ValueError(f'Column "{column_name}" in table "{table_name}"'
-                                 ' contains "t" and other values. This is unexpected.')
+        if table['tag'].dtype.name == 'boolean':
             # For boolean columns, use the table name as the tag
-            table['tag'] = table_name.replace('_', ' ')
+            table['tag'] = table['tag'].map({
+                True: table_name.replace('_', ' '),
+                False: 'False'
+            })
             # Only include the table name as a tag once for each neuron
             table.drop_duplicates(subset=['pt_root_id'], keep='last', inplace=True)
 
@@ -365,23 +369,26 @@ def annotations(segids: int or list[int],
     tables = []
     for table_name, column_name in source_tables:
         table = client.materialize.live_live_query(
-            table_name, timestamp, filter_in_dict={table_name: {'pt_root_id': segids}})
+            table_name, timestamp,
+            filter_in_dict={table_name: {'pt_root_id': segids}},
+            allow_missing_lookups=allow_missing_lookups
+        )
         table['source_table'] = table_name
         table.sort_values(by='created', inplace=True)
         if 'user_id' not in table.columns:
             table['user_id'] = None
         if column_name != 'tag2':
             if 'tag2' not in table.columns:
-                table['tag2'] = None
+                table['tag2'] = '-'
             table.rename(columns={column_name: 'tag'}, inplace=True)
         else:
             table['tag'] = table['tag2']
-        if (table['tag'] == 't').any():
-            if not (table['tag'] == 't').all():
-                raise ValueError(f'Column "{column_name}" in table "{table_name}"'
-                                 ' contains "t" and other values. This is unexpected.')
+        if table['tag'].dtype.name == 'boolean':
             # For boolean columns, use the table name as the tag
-            table['tag'] = table_name.replace('_', ' ')
+            table['tag'] = table['tag'].map({
+                True: table_name.replace('_', ' '),
+                False: 'False'
+            })
             # Only include the table name as a tag once for each neuron
             table.drop_duplicates(subset=['pt_root_id'], keep='last', inplace=True)
         tables.append(table[['pt_root_id', 'tag', 'tag2', 'pt_position',
@@ -543,7 +550,9 @@ def segid_from_cellid(cellids: int or list[int],
     cell_ids = client.materialize.live_live_query(
         table_name,
         timestamp=timestamp,
-        filter_in_dict={table_name: {column_name: cellids}})
+        filter_in_dict={table_name: {column_name: cellids}},
+        allow_missing_lookups=allow_missing_lookups
+    )
     cell_ids.set_index(column_name, inplace=True)
     if any([i not in cell_ids.index for i in cellids]):
         raise ValueError('There is no cell with these cell IDs: {}'.format(
@@ -592,7 +601,9 @@ def cellid_from_segid(segids: int or list[int],
     cell_ids = client.materialize.live_live_query(
         table_name,
         timestamp=timestamp,
-        filter_in_dict={table_name: {'pt_root_id': segids}})
+        filter_in_dict={table_name: {'pt_root_id': segids}},
+        allow_missing_lookups=allow_missing_lookups
+    )
     cell_ids.set_index('pt_root_id', inplace=True)
     if any([i not in cell_ids.index for i in segids]):
         raise ValueError("These segment IDs don't have a cell ID: {}".format(
@@ -682,13 +693,15 @@ def anchor_point(segids: int or list[int],
         unanchored_ids = anchor_points[anchor_points.isna()].index.values
         if slow_mode:
             points = client.materialize.live_live_query(table,
-                                                        timestamp=timestamp)
+                                                        timestamp=timestamp,
+                                                        allow_missing_lookups=allow_missing_lookups)
             points = points.loc[points.pt_root_id.isin(unanchored_ids)]
         else:
             points = client.materialize.live_live_query(
                 table,
                 filter_in_dict={table: {'pt_root_id': unanchored_ids}},
-                timestamp=timestamp
+                timestamp=timestamp,
+                allow_missing_lookups=allow_missing_lookups
             )
         for seg, point in points.groupby('pt_root_id'):
             if len(point) > 1:
@@ -837,7 +850,8 @@ def soma_from_segid(segids,
         table,
         joins=joins,
         timestamp=timestamp,
-        filter_in_dict={'somas_dec2022': {'pt_root_id': segids}}
+        filter_in_dict={'somas_dec2022': {'pt_root_id': segids}},
+        allow_missing_lookups=allow_missing_lookups
     )
     somas.rename(columns={'idx': 'id'}, inplace=True)
     return somas[select_columns]
