@@ -24,16 +24,16 @@ Get your app's tokens:
 - From Settings > Basic Information > App Credentials, copy the Signing Secret.
     Add it to your shell environment by adding a line like this to your shell
     startup file (e.g. ~/.bashrc, ~/.zshrc):
-      export SLACK_BOT_SIGNING_SECRET=abcdef1234567890...
+      export SLACK_SIGNING_SECRET_FANC_NEURONINFORMATIONBOT=abcdef1234567890...
 - From Settings > Basic Information > App-Level Tokens, click on the token you
     made earlier (e.g. 'websockets'). Copy the token. Add it to your shell
     startup file (e.g. ~/.bashrc, ~/.zshrc):
-      export SLACK_BOT_WEBSOCKETS_TOKEN=xapp-abcdef1234567890...
+      export SLACK_TOKEN_FANC_NEURONINFORMATIONBOT_WEBSOCKETS=xapp-abcdef1234567890...
 - From Features > OAuth & Permissions > OAuth Tokens for Your Workspace,
     copy your Bot User OAuth Token and add it to your shell startup file:
-      export SLACK_BOT_TOKEN=xoxb-abcdef1234567890...
+      export SLACK_TOKEN_FANC_NEURONINFORMATIONBOT=xoxb-abcdef1234567890...
 
-Then run this script with `python proofreading_status_bot.py` to start
+Then run this script with `python annotation_bot.py` to start
 listening for events triggered by users interacting with your Slack app.
 
 If you want to keep this running constantly so that the app is always
